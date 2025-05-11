@@ -1,3 +1,4 @@
+```
 pacman_ai/
 ├── main.py # 主程式，啟動遊戲
 ├── game/
@@ -12,6 +13,7 @@ pacman_ai/
 │ ├── dqn.py # 具體 AI 方法（如 DQN）
 │ └── train.py # 訓練迴圈
 └── assets/ # 音效、圖像等素材
+```
 ## 說明
 
 - **main.py**: 啟動遊戲的主程式。
