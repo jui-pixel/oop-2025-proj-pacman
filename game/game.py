@@ -59,7 +59,6 @@ class Game:
             # 使用像素坐標進行碰撞檢測，放寬條件
             distance = ((self.pacman.current_x - ghost.current_x) ** 2 + (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
             if distance < CELL_SIZE / 2:  # 如果距離小於半個格子，認為發生碰撞
-                print(f"Collision detected with {ghost.name}: edible={ghost.edible}, edible_timer={ghost.edible_timer}")  # 調試日誌
                 if ghost.edible and ghost.edible_timer > 0:
                     self.pacman.score += GHOST_SCORES[self.ghost_score_index]
                     self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)

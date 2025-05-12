@@ -158,8 +158,8 @@ class Ghost(Entity):
         self.name = name
         self.speed = 2.0
         self.edible = False
-        self.edible_timer = 0  # 可吃時間計時器
-        self.respawn_timer = 0  # 重生計時器
+        self.edible_timer = 0
+        self.respawn_timer = 0
         self.returning_to_spawn = False
         self.return_speed = 4.0
         self.death_count = 0
@@ -180,7 +180,6 @@ class Ghost(Entity):
         # 更新可吃計時器
         if self.edible:
             self.edible_timer -= 1
-            print(f"{self.name} edible timer: {self.edible_timer}")  # 調試日誌
             if self.edible_timer <= 0:
                 self.edible = False
                 self.edible_timer = 0
@@ -189,7 +188,6 @@ class Ghost(Entity):
         # 更新重生計時器
         if self.respawn_timer > 0:
             self.respawn_timer -= 1
-            print(f"{self.name} respawn timer: {self.respawn_timer}")  # 調試日誌
             if self.respawn_timer <= 0 and self.returning_to_spawn:
                 self.reset_position(maze, [(x, y) for x, y in [(x, y) for y in range(maze.h) for x in range(maze.w) if maze.get_tile(x, y) == 'S']])
                 print(f"{self.name} has respawned at spawn point.")
@@ -259,7 +257,6 @@ class Ghost(Entity):
         self.edible = True
         self.edible_timer = duration
         self.respawn_timer = 0  # 確保重生計時器不會干擾
-        print(f"{self.name} is now edible for {duration} frames.")  # 調試日誌
 
     def set_returning_to_spawn(self, fps: int):
         """設置鬼魂返回生成點。
@@ -274,14 +271,12 @@ class Ghost(Entity):
         self.alpha = 255
         # 設置重生計時器為返回時間（可調整）
         self.respawn_timer = int(5 * fps)  # 假設 5 秒返回
-        print(f"{self.name} is returning to spawn.")  # 調試日誌
 
     def set_waiting(self, fps: int):
         self.returning_to_spawn = False
         self.waiting = True
         wait_time = 10.0 / max(1, self.death_count)
         self.wait_timer = int(wait_time * fps)
-        print(f"{self.name} is waiting for {wait_time} seconds (death count: {self.death_count}).")
 
     def reset_position(self, maze, respawn_points):
         self.edible = False
