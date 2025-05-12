@@ -121,6 +121,47 @@ class Map:
                             wall_x, wall_y = random.choice(wall)
                             self.set_tile(wall_x, wall_y, '.')
                             
+    def _flood_fill_get_area(self, x, y):
+        """使用洪水填充找到連通的空白區域"""
+        if self.get_tile(x, y) != '.':
+            return []
+
+        stack = [(x, y)]
+        visited = set()
+        area = []
+
+        while stack:
+            cx, cy = stack.pop()
+            if (cx, cy) in visited:
+                continue
+            visited.add((cx, cy))
+            area.append((cx, cy))
+
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                nx, ny = cx + dx, cy + dy
+                if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == '.' and (nx, ny) not in visited:
+                    stack.append((nx, ny))
+        return area
+    
+    def _fill_large_empty_areas(self, max_area=8):
+        """
+        檢測大範圍空白區域，並在中心填充牆壁。
+        """
+        visited = set()
+
+        for y in range(1, self.h - 1):
+            for x in range(1, self.w - 1):
+                if (x, y) not in visited and self.get_tile(x, y) == '.':
+                    area = self._flood_fill_get_area(x, y)
+                    visited.update(area)
+
+                    # 如果區域大小超過 max_area，則在中心填充牆壁
+                    if len(area) > max_area:
+                        # 計算區域的中心
+                        avg_x = sum(p[0] for p in area) // len(area)
+                        avg_y = sum(p[1] for p in area) // len(area)
+                        self.set_tile(avg_x, avg_y, 'X')
+                       
     def _add_central_room(self):
         """在迷宮中央添加一個固定的房間"""
         room = [
@@ -170,7 +211,7 @@ class Map:
                 stack.pop()
         self._break_long_paths(max_length=4)
         self._add_central_room()
-    
+        self._fill_large_empty_areas(max_area=8)
         # 鏡像到右半部分
         for y in range(self.h):
             for x in range(half_width):
