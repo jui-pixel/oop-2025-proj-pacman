@@ -82,11 +82,15 @@ def main():
                 ghost.set_edible(edible_duration)
             ghost_score_index = 0  # 重置得分索引
 
+        # 檢查 Pac-Man 是否吃到分數球
+        pacman.eat_score_pellet(score_pellets)
+            
+        
         # 移動鬼魂
         for ghost in ghosts:
             if ghost.respawn_timer > 0:
                 ghost.respawn_timer -= 1
-                if ghost.respawn_timer == 0:
+                if ghost.respawn_timer <= 0:
                     ghost.reset_position(maze, respawn_points)
             else:
                 ghost.move(pacman, maze)  # 根據狀態決定是追逐還是逃離
