@@ -84,7 +84,7 @@ class PacMan(Entity):
                 return True
         return False
 
-class Ghost(Entity):
+class Ghost(Entity):  # 抽象類別 Ghost
     def __init__(self, x: int, y: int, name: str):
         super().__init__(x, y, 'G')  # 用 'G' 表示鬼魂
         self.name = name
@@ -92,15 +92,14 @@ class Ghost(Entity):
         self.edible = False  # 是否可被吃
         self.respawn_timer = 0  # 重生計時器
 
-    def move_random(self, maze):
-        """隨機選擇一個方向，並設置新目標"""
+    def move(self, pacman: PacMan, maze):
+        """根據當前狀態決定移動行為"""
         if self.respawn_timer > 0:
-            return  # 如果正在重生，則不移動
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-        random.shuffle(directions)
-        for dx, dy in directions:
-            if self.set_new_target(dx, dy, maze):  # 確保新目標正確設置
-                break
+            return  # 正在重生時不移動
+        if self.edible:
+            self.escape_from_pacman(pacman, maze)  # 可被吃時逃離 Pac-Man
+        else:
+            self.chase_pacman(pacman, maze)  # 否則追逐 Pac-Man
 
     def escape_from_pacman(self, pacman: PacMan, maze):
         """逃離 Pac-Man"""
@@ -111,34 +110,18 @@ class Ghost(Entity):
         for dir_x, dir_y in directions:
             if self.set_new_target(dir_x, dir_y, maze):
                 return
-        # 如果無法遠離，則隨機移動
-        self.move_random(maze)
+        self.move_random(maze)  # 如果無法遠離，則隨機移動
 
-    def chase_pacman(self, pacman: PacMan, maze):
-        """追逐 Pac-Man 的邏輯"""
-        if self.edible or self.respawn_timer > 0:
-            return  # 如果可被吃或者正在重生，不追逐
-        dx = pacman.x - self.x
-        dy = pacman.y - self.y
-        directions = [(1 if dx > 0 else -1, 0), (0, 1 if dy > 0 else -1)]
-        for dir_x, dir_y in directions:
-            if self.set_new_target(dir_x, dir_y, maze):  # 設置目標
-                print(f"{self.name} is moving towards ({self.target_x}, {self.target_y}) from ({self.x}, {self.y})")
+    def move_random(self, maze):
+        """隨機選擇一個方向，並設置新目標"""
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        random.shuffle(directions)
+        for dx, dy in directions:
+            if self.set_new_target(dx, dy, maze):
                 return
-        print(f"{self.name} cannot chase Pac-Man. Moving randomly.")
-        self.move_random(maze)  # 如果無法追逐，則隨機移動
-
-    def move(self, pacman: PacMan, maze):
-        """根據當前狀態決定移動行為"""
-        if self.respawn_timer > 0:
-            print(f"{self.name} is respawning. Timer: {self.respawn_timer}")
-            return  # 正在重生時不移動
-        if self.edible:
-            print(f"{self.name} is escaping from Pac-Man.")
-            self.escape_from_pacman(pacman, maze)  # 可被吃時逃離 Pac-Man
-        else:
-            print(f"{self.name} is chasing Pac-Man.")
-            self.chase_pacman(pacman, maze)  # 否則追逐 Pac-Man
+    def chase_pacman(self, pacman: PacMan, maze):
+        """追逐 Pac-Man 的抽象方法，必須由子類實現"""
+        pass
 
     def set_edible(self, duration: int):
         """設置鬼魂為可被吃狀態，並設置持續時間"""
