@@ -91,8 +91,10 @@ def main():
             if ghost.respawn_timer > 0:
                 ghost.respawn_timer -= 1
                 if ghost.respawn_timer <= 0:
+                    print(f"{ghost.name} has respawned.")
                     ghost.reset_position(maze, respawn_points)
             else:
+                print(f"{ghost.name} is deciding movement.")
                 ghost.move(pacman, maze)  # 根據狀態決定是追逐還是逃離
 
         # 檢查 Pac-Man 是否與鬼魂碰撞
