@@ -4,24 +4,26 @@ import pygame
 from game.maze_generator import Map
 from game.entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
 import random
+import math
 
 # Pygame 初始化
 pygame.init()
 
 # 遊戲參數
-CELL_SIZE = 20  # 每個迷宮格子的大小（像素）
-FPS = 30  # 每秒幀數（增加 FPS 讓移動更平滑）
+CELL_SIZE = 20
+FPS = 30
 
 # 顏色定義
-BLACK = (0, 0, 0)        # 背景色和牆壁
-WHITE = (255, 255, 255)  # 分數文字
-YELLOW = (255, 255, 0)   # Pac-Man
-RED = (255, 0, 0)        # 鬼魂
-BLUE = (0, 0, 255)       # 能量球
-ORANGE = (255, 165, 0)   # 分數球
-GRAY = (128, 128, 128)   # 路徑
-GREEN = (0, 255, 0)      # 死路/偏僻區域 ('A')
-LIGHT_BLUE = (173, 216, 230)  # 可被吃的鬼魂顏色
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+YELLOW = (255, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+ORANGE = (255, 165, 0)
+GRAY = (128, 128, 128)
+GREEN = (0, 255, 0)
+LIGHT_BLUE = (173, 216, 230)
+DARK_GRAY = (50, 50, 50)
 
 def main():
     # 生成迷宮
@@ -43,15 +45,17 @@ def main():
     font = pygame.font.SysFont(None, 36)
 
     # 遊戲參數
-    edible_duration = 300  # 能量球效果持續時間 (幀數)
-    ghost_scores = [50, 100, 150, 200]  # 吃鬼得分
-    ghost_score_index = 0  # 當前得分索引
+    edible_duration = 300
+    ghost_scores = [50, 100, 150, 200]
+    ghost_score_index = 0
+    frame_count = 0
 
     # 遊戲主循環
     running = True
-    moving = False  # 是否正在移動（Pac-Man）
+    moving = False
     while running:
-        # 處理事件（例如關閉視窗或鍵盤輸入）
+        frame_count += 1
+        # 處理事件
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -65,50 +69,48 @@ def main():
                     dx, dy = -1, 0
                 elif event.key == pygame.K_RIGHT:
                     dx, dy = 1, 0
-                # 設置 Pac-Man 的新目標（如果不在移動中）
-                if not moving and dx != 0 or dy != 0:
+                if not moving and (dx != 0 or dy != 0):
                     if pacman.set_new_target(dx, dy, maze):
                         moving = True
 
         # 移動 Pac-Man
         if moving:
             if pacman.move_towards_target(maze):
-                moving = False  # 到達目標格子，允許新輸入
+                moving = False
 
         # 檢查 Pac-Man 是否吃到能量球
-        if pacman.eat_pellet(power_pellets):
-            # 所有鬼魂進入可被吃狀態
+        score_from_pellet = pacman.eat_pellet(power_pellets)
+        if score_from_pellet > 0:
             for ghost in ghosts:
                 ghost.set_edible(edible_duration)
-            ghost_score_index = 0  # 重置得分索引
+            ghost_score_index = 0
 
         # 檢查 Pac-Man 是否吃到分數球
         pacman.eat_score_pellet(score_pellets)
-            
-        
+
         # 移動鬼魂
         for ghost in ghosts:
-            if ghost.respawn_timer > 0:
-                ghost.respawn_timer -= 1
-                if ghost.respawn_timer <= 0:
-                    print(f"{ghost.name} has respawned.")
-                    ghost.reset_position(maze, respawn_points)
-            else:
-                print(f"{ghost.name} is deciding movement.")
-                ghost.move(pacman, maze)  # 根據狀態決定是追逐還是逃離
+            if ghost.move_towards_target(maze):
+                if ghost.returning_to_spawn and maze.get_tile(ghost.x, ghost.y) == 'S':
+                    ghost.set_waiting(FPS)
+                else:
+                    ghost.move(pacman, maze, FPS)
 
         # 檢查 Pac-Man 是否與鬼魂碰撞
+        collision_detected = False
         for ghost in ghosts:
             if pacman.x == ghost.x and pacman.y == ghost.y:
-                if ghost.edible:
-                    # 吃掉鬼魂
+                collision_detected = True
+                if ghost.edible and ghost.respawn_timer > 0:
                     pacman.score += ghost_scores[ghost_score_index]
                     ghost_score_index = min(ghost_score_index + 1, len(ghost_scores) - 1)
-                    ghost.respawn_timer = [60, 300, 600, 900][ghost_score_index]  # 根據吃掉次數設置重生時間
-                else:
-                    # 玩家被鬼魂吃掉，遊戲結束
+                    ghost.set_returning_to_spawn(FPS)
+                elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                     print(f"Game Over! Score: {pacman.score}")
                     running = False
+                break
+        if collision_detected and not running:
+            break
 
         # 渲染迷宮
         screen.fill(BLACK)
@@ -141,19 +143,26 @@ def main():
                                            CELL_SIZE // 2, CELL_SIZE // 2)
             pygame.draw.ellipse(screen, ORANGE, score_pellet_rect)
 
-        # 渲染 Pac-Man（使用當前像素位置）
+        # 渲染 Pac-Man
         pacman_rect = pygame.Rect(pacman.current_x - CELL_SIZE // 4,
                                  pacman.current_y - CELL_SIZE // 4,
                                  CELL_SIZE // 2, CELL_SIZE // 2)
         pygame.draw.ellipse(screen, YELLOW, pacman_rect)
 
-        # 渲染鬼魂（使用當前像素位置和狀態）
+        # 渲染鬼魂
         for ghost in ghosts:
-            ghost_color = LIGHT_BLUE if ghost.edible else RED
-            ghost_rect = pygame.Rect(ghost.current_x - CELL_SIZE // 4,
-                                    ghost.current_y - CELL_SIZE // 4,
-                                    CELL_SIZE // 2, CELL_SIZE // 2)
-            pygame.draw.ellipse(screen, ghost_color, ghost_rect)
+            if ghost.returning_to_spawn:
+                base_color = DARK_GRAY
+                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))
+            else:
+                base_color = LIGHT_BLUE if ghost.edible else RED
+                ghost.alpha = 255
+
+            ghost_surface = pygame.Surface((CELL_SIZE // 2, CELL_SIZE // 2), pygame.SRCALPHA)
+            ghost_surface.fill((0, 0, 0, 0))
+            pygame.draw.ellipse(ghost_surface, (*base_color, ghost.alpha),
+                               (0, 0, CELL_SIZE // 2, CELL_SIZE // 2))
+            screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
 
         # 渲染分數
         score_text = font.render(f"Score: {pacman.score}", True, WHITE)
