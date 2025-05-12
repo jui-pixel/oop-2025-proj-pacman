@@ -248,7 +248,7 @@ if __name__ == "__main__":
     if args.width % 2 != 0:
         print("錯誤：迷宮寬度必須為偶數以確保對稱")
         sys.exit(1)
-    if args.width < 8 or args.height < 8:
+    if args.width < 11 or args.height < 10:
         print("錯誤：迷宮最小尺寸為 8x8")
         sys.exit(1)
 
