@@ -69,7 +69,7 @@ class PacMan(Entity):
         for score_pellet in score_pellets:
             if score_pellet.x == self.x and score_pellet.y == self.y:
                 self.score += score_pellet.value
-                score_pellets.remove(score_pellet)
+                score_pellets.remove(score_pellet)  # 從列表中移除該分數球
                 return score_pellet.value
         return 0
 
@@ -86,21 +86,66 @@ class Ghost(Entity):
         super().__init__(x, y, 'G')  # 用 'G' 表示鬼魂
         self.name = name
         self.speed = 2.0  # 鬼魂速度
+        self.edible = False  # 是否可被吃
+        self.respawn_timer = 0  # 重生計時器
 
     def move_random(self, maze):
         """隨機選擇一個方向，並設置新目標"""
+        if self.respawn_timer > 0:
+            return  # 如果正在重生，則不移動
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         random.shuffle(directions)
         for dx, dy in directions:
-            if self.set_new_target(dx, dy, maze):
+            if self.set_new_target(dx, dy, maze):  # 確保新目標正確設置
                 break
 
-    def chase_pacman(self, pacman: PacMan, maze):
-        """
-        Basic behavior: Default is to move randomly.
-        Should be overridden by child classes.
-        """
+    def escape_from_pacman(self, pacman: PacMan, maze):
+        """逃離 Pac-Man"""
+        dx = self.x - pacman.x
+        dy = self.y - pacman.y
+        directions = [(1 if dx > 0 else -1, 0), (0, 1 if dy > 0 else -1)]
+        random.shuffle(directions)  # 添加隨機性以避免循環格子
+        for dir_x, dir_y in directions:
+            if self.set_new_target(dir_x, dir_y, maze):
+                return
+        # 如果無法遠離，則隨機移動
         self.move_random(maze)
+
+    def chase_pacman(self, pacman: PacMan, maze):
+        """追逐 Pac-Man 的邏輯"""
+        if self.edible or self.respawn_timer > 0:
+            return  # 如果可被吃或者正在重生，不追逐
+        dx = pacman.x - self.x
+        dy = pacman.y - self.y
+        directions = [(1 if dx > 0 else -1, 0), (0, 1 if dy > 0 else -1)]
+        for dir_x, dir_y in directions:
+            if self.set_new_target(dir_x, dir_y, maze):  # 設置目標
+                return
+        self.move_random(maze)  # 如果無法追逐，則隨機移動
+
+    def move(self, pacman: PacMan, maze):
+        """根據當前狀態決定移動行為"""
+        if self.respawn_timer > 0:
+            return  # 正在重生時不移動
+        if self.edible:
+            self.escape_from_pacman(pacman, maze)  # 可被吃時逃離 Pac-Man
+        else:
+            self.chase_pacman(pacman, maze)  # 否則追逐 Pac-Man
+
+    def set_edible(self, duration: int):
+        """設置鬼魂為可被吃狀態，並設置持續時間"""
+        self.edible = True
+        self.respawn_timer = duration
+
+    def reset_position(self, maze, respawn_points):
+        """重設鬼魂到隨機的 S 點"""
+        self.edible = False
+        self.respawn_timer = 0
+        spawn_point = random.choice(respawn_points)
+        self.x, self.y = spawn_point
+        self.target_x, self.target_y = spawn_point
+        self.current_x = self.x * CELL_SIZE + CELL_SIZE // 2
+        self.current_y = self.y * CELL_SIZE + CELL_SIZE // 2
 
 class PowerPellet(Entity):
     def __init__(self, x: int, y: int, value: int = 10):
@@ -108,7 +153,7 @@ class PowerPellet(Entity):
         self.value = value  # 吃到能量球的得分
 
 class ScorePellet(Entity):
-    def __init__(self, x: int, y: int, value: int = 5):
+    def __init__(self, x: int, y: int, value: int = 2):
         super().__init__(x, y, 's')  # 用 's' 表示分數球
         self.value = value  # 吃到分數球的得分
 
@@ -116,12 +161,6 @@ from ghosts.ghost1 import Ghost1
 from ghosts.ghost2 import Ghost2
 from ghosts.ghost3 import Ghost3
 from ghosts.ghost4 import Ghost4
-
-from ghosts.ghost1 import Ghost1
-from ghosts.ghost2 import Ghost2
-from ghosts.ghost3 import Ghost3
-from ghosts.ghost4 import Ghost4
-import random
 
 def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], List[ScorePellet]]:
     """初始化遊戲角色"""
@@ -155,7 +194,7 @@ def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], L
     for x, y in a_positions:
         power_pellets.append(PowerPellet(x, y))
 
-    # 放置分數球（ScorePellet），在中央房間和能量球外的所有 '.' 路徑
+    # 放置分數球（ScorePellet）
     all_path_positions = [(x, y) for y in range(1, maze.h - 1) for x in range(1, maze.w - 1)
                          if maze.get_tile(x, y) == '.']
     excluded_positions = [(pacman.x, pacman.y)] + ghost_spawn_points + a_positions

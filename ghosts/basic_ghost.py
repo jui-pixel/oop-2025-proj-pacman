@@ -1,3 +1,4 @@
+# ghosts/basic_ghost.py
 from game.entities import Ghost, PacMan
 
 class BasicGhost(Ghost):
