@@ -95,6 +95,13 @@ class Ghost(Entity):
             if self.set_new_target(dx, dy, maze):
                 break
 
+    def chase_pacman(self, pacman: PacMan, maze):
+        """
+        Basic behavior: Default is to move randomly.
+        Should be overridden by child classes.
+        """
+        self.move_random(maze)
+
 class PowerPellet(Entity):
     def __init__(self, x: int, y: int, value: int = 10):
         super().__init__(x, y, 'o')  # 用 'o' 表示能量球
@@ -104,6 +111,17 @@ class ScorePellet(Entity):
     def __init__(self, x: int, y: int, value: int = 5):
         super().__init__(x, y, 's')  # 用 's' 表示分數球
         self.value = value  # 吃到分數球的得分
+
+from ghosts.ghost1 import Ghost1
+from ghosts.ghost2 import Ghost2
+from ghosts.ghost3 import Ghost3
+from ghosts.ghost4 import Ghost4
+
+from ghosts.ghost1 import Ghost1
+from ghosts.ghost2 import Ghost2
+from ghosts.ghost3 import Ghost3
+from ghosts.ghost4 import Ghost4
+import random
 
 def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], List[ScorePellet]]:
     """初始化遊戲角色"""
@@ -117,12 +135,18 @@ def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], L
         if pacman:
             break
 
-    # 初始化鬼魂，從 'S' 位置生成
+    # 初始化鬼魂，隨機分配到 'S' 位置
     ghosts = []
-    for y in range(maze.h):
-        for x in range(maze.w):
-            if maze.get_tile(x, y) == 'S':
-                ghosts.append(Ghost(x, y, f"Ghost-{len(ghosts)+1}"))
+    ghost_classes = [Ghost1, Ghost2, Ghost3, Ghost4]
+    ghost_spawn_points = [(x, y) for y in range(maze.h) for x in range(maze.w) if maze.get_tile(x, y) == 'S']
+    if not ghost_spawn_points:
+        raise ValueError("迷宮中沒有'S'格子，無法生成鬼魂！")
+
+    random.shuffle(ghost_spawn_points)  # 隨機打亂生成點
+    for i, ghost_class in enumerate(ghost_classes):
+        # 如果鬼魂數量超過 'S' 格子數量，隨機選擇一個生成點
+        spawn_point = ghost_spawn_points[i % len(ghost_spawn_points)]
+        ghosts.append(ghost_class(spawn_point[0], spawn_point[1]))
 
     # 放置能量球（PowerPellet），在所有 'A' 點
     power_pellets = []
@@ -132,14 +156,9 @@ def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], L
         power_pellets.append(PowerPellet(x, y))
 
     # 放置分數球（ScorePellet），在中央房間和能量球外的所有 '.' 路徑
-    room_w, room_h = 7, 5
-    start_x = (maze.w - room_w) // 2
-    start_y = (maze.h - room_h) // 2
-    room_area = [(x, y) for y in range(start_y, start_y + room_h) for x in range(start_x, start_x + room_w)]
     all_path_positions = [(x, y) for y in range(1, maze.h - 1) for x in range(1, maze.w - 1)
                          if maze.get_tile(x, y) == '.']
-    excluded_positions = room_area + [(pacman.x, pacman.y)] + [(x, y) for (x, y) in a_positions] + \
-                        [(x, y) for (x, y) in [(x, y) for y in range(maze.h) for x in range(maze.w) if maze.get_tile(x, y) == 'S']]
+    excluded_positions = [(pacman.x, pacman.y)] + ghost_spawn_points + a_positions
     score_positions = [pos for pos in all_path_positions if pos not in excluded_positions]
     score_pellets = []
     for x, y in score_positions:
