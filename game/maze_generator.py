@@ -2,7 +2,9 @@
 
 """
 生成一個隨機的Pac-Man迷宮，確保所有空地（'.'）之間必然有通路，支持種子碼隨機化、可自定義大小和對稱佈局。
-所有障礙物統一使用代號 'X'。
+新增功能：
+1. 檢測交叉口（上下左右有三個或以上的路）。
+2. 找到過長的路，打通其中一面牆，連接到其他路徑。
 """
 
 import sys
@@ -67,25 +69,66 @@ class Map:
         if self.xy_valid(x, y):
             self.tiles[self.xy_to_i(x, y)] = value
 
-    def _tighten_walls(self):
-        """增加牆壁的緊湊性"""
-        half_width = self.w // 2
-        for y in range(1, self.h - 1):
-            for x in range(1, half_width):
-                # 提高牆的生成機率
-                if self.get_tile(x, y) == 'X' and random.random() < 0.7:
-                    self.set_tile(x, y, 'X')
-                elif self.get_tile(x, y) == '.':
-                    self.set_tile(x, y, '.')
+    def _is_intersection(self, x, y):
+        """檢測某個位置是否為交叉口（上下左右有三個或以上的方向是空地）"""
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        open_paths = 0
+        for dx, dy in directions:
+            if self.get_tile(x + dx, y + dy) == '.':
+                open_paths += 1
+        return open_paths >= 3
+    def _find_nearest_intersection_distance(self, x, y):
+        """計算當前位置與最近交叉口的距離"""
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        visited = set()
+        queue = [(x, y, 0)]  # (x位置, y位置, 距離)
+        while queue:
+            cx, cy, dist = queue.pop(0)
+            if (cx, cy) in visited:
+                continue
+            visited.add((cx, cy))
 
+            # 如果找到交叉口，返回距離
+            if self._is_intersection(cx, cy):
+                return dist
+
+            # 向所有方向擴展
+            for dx, dy in directions:
+                nx, ny = cx + dx, cy + dy
+                if self.xy_valid(nx, ny) and (nx, ny) not in visited and self.get_tile(nx, ny) == '.':
+                    queue.append((nx, ny, dist + 1))
+        return float('inf')  # 如果找不到交叉口，返回無窮大
+    
+    def _break_long_paths(self, max_length=4):
+        """
+        找到非交叉口的長路段，並打通牆壁以連接到出口或其他路徑。
+        """
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 上、下、左、右
+        half_width = self.w // 2  # 只處理左半邊迷宮
+
+        for y in range(1, self.h - 1):  # 遍歷迷宮的行
+            for x in range(1, half_width):  # 遍歷迷宮的列
+                # 如果是空地且不是交叉口
+                if self.get_tile(x, y) == '.' and not self._is_intersection(x, y):
+                    # 計算與最近交叉口的距離
+                    distance = self._find_nearest_intersection_distance(x, y)
+
+                    # 如果距離超過 max_distance，隨機打通牆壁直到連接到其他路
+                    if distance > max_length:
+                        for dx, dy in directions:
+                            nx, ny = x + dx, y + dy
+                            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == 'X':
+                                self.set_tile(nx, ny, '.')  # 打通牆壁
+                                break
+                            
     def _add_central_room(self):
         """在迷宮中央添加一個固定的房間"""
         room = [
-            ".......",
-            ".XX.XX.",
-            ".X...X.",
-            ".XXXXX.",
-            "......."
+            "........",
+            ".XX..XX.",
+            ".X....X.",
+            ".XXXXXX.",
+            "........"
         ]
         room_h = len(room)
         room_w = len(room[0])
@@ -95,59 +138,6 @@ class Map:
             for i, cell in enumerate(row):
                 self.set_tile(start_x + i, start_y + j, cell)
 
-    def _flood_fill(self, start_x, start_y):
-        """從中央房間開始檢查所有可達空地"""
-        visited = set()
-        stack = [(start_x, start_y)]
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-
-        while stack:
-            x, y = stack.pop()
-            if (x, y) in visited or not self.xy_valid(x, y):
-                continue
-            if self.get_tile(x, y) != '.':
-                continue
-            visited.add((x, y))
-            for dx, dy in directions:
-                stack.append((x + dx, y + dy))
-        return visited
-
-    def _close_unreachable_paths(self):
-        """將無法從中央房間到達的空地轉換為牆壁"""
-        # 找到中央房間的起始點
-        room_x = self.w // 2
-        room_y = self.h // 2
-        reachable = self._flood_fill(room_x, room_y)
-
-        # 將無法到達的空地變為牆壁
-        for y in range(1, self.h - 1):
-            for x in range(1, self.w - 1):
-                if (x, y) not in reachable and self.get_tile(x, y) == '.':
-                    self.set_tile(x, y, 'X')
-    def _break_long_paths(self, max_length=5):
-        """找到過長的路，並打通其中一面牆以連接到其他路徑。"""
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 上、下、左、右
-        half_width = self.w // 2  # 只處理左半邊迷宮
-
-        for y in range(1, self.h - 1):  # 遍歷迷宮的行
-            for x in range(1, half_width):  # 遍歷迷宮的列
-                # 檢測是否是過長的路
-                if self.get_tile(x, y) == '.' and not self._is_intersection(x, y):
-                    for dx, dy in directions:  # 對每個方向檢測路徑
-                        length = 0
-                        nx, ny = x + dx, y + dy
-                        # 計算該方向的連續空地數量
-                        while self.xy_valid(nx, ny) and self.get_tile(nx, ny) == '.':
-                            length += 1
-                            nx += dx
-                            ny += dy
-                        # 如果路徑長度超過 max_length，打通一面牆
-                        if length > max_length:
-                            wall_x, wall_y = x + dx * (length // 2), y + dy * (length // 2)  # 中間位置
-                            for wx, wy in directions:  # 找到牆壁並打通
-                                if self.get_tile(wall_x + wx, wall_y + wy) == 'X':
-                                    self.set_tile(wall_x + wx, wall_y + wy, '.')  # 打通牆壁
-                                    break
     def generate_connected_maze(self, path_density=0.5):
         half_width = self.w // 2
         for y in range(1, self.h - 1):
@@ -178,10 +168,8 @@ class Map:
                     break
             if not found:
                 stack.pop()
-
-        self._tighten_walls()
+        self._break_long_paths(max_length=4)
         self._add_central_room()
-        self._close_unreachable_paths()
     
         # 鏡像到右半部分
         for y in range(self.h):
