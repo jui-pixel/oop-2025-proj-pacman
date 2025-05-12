@@ -2,10 +2,17 @@
 import random
 from typing import Tuple, List
 
-CELL_SIZE = 20  # 每個格子的大小（像素）
+from config import CELL_SIZE
 
 class Entity:
     def __init__(self, x: int, y: int, symbol: str):
+        """初始化實體。
+
+        Args:
+            x (int): 初始 x 坐標。
+            y (int): 初始 y 坐標。
+            symbol (str): 實體的符號表示。
+        """
         self.x = x
         self.y = y
         self.symbol = symbol
@@ -15,8 +22,15 @@ class Entity:
         self.current_y = y * CELL_SIZE + CELL_SIZE // 2
         self.speed = 2.0
 
-    def move_towards_target(self, maze):
-        """逐像素移動到目標格子"""
+    def move_towards_target(self, maze) -> bool:
+        """逐像素移動到目標格子。
+
+        Args:
+            maze: 迷宮對象。
+
+        Returns:
+            bool: 是否到達目標。
+        """
         target_pixel_x = self.target_x * CELL_SIZE + CELL_SIZE // 2
         target_pixel_y = self.target_y * CELL_SIZE + CELL_SIZE // 2
         dx = target_pixel_x - self.current_x
@@ -36,7 +50,16 @@ class Entity:
             return False
 
     def set_new_target(self, dx: int, dy: int, maze) -> bool:
-        """檢查新目標是否可通行，若可則設置新目標"""
+        """檢查新目標是否可通行，若可則設置新目標。
+
+        Args:
+            dx (int): x 方向偏移。
+            dy (int): y 方向偏移。
+            maze: 迷宮對象。
+
+        Returns:
+            bool: 是否成功設置新目標。
+        """
         new_x, new_y = self.x + dx, self.y + dy
         if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'A', 'o', 's', 'S']:
             self.target_x, self.target_y = new_x, new_y
@@ -45,12 +68,14 @@ class Entity:
 
 class PacMan(Entity):
     def __init__(self, x: int, y: int):
+        """初始化 Pac-Man。"""
         super().__init__(x, y, 'P')
         self.score = 0
         self.alive = True
         self.speed = 2.5
 
     def eat_pellet(self, pellets: List['PowerPellet']) -> int:
+        """吃能量球並更新分數。"""
         for pellet in pellets:
             if pellet.x == self.x and pellet.y == self.y:
                 self.score += pellet.value
@@ -59,6 +84,7 @@ class PacMan(Entity):
         return 0
 
     def eat_score_pellet(self, score_pellets: List['ScorePellet']) -> int:
+        """吃分數球並更新分數。"""
         for score_pellet in score_pellets:
             if score_pellet.x == self.x and score_pellet.y == self.y:
                 self.score += score_pellet.value
@@ -66,20 +92,74 @@ class PacMan(Entity):
                 return score_pellet.value
         return 0
 
-    def check_collision(self, ghosts: List['Ghost']) -> bool:
-        for ghost in ghosts:
-            if ghost.x == self.x and ghost.y == self.y:
-                self.alive = False
-                return True
+    def rule_based_ai_move(self, maze, power_pellets: List['PowerPellet'], score_pellets: List['ScorePellet'], ghosts: List['Ghost']) -> bool:
+        """簡單的規則 AI：優先收集最近的球，避免不可吃鬼魂。
+
+        Args:
+            maze: 迷宮對象。
+            power_pellets: 能量球列表。
+            score_pellets: 分數球列表。
+            ghosts: 鬼魂列表。
+
+        Returns:
+            bool: 是否成功移動。
+        """
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        best_direction = None
+        best_score = -float('inf')
+
+        # 檢查是否有可吃的鬼魂
+        edible_ghosts = [ghost for ghost in ghosts if ghost.edible and ghost.edible_timer > 0]
+        if edible_ghosts:
+            closest_ghost = min(edible_ghosts, key=lambda g: (g.x - self.x) ** 2 + (g.y - self.y) ** 2)
+            for dx, dy in directions:
+                new_x, new_y = self.x + dx, self.y + dy
+                if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'A', 'o', 's', 'S']:
+                    distance = ((new_x - closest_ghost.x) ** 2 + (new_y - closest_ghost.y) ** 2) ** 0.5
+                    score = -distance
+                    if score > best_score:
+                        best_score = score
+                        best_direction = (dx, dy)
+        else:
+            targets = [(p.x, p.y, 10) for p in power_pellets] + [(s.x, s.y, 2) for s in score_pellets]
+            if not targets:
+                random.shuffle(directions)
+                for dx, dy in directions:
+                    if self.set_new_target(dx, dy, maze):
+                        return True
+                return False
+
+            for dx, dy in directions:
+                new_x, new_y = self.x + dx, self.y + dy
+                if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'A', 'o', 's', 'S']:
+                    score = 0
+                    for target_x, target_y, value in targets:
+                        distance = ((new_x - target_x) ** 2 + (new_y - target_y) ** 2) ** 0.5
+                        score += value / max(1, distance)
+
+                    for ghost in ghosts:
+                        if not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
+                            distance = ((new_x - ghost.x) ** 2 + (new_y - ghost.y) ** 2) ** 0.5
+                            if distance < 3:
+                                score -= 100 / max(1, distance)
+
+                    if score > best_score:
+                        best_score = score
+                        best_direction = (dx, dy)
+
+        if best_direction and self.set_new_target(best_direction[0], best_direction[1], maze):
+            return True
         return False
 
 class Ghost(Entity):
     def __init__(self, x: int, y: int, name: str):
+        """初始化鬼魂。"""
         super().__init__(x, y, 'G')
         self.name = name
         self.speed = 2.0
         self.edible = False
-        self.respawn_timer = 0
+        self.edible_timer = 0  # 可吃時間計時器
+        self.respawn_timer = 0  # 重生計時器
         self.returning_to_spawn = False
         self.return_speed = 4.0
         self.death_count = 0
@@ -88,7 +168,7 @@ class Ghost(Entity):
         self.alpha = 255
 
     def move(self, pacman: PacMan, maze, fps: int):
-        """根據當前狀態決定移動行為"""
+        """根據當前狀態決定移動行為。"""
         if self.waiting:
             self.wait_timer -= 1
             if self.wait_timer <= 0:
@@ -96,21 +176,34 @@ class Ghost(Entity):
                 self.waiting = False
                 self.speed = 2.0
             return
+
+        # 更新可吃計時器
+        if self.edible:
+            self.edible_timer -= 1
+            print(f"{self.name} edible timer: {self.edible_timer}")  # 調試日誌
+            if self.edible_timer <= 0:
+                self.edible = False
+                self.edible_timer = 0
+                print(f"{self.name} is no longer edible.")
+
+        # 更新重生計時器
         if self.respawn_timer > 0:
             self.respawn_timer -= 1
-            if self.respawn_timer <= 0:
-                print(f"{self.name} has respawned.")
+            print(f"{self.name} respawn timer: {self.respawn_timer}")  # 調試日誌
+            if self.respawn_timer <= 0 and self.returning_to_spawn:
                 self.reset_position(maze, [(x, y) for x, y in [(x, y) for y in range(maze.h) for x in range(maze.w) if maze.get_tile(x, y) == 'S']])
+                print(f"{self.name} has respawned at spawn point.")
             return
+
         if self.returning_to_spawn:
             self.return_to_spawn(maze, fps)
-        elif self.edible:
-            self.escape_from_pacman(pacman, maze)  # 可被吃時逃離玩家
+        elif self.edible and self.edible_timer > 0:
+            self.escape_from_pacman(pacman, maze)
         else:
             self.chase_pacman(pacman, maze)
 
     def return_to_spawn(self, maze, fps: int):
-        """快速返回最近的 'S' 點"""
+        """快速返回最近的 'S' 點。"""
         self.speed = self.return_speed
         spawn_points = [(x, y) for x, y in [(x, y) for y in range(maze.h) for x in range(maze.w) if maze.get_tile(x, y) == 'S']]
         if not spawn_points:
@@ -128,7 +221,7 @@ class Ghost(Entity):
         self.move_random(maze)
 
     def escape_from_pacman(self, pacman: PacMan, maze):
-        """逃離 Pac-Man，選擇與玩家距離最遠的方向"""
+        """逃離 Pac-Man，選擇與玩家距離最遠的方向。"""
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         best_direction = None
         max_distance = -1
@@ -143,10 +236,10 @@ class Ghost(Entity):
 
         if best_direction and self.set_new_target(best_direction[0], best_direction[1], maze):
             return
-        self.move_random(maze)  # 如果無法遠離，隨機移動
+        self.move_random(maze)
 
     def move_random(self, maze):
-        """隨機選擇一個方向，並設置新目標"""
+        """隨機選擇一個方向，並設置新目標。"""
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         random.shuffle(directions)
         for dx, dy in directions:
@@ -154,18 +247,34 @@ class Ghost(Entity):
                 return
 
     def chase_pacman(self, pacman: PacMan, maze):
-        """追逐 Pac-Man 的抽象方法，必須由子類實現"""
+        """追逐 Pac-Man 的抽象方法，必須由子類實現。"""
         pass
 
     def set_edible(self, duration: int):
+        """設置鬼魂為可吃狀態。
+
+        Args:
+            duration (int): 可吃時間（幀數）。
+        """
         self.edible = True
-        self.respawn_timer = duration
+        self.edible_timer = duration
+        self.respawn_timer = 0  # 確保重生計時器不會干擾
+        print(f"{self.name} is now edible for {duration} frames.")  # 調試日誌
 
     def set_returning_to_spawn(self, fps: int):
+        """設置鬼魂返回生成點。
+
+        Args:
+            fps (int): 每秒幀數。
+        """
         self.death_count += 1
         self.returning_to_spawn = True
         self.edible = False
+        self.edible_timer = 0  # 停止可吃計時
         self.alpha = 255
+        # 設置重生計時器為返回時間（可調整）
+        self.respawn_timer = int(5 * fps)  # 假設 5 秒返回
+        print(f"{self.name} is returning to spawn.")  # 調試日誌
 
     def set_waiting(self, fps: int):
         self.returning_to_spawn = False
@@ -179,6 +288,7 @@ class Ghost(Entity):
         self.returning_to_spawn = False
         self.waiting = False
         self.respawn_timer = 0
+        self.edible_timer = 0
         self.speed = 2.0
         self.alpha = 255
         if respawn_points:
@@ -204,6 +314,7 @@ from ghosts.ghost3 import Ghost3
 from ghosts.ghost4 import Ghost4
 
 def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], List[ScorePellet]]:
+    """初始化遊戲實體。"""
     pacman = None
     for y in range(1, maze.h - 1):
         for x in range(1, maze.w - 1):
