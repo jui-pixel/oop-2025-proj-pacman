@@ -1,0 +1,25 @@
+# config.py
+"""遊戲常量和配置模塊。"""
+
+CELL_SIZE = 20
+FPS = 30
+
+# 顏色
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+YELLOW = (255, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+ORANGE = (255, 165, 0)
+GRAY = (128, 128, 128)
+GREEN = (0, 255, 0)
+LIGHT_BLUE = (173, 216, 230)
+DARK_GRAY = (50, 50, 50)
+
+# 遊戲參數
+MAZE_WIDTH = 29
+MAZE_HEIGHT = 31
+MAZE_SEED = 1
+PATH_DENSITY = 0.7
+EDIBLE_DURATION = 300
+GHOST_SCORES = [50, 100, 150, 200]
