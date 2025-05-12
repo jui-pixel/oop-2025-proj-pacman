@@ -198,7 +198,7 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
-
+    # python .\game\maze_generator.py --width 28 --height 31 --seed 123 --density 0.8
     # 驗證迷宮尺寸
     if args.width % 2 != 0:
         print("錯誤：迷宮寬度必須為偶數以確保對稱")
