@@ -154,13 +154,33 @@ class Map:
                         avg_x = sum(p[0] for p in area) // len(area)
                         avg_y = sum(p[1] for p in area) // len(area)
                         self.set_tile(avg_x, avg_y, 'X')
-                       
+    
+    def _mark_dead_ends_and_isolated_areas(self, max_distance=8):
+        """
+        在死路及偏僻的地方做標記 'A'。
+        """
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+
+        for y in range(1, self.h - 1):
+            for x in range(1, self.w - 1):
+                if self.get_tile(x, y) == '.':
+                    # 檢測是否是死路
+                    open_paths = sum(1 for dx, dy in directions if self.get_tile(x + dx, y + dy) == '.')
+                    if open_paths == 1:  # 只有一個出口，為死路
+                        self.set_tile(x, y, 'A')
+                        continue
+
+                    # 檢測是否是偏僻區域
+                    distance = self._find_nearest_intersection_distance(x, y)
+                    if distance > max_distance:
+                        self.set_tile(x, y, 'A')
+         
     def _add_central_room(self):
         """在迷宮中央添加一個固定的房間"""
         room = [
             "........",
-            ".XX..XX.",
-            ".X....X.",
+            ".XXSSXX.",
+            ".XSSSSX.",
             ".XXXXXX.",
             "........"
         ]
@@ -202,9 +222,12 @@ class Map:
                     break
             if not found:
                 stack.pop()
+                
         self._break_long_paths(max_length=4)
         self._add_central_room()
         self._fill_large_empty_areas(max_area=8)
+        self._mark_dead_ends_and_isolated_areas(max_distance=8)
+        
         # 鏡像到右半部分
         for y in range(self.h):
             for x in range(half_width):
