@@ -67,3 +67,4 @@ class Game:
                     print(f"Game Over! Score: {self.pacman.score}")
                     self.running = False
                 break
+            
