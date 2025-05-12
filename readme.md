@@ -7,6 +7,13 @@ pacman_ai/
 │ ├── maze_generator.py # 隨機迷宮產生器
 │ ├── entities.py # 定義小精靈、鬼魂、能量球等角色行為
 │ └── settings.py # 遊戲設定（尺寸、速度、分數等）
+├── ghosts/
+│ ├── init.py
+│ ├── basic_ghost.py
+│ ├── ghost1.py # 
+│ ├── ghost2.py # 
+│ ├── ghost3.py # 
+│ └── ghost4.py # 
 ├── ai/
 │ ├── init.py
 │ ├── agent.py # AI 代理人程式碼
