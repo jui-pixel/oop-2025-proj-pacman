@@ -172,7 +172,7 @@ class Map:
             for i, cell in enumerate(row):
                 self.set_tile(start_x + i, start_y + j, cell)
 
-    def generate_connected_maze(self, path_density=0.5):
+    def generate_connected_maze(self):
         half_width = self.w // 2
         for y in range(1, self.h - 1):
             for x in range(1, half_width):
@@ -216,7 +216,6 @@ def parse_arguments():
     parser.add_argument('--width', type=int, default=28, help='迷宮寬度（必須為偶數）')
     parser.add_argument('--height', type=int, default=31, help='迷宮高度')
     parser.add_argument('--seed', type=int, help='隨機種子碼，用於可重現的生成')
-    parser.add_argument('--density', type=float, default=0.5, help='路徑密度（0.0到1.0，越大路徑越密集）')
     return parser.parse_args()
 
 
@@ -229,13 +228,10 @@ if __name__ == "__main__":
     if args.width < 8 or args.height < 8:
         print("錯誤：迷宮最小尺寸為 8x8")
         sys.exit(1)
-    if not 0.0 <= args.density <= 1.0:
-        print("錯誤：路徑密度必須在0.0到1.0之間")
-        sys.exit(1)
 
     tileMap = Map(args.width, args.height, seed=args.seed)
-    tileMap.generate_connected_maze(path_density=args.density)
+    tileMap.generate_connected_maze()
 
     print(f"生成的Pac-Man迷宮（種子碼：{args.seed if args.seed is not None else '無'}）")
-    print(f"尺寸：{args.width}x{args.height}，路徑密度：{args.density}")
+    print(f"尺寸：{args.width}x{args.height}")
     print(tileMap)
