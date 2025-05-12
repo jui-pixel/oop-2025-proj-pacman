@@ -115,11 +115,11 @@ class Map:
 
                     # 如果距離超過 max_distance，隨機打通牆壁直到連接到其他路
                     if distance > max_length:
-                        for dx, dy in directions:
-                            nx, ny = x + dx, y + dy
-                            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == 'X':
-                                self.set_tile(nx, ny, '.')  # 打通牆壁
-                                break
+                        wall = [(x + dx, y + dy) for dx, dy in directions if self.get_tile(x + dx, y + dy) == 'X']
+                        if wall:
+                            # 隨機選擇一個牆壁打通
+                            wall_x, wall_y = random.choice(wall)
+                            self.set_tile(wall_x, wall_y, '.')
                             
     def _add_central_room(self):
         """在迷宮中央添加一個固定的房間"""
