@@ -25,12 +25,14 @@ class Entity:
         dy = target_pixel_y - self.current_y
         dist = (dx ** 2 + dy ** 2) ** 0.5
 
+        print(f"Moving towards ({self.target_x}, {self.target_y}) from ({self.x}, {self.y}). Distance: {dist}")
         if dist <= self.speed:
             # 已到達目標格子，更新格子座標
             self.current_x = target_pixel_x
             self.current_y = target_pixel_y
             self.x = self.target_x
             self.y = self.target_y
+            print(f"Reached target ({self.target_x}, {self.target_y}).")
             return True  # 表示已到達目標，可以選擇新目標
         else:
             # 按速度逐像素移動
@@ -38,6 +40,7 @@ class Entity:
             if angle != 0:  # 避免除以 0
                 self.current_x += (dx / angle) * self.speed
                 self.current_y += (dy / angle) * self.speed
+                print(f"Updating pixel position to ({self.current_x}, {self.current_y}).")
             return False  # 表示尚未到達目標
 
     def set_new_target(self, dx: int, dy: int, maze) -> bool:
