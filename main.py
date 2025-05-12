@@ -3,7 +3,7 @@ import sys
 import pygame
 from game.maze_generator import Map
 from game.entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
-
+from game.entities import initialize_entities
 # Pygame 初始化
 pygame.init()
 
@@ -69,8 +69,8 @@ def main():
 
         # 移動鬼魂
         for ghost in ghosts:
-            if ghost.move_towards_target(maze):
-                ghost.move_random(maze)  # 到達目標格子後選擇新目標
+            if ghost.move_towards_target(maze):  # 確保逐像素移動
+                ghost.chase_pacman(pacman, maze)  # 到達目標後執行追逐邏輯
 
         # 檢查 Pac-Man 是否吃到能量球
         pacman.eat_pellet(power_pellets)
