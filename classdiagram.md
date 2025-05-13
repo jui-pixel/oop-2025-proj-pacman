@@ -47,6 +47,33 @@ classDiagram
     }
     Ghost --|> Entity
 
+    class BasicGhost {
+        +chase_pacman(pacman, maze)
+    }
+    BasicGhost --|> Ghost
+
+    class Ghost1 {
+        +__init__(x, y, name="Ghost1")
+    }
+    Ghost1 --|> BasicGhost
+
+    class Ghost2 {
+        +__init__(x, y, name="Ghost2")
+    }
+    Ghost2 --|> BasicGhost
+
+    class Ghost3 {
+        +__init__(x, y, name="Ghost3")
+        +chase_pacman(pacman, maze)
+    }
+    Ghost3 --|> BasicGhost
+
+    class Ghost4 {
+        +__init__(x, y, name="Ghost4")
+        +chase_pacman(pacman, maze)
+    }
+    Ghost4 --|> BasicGhost
+
     class PowerPellet {
         +int value
     }
