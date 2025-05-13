@@ -34,5 +34,5 @@ classDiagram
         + self.maze = Map(w=MAZE_WIDTH, h=MAZE_HEIGHT, seed=MAZE_SEED
     }
 
-    Main o-- Map : Uses
+    Game o-- Map : Uses
 ```
