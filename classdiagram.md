@@ -114,7 +114,10 @@ classDiagram
 
     Game --> Map
     Game --> PacMan
-    Game --> Ghost
+    Game --> Ghost1
+    Game --> Ghost2
+    Game --> Ghost3
+    Game --> Ghost4
     Game --> PowerPellet
     Game --> ScorePellet
 ```
