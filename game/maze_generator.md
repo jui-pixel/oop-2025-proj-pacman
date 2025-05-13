@@ -30,8 +30,8 @@ classDiagram
         - _add_central_room()
     }
 
-    class Main {
-        + parse_arguments() argparse.Namespace
+    class Game {
+        + self.maze = Map(w=MAZE_WIDTH, h=MAZE_HEIGHT, seed=MAZE_SEED
     }
 
     Main o-- Map : Uses
