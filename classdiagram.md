@@ -112,8 +112,9 @@ classDiagram
         +_check_collision(fps)
     }
 
-    Game --> Map
+
     Game --> PacMan
+    Game --> Map
     Game --> Ghost1
     Game --> Ghost2
     Game --> Ghost3
