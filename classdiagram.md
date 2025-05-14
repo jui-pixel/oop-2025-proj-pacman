@@ -54,11 +54,13 @@ classDiagram
 
     class Ghost1 {
         +__init__(x, y, name="Ghost1")
+        +chase_pacman(pacman, maze)
     }
     Ghost1 --|> BasicGhost
 
     class Ghost2 {
         +__init__(x, y, name="Ghost2")
+        +chase_pacman(pacman, maze)
     }
     Ghost2 --|> BasicGhost
 
