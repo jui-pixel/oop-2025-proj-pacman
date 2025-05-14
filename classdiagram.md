@@ -123,4 +123,5 @@ classDiagram
     Game --> Ghost4
     Game --> PowerPellet
     Game --> ScorePellet
+
 ```
