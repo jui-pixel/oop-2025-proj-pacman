@@ -124,7 +124,7 @@ class Map:
                     continue
                 nx, ny = x + dx, y + dy
                 if self.xy_valid(nx, ny):
-                    if self.get_tile(nx, ny) != '.' or self.get_tile(nx, ny) != 'T':
+                    if self.get_tile(nx, ny) not in ['.', 'T']:
                         return False
         return True
 
