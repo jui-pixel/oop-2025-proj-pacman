@@ -53,9 +53,9 @@ class Map:
         """添加中央 7x5 房間。"""
         room = [
             ".......",
-            ".......",
+            ".XXDXX.",
             ".XSSSX.",
-            ".......",
+            ".XXXXX.",
             "......."
         ]
         room_w, room_h = 7, 5
@@ -70,15 +70,15 @@ class Map:
             for i, cell in enumerate(row):
                 self.set_tile(start_x + i, start_y + j, cell)
 
-        entrances = [
-            (start_x + 3, start_y - 1),
-            (start_x + 3, start_y + room_h),
-            (start_x - 1, start_y + 2),
-            (start_x + room_w, start_y + 2)
-        ]
-        for ex, ey in entrances:
-            if self.xy_valid(ex, ey):
-                self.set_tile(ex, ey, '.')
+        # entrances = [
+        #     (start_x + 3, start_y - 1),
+        #     (start_x + 3, start_y + room_h),
+        #     (start_x - 1, start_y + 2),
+        #     (start_x + room_w, start_y + 2)
+        # ]
+        # for ex, ey in entrances:
+        #     if self.xy_valid(ex, ey):
+        #         self.set_tile(ex, ey, '.')
 
     def __str__(self):
         s = ""
