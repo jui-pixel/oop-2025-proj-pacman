@@ -12,11 +12,11 @@ import sys
 import random
 
 class Map:
-    def __init__(self, width, height, seed=None):
+    def __init__(self, w, h, seed=None):
         if seed is not None:
             random.seed(seed)
-        self.width = width
-        self.height = height
+        self.width = w
+        self.height = h
         self.tiles = ['.' for _ in range(self.width * self.height)]
         self.directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         self._initialize_map()
