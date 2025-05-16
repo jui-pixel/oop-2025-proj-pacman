@@ -193,7 +193,7 @@ class Map:
 if __name__ == "__main__":
     width = 25
     height = 25
-    seed = 1
+    seed = 123
 
     if width < 9 or height < 9:
         print("錯誤：迷宮最小尺寸為 9x9 以容納中央房間")
