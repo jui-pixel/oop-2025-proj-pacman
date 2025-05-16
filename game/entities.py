@@ -61,7 +61,7 @@ class Entity:
             bool: 是否成功設置新目標。
         """
         new_x, new_y = self.x + dx, self.y + dy
-        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'A', 'o', 's', 'S']:
+        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'A', 'o', 's', 'S', 'D']:
             self.target_x, self.target_y = new_x, new_y
             return True
         return False
