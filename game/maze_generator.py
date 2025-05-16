@@ -138,7 +138,20 @@ class Map:
             if self._check_surrounding_paths(x, y) and self.get_tile(x, y) == '.': 
                 return True
         return False
-        
+    
+    def convert_nearby_T_to_wall(self, x, y):
+        """將 (x, y) 附近的 T 轉換為牆壁。"""
+        if self.get_tile(x, y) == 'T':
+            _, connected_tiles = self._flood_fill(x, y, 'T')
+            for cx, cy in connected_tiles:
+                self.set_tile(cx, cy, 'X')
+    def convert_all_T_to_wall(self):
+        """將所有 T 轉換為牆壁。"""
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.get_tile(x, y) == 'T':
+                    self.set_tile(x, y, 'X')
+
     def extend_walls(self, extend_prob=0.9):
         """以概率在現有牆壁的上下左右生成新牆壁。"""
         half_width = self.width // 2
@@ -162,38 +175,37 @@ class Map:
             # 檢查新位置是否有效
             while self._check_dead_end_in_neighborhood(new_x, new_y):# 檢查條件 1：九宮格內是否有不連通的牆壁（可能導致死路）
                 self.set_tile(new_x, new_y, 'T')
-                if random.random() > extend_prob:
-                    continue
-            
+                  
                 # 檢查條件 2：連通牆壁組面積是否超過 4 格
                 connected_size = self._get_connected_wall_size(new_x, new_y)
                 if connected_size > 4:
                     break
+                if random.random() < extend_prob:
+                    direction = random.choice(self.directions)
+                    new_x, new_y = new_x + direction[0], new_y + direction[1]
+                else:
+                    break
                 
-                direction = random.choice(self.directions)
-                new_x, new_y = new_x + direction[0], new_y + direction[1]
-                
-            _, connected_tiles = self._flood_fill(x, y, 'T')
-            for cx, cy in connected_tiles:
-                self.set_tile(cx, cy, 'X')
+            # 將所有 T 轉換為牆壁
+            self.convert_nearby_T_to_wall(x, y)
+            
         
     def generate_maze(self):
         """生成迷宮：先放置初始牆壁，再擴展牆壁，最後添加隧道和移除死路。"""
         
         self.extend_walls()
+        self.convert_all_T_to_wall()
 
         # 鏡像到右半部分
         half_width = self.width // 2
         for y in range(self.height):
             for x in range(1, half_width):
                 self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))
-            if self.width % 2 == 1 and self.get_tile(half_width, y) in ['S']:
-                self.set_tile(half_width, y, '.')
 
 if __name__ == "__main__":
     width = 25
     height = 25
-    seed = 123
+    seed = 1
 
     if width < 9 or height < 9:
         print("錯誤：迷宮最小尺寸為 9x9 以容納中央房間")
