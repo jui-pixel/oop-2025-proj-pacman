@@ -173,6 +173,10 @@ class Map:
                 
                 direction = random.choice(self.directions)
                 new_x, new_y = new_x + direction[0], new_y + direction[1]
+                
+        _, connected_tiles = self._flood_fill(x, y, 'T')
+        for cx, cy in connected_tiles:
+            self.set_tile(cx, cy, 'X')
 
     def generate_maze(self):
         """生成迷宮：先放置初始牆壁，再擴展牆壁，最後添加隧道和移除死路。"""
