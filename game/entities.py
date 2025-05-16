@@ -61,7 +61,7 @@ class Entity:
             bool: 是否成功設置新目標。
         """
         new_x, new_y = self.x + dx, self.y + dy
-        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'A', 'o', 's', 'S', 'D']:
+        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'E', 'o', 's', 'S', 'D']:
             self.target_x, self.target_y = new_x, new_y
             return True
         return False
@@ -332,7 +332,7 @@ def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], L
 
     power_pellets = []
     a_positions = [(x, y) for y in range(1, maze.h - 1) for x in range(1, maze.w - 1)
-                   if maze.get_tile(x, y) == 'A' and (x, y) != (pacman.x, pacman.y)]
+                   if maze.get_tile(x, y) == 'E' and (x, y) != (pacman.x, pacman.y)]
     for x, y in a_positions:
         power_pellets.append(PowerPellet(x, y))
 
