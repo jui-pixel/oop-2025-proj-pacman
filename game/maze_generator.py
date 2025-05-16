@@ -15,6 +15,7 @@ class Map:
     def __init__(self, w, h, seed=None):
         if seed is not None:
             random.seed(seed)
+            self.seed = seed
         self.width = w
         self.w = w
         self.height = h
@@ -288,7 +289,75 @@ class Map:
 
         return count
                 
-                    
+    def place_power_pellets(self):
+        """放置能量球 ('E')，均勻分佈，數量根據空地數量動態調整，返回放置數量。"""
+        # 設置隨機種子，確保同一迷宮種子下能量球位置一致
+        if self.seed is not None:
+            random.seed(self.seed + 1000)  # 使用偏移避免與其他隨機化衝突
+
+        # 收集所有可用的空地（'.'），排除 'S' 及其相鄰格子
+        empty_cells = []
+        exclude_cells = set()
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.get_tile(x, y) == 'S':
+                    exclude_cells.add((x, y))
+                    for dx, dy in self.directions:
+                        nx, ny = x + dx, y + dy
+                        if self.xy_valid(nx, ny):
+                            exclude_cells.add((nx, ny))
+
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.get_tile(x, y) == '.' and (x, y) not in exclude_cells:
+                    empty_cells.append((x, y))
+
+        # 計算能量球數量：空地的 8%，至少 4 個，至多 20 個
+        empty_count = len(empty_cells)
+        num_pellets = max(4, min(int(empty_count * 0.08), 20))
+
+        # 將迷宮分成 4x4 網格，確保均勻分佈
+        grid_size_x = self.width // 4
+        grid_size_y = self.height // 4
+        pellet_positions = []
+        pellets_per_grid = max(1, num_pellets // 16)  # 每個網格至少 1 個
+
+        for gy in range(4):
+            for gx in range(4):
+                # 定義當前網格的範圍
+                x_start = gx * grid_size_x
+                x_end = min((gx + 1) * grid_size_x, self.width)
+                y_start = gy * grid_size_y
+                y_end = min((gy + 1) * grid_size_y, self.height)
+
+                # 收集網格內的空地
+                grid_cells = [
+                    (x, y) for x in range(x_start, x_end) for y in range(y_start, y_end)
+                    if (x, y) in empty_cells
+                ]
+
+                # 隨機選擇最多 pellets_per_grid 個位置
+                if grid_cells:
+                    num_to_place = min(len(grid_cells), pellets_per_grid)
+                    selected_cells = random.sample(grid_cells, num_to_place)
+                    pellet_positions.extend(selected_cells)
+                    empty_cells = [c for c in empty_cells if c not in selected_cells]
+
+        # 如果未達到目標數量，從剩餘空地中補充
+        remaining = num_pellets - len(pellet_positions)
+        if remaining > 0 and empty_cells:
+            additional_cells = random.sample(empty_cells, min(remaining, len(empty_cells)))
+            pellet_positions.extend(additional_cells)
+
+        # 放置能量球
+        for x, y in pellet_positions:
+            self.set_tile(x, y, 'E')
+
+        # 恢復隨機狀態（避免影響後續隨機化）
+        if self.seed is not None:
+            random.seed(self.seed)
+
+        return len(pellet_positions)
         
     def generate_maze(self):
         """生成迷宮：先放置初始牆壁，再擴展牆壁，最後添加隧道和移除死路。"""
@@ -303,6 +372,7 @@ class Map:
                 self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))
         while self.narrow_paths():
             pass
+        self.place_power_pellets()
 
 if __name__ == "__main__":
     width = 25
