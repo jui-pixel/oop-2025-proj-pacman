@@ -2,10 +2,10 @@
 #!/usr/bin/python3
 """
 # : 邊界
-. : 空地
+. : 空地、分數球位置
 X : 牆壁
 D : 牆壁門口
-T : 暫時的牆壁(方便生成)
+E : 能量球位置
 """
 
 import sys
@@ -216,7 +216,7 @@ class Map:
     def narrow_paths(self):
         """縮窄 2x2 空地塊，隨機選擇牆壁位置，確保不產生死路，返回放置牆壁次數"""
         count = 0
-        S = 'T'  # 臨時牆壁標記
+        S = 'A'  # 臨時牆壁標記
         for y in range(1, self.height - 2):
             for x in range(1, self.width - 2):
                 # 檢查是否為 2x2 空地塊
