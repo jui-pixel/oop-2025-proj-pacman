@@ -105,6 +105,10 @@ class Map:
                     count += 1
         return count, visited
 
+    def if_dead_end(self, x, y):
+        """檢查 (x, y) 是否是死路。"""
+        return sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) == '.') >= 3
+
     def _check_surrounding_paths(self, x, y):
         """檢查 (x, y) 的九宮格內除了自己外的 8 格是否全為路徑。"""
         for dx in range(-1, 2):
