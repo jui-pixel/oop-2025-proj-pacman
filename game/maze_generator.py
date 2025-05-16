@@ -1,13 +1,10 @@
 #!/usr/bin/python3
 """
 生成一個隨機的Pac-Man迷宮，根據輸入的寬度和高度先生成矩陣，先放置中央房間，
-然後通過放置預設牆壁形狀（一格、I、L、T、+）生成迷宮。
+然後在「除了該格之外的九宮格內全是路徑」的格子上加入牆壁，並以概率擴展牆壁。
 滿足以下限制：
-- 路徑僅 1 格厚。
-- 交叉口之間至少相隔 2 格（曼哈頓距離至少 3）。
-- 有 1 或 2 條隧道。
-- 無死路。
-- 牆壁形狀為 一格、I、L、T、+。
+- 若新牆壁的九宮格內有不連通的牆壁（形成死路），則取消生成。
+- 若新牆壁導致連通牆壁組面積超過 6 格，則取消生成。
 支持種子碼隨機化、可自定義大小和對稱佈局。
 障礙物為 'X'，幽靈生成位置為 'S'，包含 7x5 中央房間。
 """
@@ -22,20 +19,6 @@ class Map:
         self.width = width
         self.height = height
         self.tiles = ['.' for _ in range(self.width * self.height)]
-        self.wall_shapes = {
-            "single": [(0, 0)],
-            "I_horizontal": [(0, 0), (-1, 0), (1, 0)],
-            "I_vertical": [(0, 0), (0, -1), (0, 1)],
-            "L_top_left": [(0, 0), (1, 0), (0, 1)],
-            "L_top_right": [(0, 0), (-1, 0), (0, 1)],
-            "L_bottom_left": [(0, 0), (1, 0), (0, -1)],
-            "L_bottom_right": [(0, 0), (-1, 0), (0, -1)],
-            "T_up": [(0, 0), (-1, 0), (1, 0), (0, 1)],
-            "T_down": [(0, 0), (-1, 0), (1, 0), (0, -1)],
-            "T_left": [(0, 0), (0, -1), (0, 1), (1, 0)],
-            "T_right": [(0, 0), (0, -1), (0, 1), (-1, 0)],
-            "plus": [(0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)]
-        }
         self.directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         self._initialize_map()
         self.add_central_room()
@@ -53,9 +36,9 @@ class Map:
         """添加中央 7x5 房間。"""
         room = [
             ".......",
-            ".XXDXX.",
+            ".......",
             ".XSSSX.",
-            ".XXXXX.",
+            ".......",
             "......."
         ]
         room_w, room_h = 7, 5
@@ -70,15 +53,15 @@ class Map:
             for i, cell in enumerate(row):
                 self.set_tile(start_x + i, start_y + j, cell)
 
-        # entrances = [
-        #     (start_x + 3, start_y - 1),
-        #     (start_x + 3, start_y + room_h),
-        #     (start_x - 1, start_y + 2),
-        #     (start_x + room_w, start_y + 2)
-        # ]
-        # for ex, ey in entrances:
-        #     if self.xy_valid(ex, ey):
-        #         self.set_tile(ex, ey, '.')
+        entrances = [
+            (start_x + 3, start_y - 1),
+            (start_x + 3, start_y + room_h),
+            (start_x - 1, start_y + 2),
+            (start_x + room_w, start_y + 2)
+        ]
+        for ex, ey in entrances:
+            if self.xy_valid(ex, ey):
+                self.set_tile(ex, ey, '.')
 
     def __str__(self):
         s = ""
@@ -106,8 +89,9 @@ class Map:
         if self.xy_valid(x, y):
             self.tiles[self.xy_to_i(x, y)] = value
 
-    def _flood_fill(self, start_x, start_y):
-        if self.get_tile(start_x, start_y) != '.':
+    def _flood_fill(self, start_x, start_y, tile_type):
+        """洪水填充，計算連通區域的大小和格子。"""
+        if self.get_tile(start_x, start_y) != tile_type:
             return 0, set()
         stack = [(start_x, start_y)]
         visited = set()
@@ -117,13 +101,14 @@ class Map:
             x, y = stack.pop()
             for dx, dy in self.directions:
                 new_x, new_y = x + dx, y + dy
-                if self.xy_valid(new_x, new_y) and (new_x, new_y) not in visited and self.get_tile(new_x, new_y) == '.':
+                if self.xy_valid(new_x, new_y) and (new_x, new_y) not in visited and self.get_tile(new_x, new_y) == tile_type:
                     stack.append((new_x, new_y))
                     visited.add((new_x, new_y))
                     count += 1
         return count, visited
 
     def _is_connected(self):
+        """檢查左半部分是否連通。"""
         half_width = self.width // 2
         start_x, start_y = None, None
         for y in range(1, self.height - 1):
@@ -135,102 +120,103 @@ class Map:
                 break
         if start_x is None:
             return True
-        reachable_count, _ = self._flood_fill(start_x, start_y)
+        reachable_count, _ = self._flood_fill(start_x, start_y, '.')
         total_dots = sum(1 for y in range(1, self.height - 1) for x in range(1, half_width + 1)
                          if self.get_tile(x, y) == '.')
         return reachable_count == total_dots
 
-    def _is_intersection(self, x, y):
-        open_paths = sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) == '.')
-        return open_paths >= 3
-
-    def _check_path_thickness(self, x, y):
-        if self.get_tile(x, y) != '.':
-            return True
-        adjacent_paths = sum(1 for dx, dy in [(1, 0), (-1, 0)] if self.get_tile(x + dx, y + dy) == '.')
-        if adjacent_paths > 1:
-            return False
-        adjacent_paths = sum(1 for dx, dy in [(0, 1), (0, -1)] if self.get_tile(x + dx, y + dy) == '.')
-        if adjacent_paths > 1:
-            return False
+    def _check_surrounding_paths(self, x, y):
+        """檢查 (x, y) 的九宮格內除了自己外的 8 格是否全為路徑。"""
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                if dx == 0 and dy == 0:
+                    continue
+                nx, ny = x + dx, y + dy
+                if self.xy_valid(nx, ny) and self.get_tile(nx, ny) != '.':
+                    return False
         return True
 
-    def _check_intersection_distance(self, x, y):
-        if not self._is_intersection(x, y):
-            return True
-        visited = set()
-        queue = [(x, y, 0)]
-        while queue:
-            cx, cy, dist = queue.pop(0)
-            if (cx, cy) in visited:
-                continue
-            visited.add((cx, cy))
-            if dist > 0 and self._is_intersection(cx, cy) and dist < 3:
-                return False
-            if dist >= 3:
-                continue
-            for dx, dy in self.directions:
-                nx, ny = cx + dx, cy + dy
-                if self.xy_valid(nx, ny) and (nx, ny) not in visited and self.get_tile(nx, ny) == '.':
-                    queue.append((nx, ny, dist + 1))
-        return True
+    def _check_dead_end_in_neighborhood(self, x, y):
+        """檢查 (x, y) 的九宮格內是否有不連通的牆壁（可能導致死路）。"""
+        # 找到 (x, y) 所在的連通牆壁組
+        _, connected_walls = self._flood_fill(x, y, 'X')
+        
+        # 檢查九宮格範圍內是否有不屬於該連通組的牆壁
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                nx, ny = x + dx, y + dy
+                if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == 'X' and (nx, ny) not in connected_walls:
+                    # 檢查是否會形成死路：九宮格內的路徑格是否有少於 2 個出口
+                    for dx2 in range(-1, 2):
+                        for dy2 in range(-1, 2):
+                            px, py = nx + dx2, ny + dy2
+                            if self.xy_valid(px, py) and self.get_tile(px, py) == '.':
+                                open_paths = sum(1 for ddx, ddy in self.directions
+                                               if self.xy_valid(px + ddx, py + ddy) and self.get_tile(px + ddx, py + ddy) in ['.', 'T'])
+                                if open_paths < 2:
+                                    return True
+        return False
 
-    def _check_no_dead_ends(self):
-        for y in range(1, self.height - 1):
-            for x in range(1, self.width - 1):
-                if self.get_tile(x, y) == '.':
-                    open_paths = sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) in ['.', 'T'])
-                    if open_paths < 2:
-                        return False
-        return True
+    def _get_connected_wall_size(self, x, y):
+        """計算 (x, y) 所在連通牆壁組的大小。"""
+        size, _ = self._flood_fill(x, y, 'X')
+        return size
 
-    def _can_place_shape(self, shape, center_x, center_y):
-        coords = self.wall_shapes[shape]
-        for dx, dy in coords:
-            x, y = center_x + dx, center_y + dy
-            if not self.xy_valid(x, y) or self.get_tile(x, y) in ['#', 'S']:
-                return False
-        return True
-
-    def _place_shape(self, shape, center_x, center_y):
-        coords = self.wall_shapes[shape]
-        affected = []
-        for dx, dy in coords:
-            x, y = center_x + dx, center_y + dy
-            affected.append((x, y, self.get_tile(x, y)))
-            self.set_tile(x, y, 'X')
-        return affected
-
-    def _undo_shape(self, affected):
-        for x, y, original in affected:
-            self.set_tile(x, y, original)
-
-    def add_obstacles(self, wall_density=0.4):
-        """放置障礙物（牆壁形狀）。"""
-        shapes = list(self.wall_shapes.keys())
+    def add_initial_walls(self):
+        """在九宮格內除了自己外全是路徑的格子上加入牆壁。"""
         half_width = self.width // 2
-        target_walls = int(half_width * (self.height - 2) * wall_density)
-        current_walls = sum(1 for y in range(1, self.height - 1) for x in range(1, half_width + 1)
-                           if self.get_tile(x, y) == 'X')
+        for y in range(1, self.height - 1):
+            for x in range(1, half_width + 1):
+                if self.get_tile(x, y) == '.' and self._check_surrounding_paths(x, y):
+                    self.set_tile(x, y, 'X')
+
+    def extend_walls(self, extend_prob=0.5):
+        """以概率在現有牆壁的上下左右生成新牆壁。"""
+        half_width = self.width // 2
         attempts = 0
         max_attempts = 1000
+        while attempts < max_attempts:
+            # 收集所有現有牆壁格
+            wall_positions = [(x, y) for y in range(1, self.height - 1) for x in range(1, half_width + 1)
+                              if self.get_tile(x, y) == 'X']
+            if not wall_positions:
+                break
 
-        while current_walls < target_walls and attempts < max_attempts:
-            x = random.randint(1, half_width)
-            y = random.randint(1, self.height - 2)
-            shape = random.choice(shapes)
-            if self._can_place_shape(shape, x, y):
-                affected = self._place_shape(shape, x, y)
-                valid = True
-                for ax, ay, _ in affected:
-                    if not self._check_path_thickness(ax, ay) or not self._check_intersection_distance(ax, ay):
-                        valid = False
-                        break
-                if valid and self._is_connected():
-                    current_walls = sum(1 for y in range(1, self.height - 1) for x in range(1, half_width + 1)
-                                        if self.get_tile(x, y) == 'X')
-                else:
-                    self._undo_shape(affected)
+            # 隨機選擇一個牆壁格進行擴展
+            x, y = random.choice(wall_positions)
+            direction = random.choice(self.directions)
+            new_x, new_y = x + direction[0], y + direction[1]
+
+            # 檢查新位置是否有效
+            if (not self.xy_valid(new_x, new_y) or
+                new_x > half_width or
+                self.get_tile(new_x, new_y) != '.' or
+                random.random() > extend_prob):
+                attempts += 1
+                continue
+
+            # 臨時放置新牆壁
+            self.set_tile(new_x, new_y, 'X')
+
+            # 檢查條件 1：九宮格內是否有不連通的牆壁（可能導致死路）
+            if self._check_dead_end_in_neighborhood(new_x, new_y):
+                self.set_tile(new_x, new_y, '.')  # 取消生成
+                attempts += 1
+                continue
+
+            # 檢查條件 2：連通牆壁組面積是否超過 6 格
+            connected_size = self._get_connected_wall_size(new_x, new_y)
+            if connected_size > 6:
+                self.set_tile(new_x, new_y, '.')  # 取消生成
+                attempts += 1
+                continue
+
+            # 檢查連通性
+            if not self._is_connected():
+                self.set_tile(new_x, new_y, '.')  # 取消生成
+                attempts += 1
+                continue
+
             attempts += 1
 
     def remove_dead_ends(self):
@@ -261,9 +247,9 @@ class Map:
             self.set_tile(self.width - 1 - tx, ty, 'T')
 
     def generate_maze(self):
-        """生成迷宮，先放置中央房間，再添加障礙物。"""
-        self.add_obstacles()
-        self.add_tunnels()
+        """生成迷宮：先放置初始牆壁，再擴展牆壁，最後添加隧道和移除死路。"""
+        self.add_initial_walls()
+        self.extend_walls()
         self.remove_dead_ends()
 
         # 鏡像到右半部分
