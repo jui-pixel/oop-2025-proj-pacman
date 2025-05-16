@@ -196,69 +196,93 @@ class Map:
         if self.get_tile(x, y) != '.':
             return False
         return sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) != '.') >= 3
-       
+    
+    def _check_connectivity(self, area, blocked_cell=None):
+        """檢查區域內所有格子是否連通，允許臨時阻擋一個格子。"""
+        if not area:
+            return True
+        start = list(area)[0]
+        if blocked_cell:
+            original_tile = self.get_tile(*blocked_cell)
+            self.set_tile(*blocked_cell, 'X')
+        _, reachable = self._flood_fill(*start, '.')
+        if blocked_cell:
+            self.set_tile(*blocked_cell, original_tile)
+        return all(pos in reachable for pos in area)
+    
     def narrow_paths(self):
-        S = 'A'
+        """縮窄 2x2 空地塊，隨機選擇牆壁位置，確保不產生死路，返回放置牆壁次數"""
         count = 0
+        S = 'A'  # 臨時牆壁標記
         for y in range(1, self.height - 2):
             for x in range(1, self.width - 2):
-                if self.get_tile(x, y) != '.' or self.get_tile(x+1, y) != '.' or self.get_tile(x, y+1) != '.' or self.get_tile(x+1, y+1) != '.':
+                # 檢查是否為 2x2 空地塊
+                if not (self.get_tile(x, y) == '.' and self.get_tile(x + 1, y) == '.' and
+                        self.get_tile(x, y + 1) == '.' and self.get_tile(x + 1, y + 1) == '.'):
                     continue
-                F = 0
-                if self.get_tile(x-1, y) != '.' and self.get_tile(x, y-1) != '.' and F == 0:
-                    self.set_tile(x, y, S)
-                    F = 1
-                if self.get_tile(x+2, y) != '.' and self.get_tile(x+1, y-1) != '.' and F == 0:
-                    self.set_tile(x+1, y, S)
-                    F = 1
-                if self.get_tile(x, y+2) != '.' and self.get_tile(x-1, y+1) != '.' and F == 0:
-                    self.set_tile(x, y+1, S)
-                    F = 1
-                if self.get_tile(x+2, y+1) != '.' and self.get_tile(x+1, y+2) != '.' and F == 0:
-                    self.set_tile(x+1, y+1, S)
-                    F = 1
-                if F == 0:
-                    self.set_tile(x, y, S)
-                    F = 1
+
+                # 收集 2x2 塊內的格子
+                block = [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
+                # 收集周圍的空地鄰居（用於連通性檢查）
+                neighbors = set()
+                for bx, by in block:
                     for dx, dy in self.directions:
-                        new_x, new_y = x + dx, y + dy
-                        if self.if_dead_end(new_x, new_y):
-                            self.set_tile(x, y, '.')
-                            F = 0
-                            break            
-                if F == 0:
-                    x += 1
-                    self.set_tile(x, y, S)
-                    F = 1
-                    for dx, dy in self.directions:
-                        new_x, new_y = x + dx, y + dy
-                        if self.if_dead_end(new_x, new_y):
-                            self.set_tile(x, y, '.')
-                            F = 0
-                            break 
-                if F == 0:
-                    y += 1
-                    self.set_tile(x, y, S)
-                    F = 1
-                    for dx, dy in self.directions:
-                        new_x, new_y = x + dx, y + dy
-                        if self.if_dead_end(new_x, new_y):
-                            self.set_tile(x, y, '.')
-                            F = 0
-                            break 
-                if F == 0:
-                    x += 1
-                    y += 1
-                    self.set_tile(x, y, 'X')
-                    F = 1
-                    for dx, dy in self.directions:
-                        new_x, new_y = x + dx, y + dy
-                        if self.if_dead_end(new_x, new_y):
-                            self.set_tile(x, y, '.')
-                            F = 0
+                        nx, ny = bx + dx, by + dy
+                        if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == '.' and (nx, ny) not in block:
+                            neighbors.add((nx, ny))
+
+                placed = False
+                # 定義四個角落條件
+                conditions = [
+                    ((x, y), lambda: self.get_tile(x - 1, y) != '.' and self.get_tile(x, y - 1) != '.'),
+                    ((x + 1, y), lambda: self.get_tile(x + 2, y) != '.' and self.get_tile(x + 1, y - 1) != '.'),
+                    ((x, y + 1), lambda: self.get_tile(x, y + 2) != '.' and self.get_tile(x - 1, y + 1) != '.'),
+                    ((x + 1, y + 1), lambda: self.get_tile(x + 2, y + 1) != '.' and self.get_tile(x + 1, y + 2) != '.')
+                ]
+                # 隨機化角落檢查順序
+                random.shuffle(conditions)
+
+                # 嘗試角落條件
+                for (cx, cy), condition in conditions:
+                    if condition() and self._check_connectivity(neighbors, (cx, cy)):
+                        self.set_tile(cx, cy, S)
+                        # 檢查周圍是否產生死路
+                        dead_end = False
+                        for dx, dy in self.directions:
+                            nx, ny = cx + dx, cy + dy
+                            if self.if_dead_end(nx, ny):
+                                dead_end = True
+                                break
+                        if not dead_end:
+                            placed = True
+                            count += 1
                             break
-                if F != 0:
-                    count += 1
+                        self.set_tile(cx, cy, '.')  # 恢復
+
+                # 如果角落條件不滿足，隨機嘗試 2x2 塊內的格子
+                if not placed:
+                    random.shuffle(block)
+                    for bx, by in block:
+                        if self._check_connectivity(neighbors, (bx, by)):
+                            self.set_tile(bx, by, S)
+                            dead_end = False
+                            for dx, dy in self.directions:
+                                nx, ny = bx + dx, by + dy
+                                if self.if_dead_end(nx, ny):
+                                    dead_end = True
+                                    break
+                            if not dead_end:
+                                placed = True
+                                count += 1
+                                break
+                            self.set_tile(bx, by, '.')  # 恢復
+
+        # 將所有臨時標記 'A' 轉為牆壁 'X'
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.get_tile(x, y) == 'A':
+                    self.set_tile(x, y, 'X')
+
         return count
                 
                     
