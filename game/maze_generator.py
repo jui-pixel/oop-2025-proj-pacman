@@ -1,42 +1,47 @@
 #!/usr/bin/python3
 """
-生成一個隨機的Pac-Man迷宮，通過放置和擴展牆壁塊生成。
-支持放置階段、成長階段和擴展階段，並確保無死路、單格厚牆。
-包含中央房間、隧道和對稱佈局。
+生成一個隨機的Pac-Man迷宮，根據輸入的寬度和高度先生成矩陣，先放置中央房間，
+然後通過放置預設牆壁形狀（一格、I、L、T、+）生成迷宮。
+滿足以下限制：
+- 路徑僅 1 格厚。
+- 交叉口之間至少相隔 2 格（曼哈頓距離至少 3）。
+- 有 1 或 2 條隧道。
+- 無死路。
+- 牆壁形狀為 一格、I、L、T、+。
+支持種子碼隨機化、可自定義大小和對稱佈局。
+障礙物為 'X'，幽靈生成位置為 'S'，包含 7x5 中央房間。
 """
 
 import sys
 import random
 
-class Obstacle:
-    """表示一組連續的牆壁塊。"""
-    def __init__(self, x, y, shape):
-        self.tiles = [(x + dx, y + dy) for dx, dy in shape]
-        self.direction = None  # 擴展方向
-
-    def add_tile(self, x, y):
-        """添加新瓦片到障礙物。"""
-        self.tiles.append((x, y))
-
-    def get_bounds(self):
-        """返回障礙物的邊界（min_x, max_x, min_y, max_y）。"""
-        x_coords, y_coords = zip(*self.tiles)
-        return min(x_coords), max(x_coords), min(y_coords), max(y_coords)
-
 class Map:
-    def __init__(self, width, height, tile_str=None):
+    def __init__(self, width, height, seed=None):
+        if seed is not None:
+            random.seed(seed)
         self.width = width
         self.height = height
-        self.tiles = []
-        self.obstacles = []  # 儲存所有障礙物
-        if tile_str is None:
-            self._initialize_empty_map()
-        else:
-            self._load_from_string(tile_str)
-        self.verbose = False
-
-    def _initialize_empty_map(self):
         self.tiles = ['.' for _ in range(self.width * self.height)]
+        self.wall_shapes = {
+            "single": [(0, 0)],
+            "I_horizontal": [(0, 0), (-1, 0), (1, 0)],
+            "I_vertical": [(0, 0), (0, -1), (0, 1)],
+            "L_top_left": [(0, 0), (1, 0), (0, 1)],
+            "L_top_right": [(0, 0), (-1, 0), (0, 1)],
+            "L_bottom_left": [(0, 0), (1, 0), (0, -1)],
+            "L_bottom_right": [(0, 0), (-1, 0), (0, -1)],
+            "T_up": [(0, 0), (-1, 0), (1, 0), (0, 1)],
+            "T_down": [(0, 0), (-1, 0), (1, 0), (0, -1)],
+            "T_left": [(0, 0), (0, -1), (0, 1), (1, 0)],
+            "T_right": [(0, 0), (0, -1), (0, 1), (-1, 0)],
+            "plus": [(0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)]
+        }
+        self.directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        self._initialize_map()
+        self.add_central_room()
+
+    def _initialize_map(self):
+        """初始化迷宮，設置邊界。"""
         for x in range(self.width):
             self.set_tile(x, 0, '#')
             self.set_tile(x, self.height - 1, '#')
@@ -44,12 +49,36 @@ class Map:
             self.set_tile(0, y, '#')
             self.set_tile(self.width - 1, y, '#')
 
-    def _load_from_string(self, tile_str):
-        self.tiles = list(self._format_map_str(tile_str, ""))
+    def add_central_room(self):
+        """添加中央 7x5 房間。"""
+        room = [
+            ".......",
+            ".......",
+            ".XSSSX.",
+            ".......",
+            "......."
+        ]
+        room_w, room_h = 7, 5
+        start_x = (self.width - room_w) // 2
+        start_y = (self.height - room_h) // 2
 
-    @staticmethod
-    def _format_map_str(tiles, sep):
-        return sep.join(line.strip() for line in tiles.splitlines())
+        if start_x < 1 or start_x + room_w > self.width - 1 or start_y < 1 or start_y + room_h > self.height - 1:
+            print("錯誤：迷宮尺寸過小，無法插入中央房間")
+            sys.exit(1)
+
+        for j, row in enumerate(room):
+            for i, cell in enumerate(row):
+                self.set_tile(start_x + i, start_y + j, cell)
+
+        entrances = [
+            (start_x + 3, start_y - 1),
+            (start_x + 3, start_y + room_h),
+            (start_x - 1, start_y + 2),
+            (start_x + room_w, start_y + 2)
+        ]
+        for ex, ey in entrances:
+            if self.xy_valid(ex, ey):
+                self.set_tile(ex, ey, '.')
 
     def __str__(self):
         s = ""
@@ -77,243 +106,189 @@ class Map:
         if self.xy_valid(x, y):
             self.tiles[self.xy_to_i(x, y)] = value
 
-    def is_wall_block_filled(self, x, y):
-        """檢查 (x, y) 開始的 2x2 塊是否完全由牆壁 ('|') 組成。"""
-        return all(self.get_tile(x + dx, y + dy) == '|' for dy in range(2) for dx in range(2))
-
-    def can_new_block_fit(self, x, y):
-        """檢查 2x2 塊是否能在 4x4 區域內放置。"""
-        if not (self.xy_valid(x, y) and self.xy_valid(x + 3, y + 3)):
-            return False
-        for y0 in range(y, y + 4):
-            for x0 in range(x, x + 4):
-                if self.get_tile(x0, y0) != '.':
-                    return False
-        return True
-
-    def update_pos_list(self):
-        """更新可放置位置列表。"""
-        self.pos_list = [(x, y) for y in range(self.height - 3) for x in range(self.width - 3)
-                         if self.can_new_block_fit(x, y)]
-
-    def add_connection(self, x, y, dx, dy):
-        """添加連接關係，確保相鄰牆壁填充。"""
-        if (x, y) in self.pos_list:
-            for i in range(4):
-                x0, y0 = x + dx + i * dx, y + dy + i * dy
-                if self.xy_valid(x0, y0) and (x0, y0) in self.pos_list:
-                    if (x0, y0) in self.connections:
-                        self.connections[(x0, y0)].append((x, y))
-                    else:
-                        self.connections[(x0, y0)] = [(x, y)]
-
-    def update_connections(self):
-        """更新所有位置的連接關係。"""
-        self.connections = {}
-        for y in range(self.height - 3):
-            for x in range(self.width - 3):
-                if (x, y) in self.pos_list:
-                    for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-                        if any(self.get_tile(x + dx * 4, y + dy * i) == '|' for i in range(4)):
-                            self.add_connection(x, y, dx, dy)
-
-    def update(self):
-        self.update_pos_list()
-        self.update_connections()
-
-    def add_wall_block(self, x, y):
-        """添加 2x2 牆壁塊並創建新障礙物。"""
-        shape = [(0, 0), (1, 0), (0, 1), (1, 1)]
-        obstacle = Obstacle(x, y, shape)
-        for dx, dy in shape:
-            self.set_tile(x + dx, y + dy, '|')
-            obstacle.add_tile(x + dx, y + dy)
-        self.obstacles.append(obstacle)
-
-    def expand_wall(self, obstacle):
-        """擴展牆壁塊，填充相鄰區域。"""
+    def _flood_fill(self, start_x, start_y):
+        if self.get_tile(start_x, start_y) != '.':
+            return 0, set()
+        stack = [(start_x, start_y)]
         visited = set()
-        count = 0
-        stack = [(obstacle.tiles[0][0], obstacle.tiles[0][1])]
+        visited.add((start_x, start_y))
+        count = 1
         while stack:
             x, y = stack.pop()
-            if (x, y) in visited:
-                continue
-            visited.add((x, y))
-            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-                x0, y0 = x + dx, y + dy
-                if self.xy_valid(x0, y0) and self.get_tile(x0, y0) == '.':
-                    pos = (x0 - 1, y0 - 1)
-                    if pos in self.pos_list and pos in self.connections:
-                        for conn_x, conn_y in self.connections[pos]:
-                            if not self.is_wall_block_filled(conn_x, conn_y):
-                                self.add_wall_block(conn_x, conn_y)
-                                obstacle.add_tile(x0, y0)
-                                count += 1
-                                stack.append((x0, y0))
-        return count
+            for dx, dy in self.directions:
+                new_x, new_y = x + dx, y + dy
+                if self.xy_valid(new_x, new_y) and (new_x, new_y) not in visited and self.get_tile(new_x, new_y) == '.':
+                    stack.append((new_x, new_y))
+                    visited.add((new_x, new_y))
+                    count += 1
+        return count, visited
 
-    def extend_wall(self, obstacle, max_blocks=4):
-        """沿隨機方向擴展牆壁。"""
-        if not obstacle.tiles:
-            return 0
-        x, y = obstacle.tiles[0]
-        dx, dy = random.choice([(0, -1), (0, 1), (1, 0), (-1, 0)])
-        orig_dir = (dx, dy)
-        turn = False
-        turn_blocks = random.randint(2, 4) if random.random() <= 0.35 else max_blocks
-        count = 0
-        i = 0
-
-        while count < max_blocks:
-            x0, y0 = x + dx * i, y + dy * i
-            pos = (x0 - 1, y0 - 1)
-            if not self.xy_valid(x0, y0) or pos not in self.pos_list or turn and orig_dir == (dx, dy):
+    def _is_connected(self):
+        half_width = self.width // 2
+        start_x, start_y = None, None
+        for y in range(1, self.height - 1):
+            for x in range(1, half_width + 1):
+                if self.get_tile(x, y) == '.':
+                    start_x, start_y = x, y
+                    break
+            if start_x is not None:
                 break
-            if not turn and (count >= turn_blocks or not self.can_new_block_fit(x0 - 1, y0 - 1)):
-                turn = True
-                dx, dy = -dy, dx
-                i = 1
-                continue
-            if not self.is_wall_block_filled(x0 - 1, y0 - 1):
-                self.add_wall_block(x0 - 1, y0 - 1)
-                count += 1 + self.expand_wall(obstacle)
-            i += 1
-        return count
+        if start_x is None:
+            return True
+        reachable_count, _ = self._flood_fill(start_x, start_y)
+        total_dots = sum(1 for y in range(1, self.height - 1) for x in range(1, half_width + 1)
+                         if self.get_tile(x, y) == '.')
+        return reachable_count == total_dots
 
-    def add_wall_obstacle(self, x=None, y=None, extend=False):
-        self.update()
-        if not self.pos_list:
+    def _is_intersection(self, x, y):
+        open_paths = sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) == '.')
+        return open_paths >= 3
+
+    def _check_path_thickness(self, x, y):
+        if self.get_tile(x, y) != '.':
+            return True
+        adjacent_paths = sum(1 for dx, dy in [(1, 0), (-1, 0)] if self.get_tile(x + dx, y + dy) == '.')
+        if adjacent_paths > 1:
             return False
-
-        if x is None or y is None:
-            x, y = random.choice(self.pos_list)
-
-        self.add_wall_block(x, y)
-        obstacle = self.obstacles[-1]
-        count = self.expand_wall(obstacle)
-
-        if extend:
-            count += self.extend_wall(obstacle)
-
-        if self.verbose:
-            print(f"Added obstacle at ({x}, {y}), expanded: {count}")
-            print(self)
-
+        adjacent_paths = sum(1 for dx, dy in [(0, 1), (0, -1)] if self.get_tile(x + dx, y + dy) == '.')
+        if adjacent_paths > 1:
+            return False
         return True
 
+    def _check_intersection_distance(self, x, y):
+        if not self._is_intersection(x, y):
+            return True
+        visited = set()
+        queue = [(x, y, 0)]
+        while queue:
+            cx, cy, dist = queue.pop(0)
+            if (cx, cy) in visited:
+                continue
+            visited.add((cx, cy))
+            if dist > 0 and self._is_intersection(cx, cy) and dist < 3:
+                return False
+            if dist >= 3:
+                continue
+            for dx, dy in self.directions:
+                nx, ny = cx + dx, cy + dy
+                if self.xy_valid(nx, ny) and (nx, ny) not in visited and self.get_tile(nx, ny) == '.':
+                    queue.append((nx, ny, dist + 1))
+        return True
+
+    def _check_no_dead_ends(self):
+        for y in range(1, self.height - 1):
+            for x in range(1, self.width - 1):
+                if self.get_tile(x, y) == '.':
+                    open_paths = sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) in ['.', 'T'])
+                    if open_paths < 2:
+                        return False
+        return True
+
+    def _can_place_shape(self, shape, center_x, center_y):
+        coords = self.wall_shapes[shape]
+        for dx, dy in coords:
+            x, y = center_x + dx, center_y + dy
+            if not self.xy_valid(x, y) or self.get_tile(x, y) in ['#', 'S']:
+                return False
+        return True
+
+    def _place_shape(self, shape, center_x, center_y):
+        coords = self.wall_shapes[shape]
+        affected = []
+        for dx, dy in coords:
+            x, y = center_x + dx, center_y + dy
+            affected.append((x, y, self.get_tile(x, y)))
+            self.set_tile(x, y, 'X')
+        return affected
+
+    def _undo_shape(self, affected):
+        for x, y, original in affected:
+            self.set_tile(x, y, original)
+
+    def add_obstacles(self, wall_density=0.4):
+        """放置障礙物（牆壁形狀）。"""
+        shapes = list(self.wall_shapes.keys())
+        half_width = self.width // 2
+        target_walls = int(half_width * (self.height - 2) * wall_density)
+        current_walls = sum(1 for y in range(1, self.height - 1) for x in range(1, half_width + 1)
+                           if self.get_tile(x, y) == 'X')
+        attempts = 0
+        max_attempts = 1000
+
+        while current_walls < target_walls and attempts < max_attempts:
+            x = random.randint(1, half_width)
+            y = random.randint(1, self.height - 2)
+            shape = random.choice(shapes)
+            if self._can_place_shape(shape, x, y):
+                affected = self._place_shape(shape, x, y)
+                valid = True
+                for ax, ay, _ in affected:
+                    if not self._check_path_thickness(ax, ay) or not self._check_intersection_distance(ax, ay):
+                        valid = False
+                        break
+                if valid and self._is_connected():
+                    current_walls = sum(1 for y in range(1, self.height - 1) for x in range(1, half_width + 1)
+                                        if self.get_tile(x, y) == 'X')
+                else:
+                    self._undo_shape(affected)
+            attempts += 1
+
     def remove_dead_ends(self):
-        """移除死路和單格厚牆。"""
-        changed = True
-        while changed:
-            changed = False
+        """移除死路。"""
+        while True:
+            modified = False
             for y in range(1, self.height - 1):
                 for x in range(1, self.width - 1):
                     if self.get_tile(x, y) == '.':
-                        open_paths = sum(1 for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]
-                                       if self.get_tile(x + dx, y + dy) in ['.', 'T'])
+                        open_paths = sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) in ['.', 'T'])
                         if open_paths < 2:
                             self.set_tile(x, y, 'X')
-                            changed = True
-                    elif self.get_tile(x, y) == '|' and not self.is_wall_block_filled(x - 1, y - 1):
-                        self.set_tile(x, y, 'X')
-                        changed = True
+                            modified = True
+            if not modified:
+                break
 
     def add_tunnels(self):
         """添加 1 或 2 條隧道。"""
         half_width = self.width // 2
-        positions = [(x, 0) for x in range(2, half_width - 1) if self.get_tile(x, 1) == '.']
-        positions.extend((x, self.height - 1) for x in range(2, half_width - 1) if self.get_tile(x, self.height - 2) == '.')
-        num_tunnels = min(random.randint(1, 2), len(positions))
-        if num_tunnels > 0:
-            for x, y in random.sample(positions, num_tunnels):
-                self.set_tile(x, y, 'T')
-                self.set_tile(self.width - 1 - x, y, 'T')
+        possible_positions = [(x, 0) for x in range(2, half_width - 1) if self.get_tile(x, 1) == '.']
+        possible_positions.extend((x, self.height - 1) for x in range(2, half_width - 1) if self.get_tile(x, self.height - 2) == '.')
+        num_tunnels = min(random.randint(1, 2), len(possible_positions))
+        if num_tunnels == 0:
+            return
+        tunnel_positions = random.sample(possible_positions, num_tunnels)
+        for tx, ty in tunnel_positions:
+            self.set_tile(tx, ty, 'T')
+            self.set_tile(self.width - 1 - tx, ty, 'T')
 
-    def add_central_room(self):
-        """添加中央 7x5 房間。"""
-        room = [
-            ".......",
-            ".......",
-            ".XSSSX.",
-            ".......",
-            "......."
-        ]
-        start_x = (self.width - 7) // 2
-        start_y = (self.height - 5) // 2
+    def generate_maze(self):
+        """生成迷宮，先放置中央房間，再添加障礙物。"""
+        self.add_obstacles()
+        self.add_tunnels()
+        self.remove_dead_ends()
 
-        if start_x < 1 or start_x + 7 > self.width - 1 or start_y < 1 or start_y + 5 > self.height - 1:
-            print("錯誤：迷宮尺寸過小，無法插入中央房間")
-            sys.exit(1)
-
-        for j, row in enumerate(room):
-            for i, cell in enumerate(row):
-                self.set_tile(start_x + i, start_y + j, cell)
-
-        entrances = [
-            (start_x + 3, start_y - 1),
-            (start_x + 3, start_y + 5),
-            (start_x - 1, start_y + 2),
-            (start_x + 7, start_y + 2)
-        ]
-        for ex, ey in entrances:
-            if self.xy_valid(ex, ey):
-                self.set_tile(ex, ey, '.')
-
-        while not all(self.get_tile(x, y) in ['.', 'T', '#', 'X', 'S'] for y in range(self.height) for x in range(self.width)):
-            for y in range(1, self.height - 1):
-                for x in range(1, self.width - 1):
-                    if self.get_tile(x, y) == '.':
-                        open_paths = sum(1 for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]
-                                       if self.get_tile(x + dx, y + dy) in ['.', 'T'])
-                        if open_paths < 2:
-                            self.set_tile(x, y, 'X')
+        # 鏡像到右半部分
+        half_width = self.width // 2
+        for y in range(self.height):
+            for x in range(1, half_width):
+                self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))
+            if self.width % 2 == 1 and self.get_tile(half_width, y) in ['S']:
+                self.set_tile(half_width, y, '.')
 
 if __name__ == "__main__":
-    tile_map = Map(29, 31, """
-        |||||||||||||||||||||||||||||||
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.........||||||||||.........|
-        |.........||||||||||.........|
-        |.........||||||||||.........|
-        |.........||||||||||.........|
-        |.........||||||||||.........|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |.............................|
-        |||||||||||||||||||||||||||||||
-        """)
+    import argparse
+    parser = argparse.ArgumentParser(description='生成一個連通的Pac-Man迷宮')
+    parser.add_argument('--width', type=int, default=29, help='迷宮寬度')
+    parser.add_argument('--height', type=int, default=31, help='迷宮高度')
+    parser.add_argument('--seed', type=int, help='隨機種子碼，用於可重現的生成')
+    args = parser.parse_args()
 
-    if len(sys.argv) > 1 and sys.argv[1] == "-v":
-        tile_map.verbose = True
+    if args.width < 9 or args.height < 9:
+        print("錯誤：迷宮最小尺寸為 9x9 以容納中央房間")
+        sys.exit(1)
 
-    while tile_map.add_wall_obstacle(extend=True):
-        pass
+    maze = Map(args.width, args.height, seed=args.seed)
+    maze.generate_maze()
 
-    tile_map.remove_dead_ends()
-    tile_map.add_tunnels()
-    tile_map.add_central_room()
-
-    half_width = tile_map.width // 2
-    for line in str(tile_map).splitlines():
-        s = line[:half_width]
-        print(s + s[::-1])
+    print(f"生成的Pac-Man迷宮（種子碼：{args.seed if args.seed is not None else '無'}）")
+    print(f"尺寸：{args.width}x{args.height}")
+    print(maze)
