@@ -1,12 +1,10 @@
 #!/usr/bin/python3
 """
-生成一個隨機的Pac-Man迷宮，根據輸入的寬度和高度先生成矩陣，先放置中央房間，
-然後在「除了該格之外的九宮格內全是路徑」的格子上加入牆壁，並以概率擴展牆壁。
-滿足以下限制：
-- 若新牆壁的九宮格內有不連通的牆壁（形成死路），則取消生成。
-- 若新牆壁導致連通牆壁組面積超過 6 格，則取消生成。
-支持種子碼隨機化、可自定義大小和對稱佈局。
-障礙物為 'X'，幽靈生成位置為 'S'，包含 7x5 中央房間。
+# : 邊界
+. : 空地
+X : 牆壁
+D : 牆壁門口
+T : 暫時的牆壁(方便生成)
 """
 
 import sys
@@ -36,9 +34,9 @@ class Map:
         """添加中央 7x5 房間。"""
         room = [
             ".......",
-            ".......",
+            ".XXDXX.",
             ".XSSSX.",
-            ".......",
+            ".XXXXX.",
             "......."
         ]
         room_w, room_h = 7, 5
@@ -132,98 +130,54 @@ class Map:
 
     def _get_connected_wall_size(self, x, y):
         """計算 (x, y) 所在連通牆壁組的大小。"""
-        size, _ = self._flood_fill(x, y, 'X')
+        size, _ = self._flood_fill(x, y, 'T')
         return size
 
-    def add_initial_walls(self):
-        """在九宮格內除了自己外全是路徑的格子上加入牆壁。"""
-        half_width = self.width // 2
-        for y in range(1, self.height - 1):
-            for x in range(1, half_width + 1):
-                if self.get_tile(x, y) == '.' and self._check_surrounding_paths(x, y):
-                    self.set_tile(x, y, 'X')
-
-    def extend_walls(self, extend_prob=0.5):
+    def valid_wall_spawnpoint(self, x, y):
+        if self.xy_valid(x, y):
+            if self._check_surrounding_paths(x, y) and self.get_tile(x, y) == '.': 
+                return True
+        return False
+        
+    def extend_walls(self, extend_prob=0.8):
         """以概率在現有牆壁的上下左右生成新牆壁。"""
         half_width = self.width // 2
         attempts = 0
         max_attempts = 1000
         while attempts < max_attempts:
+            attempts += 1
             # 收集所有現有牆壁格
             wall_positions = [(x, y) for y in range(1, self.height - 1) for x in range(1, half_width + 1)
-                              if self.get_tile(x, y) == 'X']
+                              if self.valid_wall_spawnpoint(x, y)]
             if not wall_positions:
                 break
 
             # 隨機選擇一個牆壁格進行擴展
             x, y = random.choice(wall_positions)
+            self.set_tile(x, y, 'T')
+            if random.random() > extend_prob:
+                continue
             direction = random.choice(self.directions)
             new_x, new_y = x + direction[0], y + direction[1]
-
             # 檢查新位置是否有效
-            if (not self.xy_valid(new_x, new_y) or
-                new_x > half_width or
-                self.get_tile(new_x, new_y) != '.' or
-                random.random() > extend_prob):
-                attempts += 1
-                continue
-
-            # 臨時放置新牆壁
-            self.set_tile(new_x, new_y, 'X')
-
-            # 檢查條件 1：九宮格內是否有不連通的牆壁（可能導致死路）
-            if self._check_dead_end_in_neighborhood(new_x, new_y):
-                self.set_tile(new_x, new_y, '.')  # 取消生成
-                attempts += 1
-                continue
-
-            # 檢查條件 2：連通牆壁組面積是否超過 6 格
-            connected_size = self._get_connected_wall_size(new_x, new_y)
-            if connected_size > 6:
-                self.set_tile(new_x, new_y, '.')  # 取消生成
-                attempts += 1
-                continue
-
-            # 檢查連通性
-            if not self._is_connected():
-                self.set_tile(new_x, new_y, '.')  # 取消生成
-                attempts += 1
-                continue
-
-            attempts += 1
-
-    def remove_dead_ends(self):
-        """移除死路。"""
-        while True:
-            modified = False
-            for y in range(1, self.height - 1):
-                for x in range(1, self.width - 1):
-                    if self.get_tile(x, y) == '.':
-                        open_paths = sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) in ['.', 'T'])
-                        if open_paths < 2:
-                            self.set_tile(x, y, 'X')
-                            modified = True
-            if not modified:
-                break
-
-    def add_tunnels(self):
-        """添加 1 或 2 條隧道。"""
-        half_width = self.width // 2
-        possible_positions = [(x, 0) for x in range(2, half_width - 1) if self.get_tile(x, 1) == '.']
-        possible_positions.extend((x, self.height - 1) for x in range(2, half_width - 1) if self.get_tile(x, self.height - 2) == '.')
-        num_tunnels = min(random.randint(1, 2), len(possible_positions))
-        if num_tunnels == 0:
-            return
-        tunnel_positions = random.sample(possible_positions, num_tunnels)
-        for tx, ty in tunnel_positions:
-            self.set_tile(tx, ty, 'T')
-            self.set_tile(self.width - 1 - tx, ty, 'T')
+            while self._check_dead_end_in_neighborhood(new_x, new_y):# 檢查條件 1：九宮格內是否有不連通的牆壁（可能導致死路）
+                self.set_tile(new_x, new_y, 'T')
+                if random.random() > extend_prob:
+                    continue
+            
+                # 檢查條件 2：連通牆壁組面積是否超過 6 格
+                connected_size = self._get_connected_wall_size(new_x, new_y)
+                if connected_size > 6:
+                    self.set_tile(new_x, new_y, '.')  # 取消生成
+                    break
+                
+                direction = random.choice(self.directions)
+                new_x, new_y = new_x + direction[0], new_y + direction[1]
 
     def generate_maze(self):
         """生成迷宮：先放置初始牆壁，再擴展牆壁，最後添加隧道和移除死路。"""
-        self.add_initial_walls()
+        
         self.extend_walls()
-        self.remove_dead_ends()
 
         # 鏡像到右半部分
         half_width = self.width // 2
