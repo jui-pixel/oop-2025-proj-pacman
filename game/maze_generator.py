@@ -202,19 +202,59 @@ class Map:
             for x in range(1, self.width - 2):
                 if self.get_tile(x, y) != '.' or self.get_tile(x+1, y) != '.' or self.get_tile(x, y+1) != '.' or self.get_tile(x+1, y+1) != '.':
                     continue
-                X = 0
-                if self.get_tile(x-1, y) != '.' and self.get_tile(x, y-1) != '.' and x == 0:
+                F = 0
+                if self.get_tile(x-1, y) != '.' and self.get_tile(x, y-1) != '.' and F == 0:
                     self.set_tile(x, y, 'X')
-                    x = 1
-                if self.get_tile(x+2, y) != '.' and self.get_tile(x+1, y-1) != '.' and x == 0:
+                    F = 1
+                if self.get_tile(x+2, y) != '.' and self.get_tile(x+1, y-1) != '.' and F == 0:
                     self.set_tile(x+1, y, 'X')
-                    x = 1
-                if self.get_tile(x, y+2) != '.' and self.get_tile(x-1, y+1) != '.' and x == 0:
+                    F = 1
+                if self.get_tile(x, y+2) != '.' and self.get_tile(x-1, y+1) != '.' and F == 0:
                     self.set_tile(x, y+1, 'X')
-                    x = 1
-                if self.get_tile(x+2, y+1) != '.' and self.get_tile(x+1, y+2) != '.' and x == 0:
+                    F = 1
+                if self.get_tile(x+2, y+1) != '.' and self.get_tile(x+1, y+2) != '.' and F == 0:
                     self.set_tile(x+1, y+1, 'X')
-                    x = 1
+                    F = 1
+                if F == 0:
+                    self.set_tile(x, y, 'X')
+                    F = 1
+                    for dx, dy in self.directions:
+                        new_x, new_y = x + dx, y + dy
+                        if self.if_dead_end(new_x, new_y):
+                            self.set_tile(x, y, '.')
+                            F = 0
+                            break            
+                if F == 0:
+                    x += 1
+                    self.set_tile(x, y, 'X')
+                    F = 1
+                    for dx, dy in self.directions:
+                        new_x, new_y = x + dx, y + dy
+                        if self.if_dead_end(new_x, new_y):
+                            self.set_tile(x, y, '.')
+                            F = 0
+                            break 
+                if F == 0:
+                    y += 1
+                    self.set_tile(x, y, 'X')
+                    F = 1
+                    for dx, dy in self.directions:
+                        new_x, new_y = x + dx, y + dy
+                        if self.if_dead_end(new_x, new_y):
+                            self.set_tile(x, y, '.')
+                            F = 0
+                            break 
+                if F == 0:
+                    x += 1
+                    y += 1
+                    self.set_tile(x, y, 'X')
+                    F = 1
+                    for dx, dy in self.directions:
+                        new_x, new_y = x + dx, y + dy
+                        if self.if_dead_end(new_x, new_y):
+                            self.set_tile(x, y, '.')
+                            F = 0
+                            break 
                 
                     
         
