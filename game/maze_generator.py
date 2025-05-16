@@ -243,7 +243,7 @@ class Map:
                     for dx, dy in self.directions:
                         new_x, new_y = x + dx, y + dy
                         if self.if_dead_end(new_x, new_y):
-                            self.set_tile(x, y, S)
+                            self.set_tile(x, y, '.')
                             F = 0
                             break 
                 if F == 0:
