@@ -88,7 +88,7 @@ class Map:
     def set_tile(self, x, y, value):
         if self.xy_valid(x, y):
             self.tiles[self.xy_to_i(x, y)] = value
-
+            
     def _flood_fill(self, start_x, start_y, tile_type):
         """洪水填充，計算連通區域的大小和格子。"""
         if self.get_tile(start_x, start_y) != tile_type:
@@ -107,24 +107,6 @@ class Map:
                     count += 1
         return count, visited
 
-    def _is_connected(self):
-        """檢查左半部分是否連通。"""
-        half_width = self.width // 2
-        start_x, start_y = None, None
-        for y in range(1, self.height - 1):
-            for x in range(1, half_width + 1):
-                if self.get_tile(x, y) == '.':
-                    start_x, start_y = x, y
-                    break
-            if start_x is not None:
-                break
-        if start_x is None:
-            return True
-        reachable_count, _ = self._flood_fill(start_x, start_y, '.')
-        total_dots = sum(1 for y in range(1, self.height - 1) for x in range(1, half_width + 1)
-                         if self.get_tile(x, y) == '.')
-        return reachable_count == total_dots
-
     def _check_surrounding_paths(self, x, y):
         """檢查 (x, y) 的九宮格內除了自己外的 8 格是否全為路徑。"""
         for dx in range(-1, 2):
@@ -138,24 +120,15 @@ class Map:
 
     def _check_dead_end_in_neighborhood(self, x, y):
         """檢查 (x, y) 的九宮格內是否有不連通的牆壁（可能導致死路）。"""
-        # 找到 (x, y) 所在的連通牆壁組
-        _, connected_walls = self._flood_fill(x, y, 'X')
-        
-        # 檢查九宮格範圍內是否有不屬於該連通組的牆壁
         for dx in range(-1, 2):
             for dy in range(-1, 2):
+                if dx == 0 and dy == 0:
+                    continue
                 nx, ny = x + dx, y + dy
-                if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == 'X' and (nx, ny) not in connected_walls:
-                    # 檢查是否會形成死路：九宮格內的路徑格是否有少於 2 個出口
-                    for dx2 in range(-1, 2):
-                        for dy2 in range(-1, 2):
-                            px, py = nx + dx2, ny + dy2
-                            if self.xy_valid(px, py) and self.get_tile(px, py) == '.':
-                                open_paths = sum(1 for ddx, ddy in self.directions
-                                               if self.xy_valid(px + ddx, py + ddy) and self.get_tile(px + ddx, py + ddy) in ['.', 'T'])
-                                if open_paths < 2:
-                                    return True
-        return False
+                if self.xy_valid(nx, ny):
+                    if self.get_tile(nx, ny) != '.' or self.get_tile(nx, ny) != 'T':
+                        return False
+        return True
 
     def _get_connected_wall_size(self, x, y):
         """計算 (x, y) 所在連通牆壁組的大小。"""
