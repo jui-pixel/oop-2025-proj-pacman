@@ -165,10 +165,9 @@ class Map:
                 if random.random() > extend_prob:
                     continue
             
-                # 檢查條件 2：連通牆壁組面積是否超過 6 格
+                # 檢查條件 2：連通牆壁組面積是否超過 4 格
                 connected_size = self._get_connected_wall_size(new_x, new_y)
-                if connected_size > 6:
-                    self.set_tile(new_x, new_y, '.')  # 取消生成
+                if connected_size > 4:
                     break
                 
                 direction = random.choice(self.directions)
@@ -192,20 +191,17 @@ class Map:
                 self.set_tile(half_width, y, '.')
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='生成一個連通的Pac-Man迷宮')
-    parser.add_argument('--width', type=int, default=29, help='迷宮寬度')
-    parser.add_argument('--height', type=int, default=31, help='迷宮高度')
-    parser.add_argument('--seed', type=int, help='隨機種子碼，用於可重現的生成')
-    args = parser.parse_args()
+    width = 25
+    height = 25
+    seed = 1
 
-    if args.width < 9 or args.height < 9:
+    if width < 9 or height < 9:
         print("錯誤：迷宮最小尺寸為 9x9 以容納中央房間")
         sys.exit(1)
 
-    maze = Map(args.width, args.height, seed=args.seed)
+    maze = Map(width, height, seed=seed)
     maze.generate_maze()
 
-    print(f"生成的Pac-Man迷宮（種子碼：{args.seed if args.seed is not None else '無'}）")
-    print(f"尺寸：{args.width}x{args.height}")
+    print(f"生成的Pac-Man迷宮（種子碼：{seed if seed is not None else '無'}）")
+    print(f"尺寸：{width}x{height}")
     print(maze)
