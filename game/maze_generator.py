@@ -105,14 +105,6 @@ class Map:
                     count += 1
         return count, visited
 
-    def if_dead_end(self, x, y):
-        """檢查 (x, y) 是否是死路。"""
-        if not self.xy_valid(x, y):
-            return False
-        if self.get_tile(x, y) != '.':
-            return False
-        return sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) == '.') >= 3
-
     def _check_surrounding_paths(self, x, y):
         """檢查 (x, y) 的九宮格內除了自己外的 8 格是否全為路徑。"""
         for dx in range(-1, 2):
@@ -196,27 +188,37 @@ class Map:
                 
             # 將所有 T 轉換為牆壁
             self.convert_nearby_T_to_wall(x, y)
-        
+            
+    def if_dead_end(self, x, y):
+        """檢查 (x, y) 是否是死路。"""
+        if not self.xy_valid(x, y):
+            return False
+        if self.get_tile(x, y) != '.':
+            return False
+        return sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) != '.') >= 3
+       
     def narrow_paths(self):
+        S = 'A'
+        count = 0
         for y in range(1, self.height - 2):
             for x in range(1, self.width - 2):
                 if self.get_tile(x, y) != '.' or self.get_tile(x+1, y) != '.' or self.get_tile(x, y+1) != '.' or self.get_tile(x+1, y+1) != '.':
                     continue
                 F = 0
                 if self.get_tile(x-1, y) != '.' and self.get_tile(x, y-1) != '.' and F == 0:
-                    self.set_tile(x, y, 'X')
+                    self.set_tile(x, y, S)
                     F = 1
                 if self.get_tile(x+2, y) != '.' and self.get_tile(x+1, y-1) != '.' and F == 0:
-                    self.set_tile(x+1, y, 'X')
+                    self.set_tile(x+1, y, S)
                     F = 1
                 if self.get_tile(x, y+2) != '.' and self.get_tile(x-1, y+1) != '.' and F == 0:
-                    self.set_tile(x, y+1, 'X')
+                    self.set_tile(x, y+1, S)
                     F = 1
                 if self.get_tile(x+2, y+1) != '.' and self.get_tile(x+1, y+2) != '.' and F == 0:
-                    self.set_tile(x+1, y+1, 'X')
+                    self.set_tile(x+1, y+1, S)
                     F = 1
                 if F == 0:
-                    self.set_tile(x, y, 'X')
+                    self.set_tile(x, y, S)
                     F = 1
                     for dx, dy in self.directions:
                         new_x, new_y = x + dx, y + dy
@@ -226,7 +228,7 @@ class Map:
                             break            
                 if F == 0:
                     x += 1
-                    self.set_tile(x, y, 'X')
+                    self.set_tile(x, y, S)
                     F = 1
                     for dx, dy in self.directions:
                         new_x, new_y = x + dx, y + dy
@@ -236,12 +238,12 @@ class Map:
                             break 
                 if F == 0:
                     y += 1
-                    self.set_tile(x, y, 'X')
+                    self.set_tile(x, y, S)
                     F = 1
                     for dx, dy in self.directions:
                         new_x, new_y = x + dx, y + dy
                         if self.if_dead_end(new_x, new_y):
-                            self.set_tile(x, y, '.')
+                            self.set_tile(x, y, S)
                             F = 0
                             break 
                 if F == 0:
@@ -254,7 +256,10 @@ class Map:
                         if self.if_dead_end(new_x, new_y):
                             self.set_tile(x, y, '.')
                             F = 0
-                            break 
+                            break
+                if F != 0:
+                    count += 1
+        return count
                 
                     
         
@@ -269,7 +274,8 @@ class Map:
         for y in range(self.height):
             for x in range(1, half_width):
                 self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))
-        self.narrow_paths()
+        while self.narrow_paths():
+            pass
 
 if __name__ == "__main__":
     width = 25
