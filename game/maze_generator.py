@@ -77,6 +77,10 @@ class Map:
         if self.xy_valid(x, y):
             self.tiles[self.xy_to_i(x, y)] = value
 
+    def is_wall_block_filled(self, x, y):
+        """檢查 (x, y) 開始的 2x2 塊是否完全由牆壁 ('|') 組成。"""
+        return all(self.get_tile(x + dx, y + dy) == '|' for dy in range(2) for dx in range(2))
+
     def can_new_block_fit(self, x, y):
         """檢查 2x2 塊是否能在 4x4 區域內放置。"""
         if not (self.xy_valid(x, y) and self.xy_valid(x + 3, y + 3)):
@@ -119,7 +123,7 @@ class Map:
 
     def add_wall_block(self, x, y):
         """添加 2x2 牆壁塊並創建新障礙物。"""
-        shape = [(1, 1), (2, 1), (1, 2), (2, 2)]
+        shape = [(0, 0), (1, 0), (0, 1), (1, 1)]
         obstacle = Obstacle(x, y, shape)
         for dx, dy in shape:
             self.set_tile(x + dx, y + dy, '|')
@@ -142,7 +146,7 @@ class Map:
                     pos = (x0 - 1, y0 - 1)
                     if pos in self.pos_list and pos in self.connections:
                         for conn_x, conn_y in self.connections[pos]:
-                            if not all(self.get_tile(conn_x + i, conn_y + j) == '|' for i in range(1, 3) for j in range(1, 3)):
+                            if not self.is_wall_block_filled(conn_x, conn_y):
                                 self.add_wall_block(conn_x, conn_y)
                                 obstacle.add_tile(x0, y0)
                                 count += 1
@@ -171,7 +175,7 @@ class Map:
                 dx, dy = -dy, dx
                 i = 1
                 continue
-            if not all(self.get_tile(x0 + j, y0 + k) == '|' for j in range(1, 3) for k in range(1, 3)):
+            if not self.is_wall_block_filled(x0 - 1, y0 - 1):
                 self.add_wall_block(x0 - 1, y0 - 1)
                 count += 1 + self.expand_wall(obstacle)
             i += 1
