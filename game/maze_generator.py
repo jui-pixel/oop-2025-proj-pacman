@@ -188,19 +188,29 @@ class Map:
                 
             # 將所有 T 轉換為牆壁
             self.convert_nearby_T_to_wall(x, y)
-            
+        
+    def narrow_paths(self):
+        for y in range(self.height - 1):
+            for x in range(self.width - 1):
+                if self.get_tile(x, y) != '.' or self.get_tile(x+1, y) != '.' or self.get_tile(x, y+1) != '.' or self.get_tile(x+1, y+1) != '.':
+                    continue
+                self.set_tile(x, y, 'X')
+                if
+                
+                    
         
     def generate_maze(self):
         """生成迷宮：先放置初始牆壁，再擴展牆壁，最後添加隧道和移除死路。"""
         
         self.extend_walls()
         self.convert_all_T_to_wall()
-
+        
         # 鏡像到右半部分
         half_width = self.width // 2
         for y in range(self.height):
             for x in range(1, half_width):
                 self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))
+        self.narrow_paths()
 
 if __name__ == "__main__":
     width = 25
