@@ -52,6 +52,8 @@ def main():
                     pygame.draw.rect(screen, GREEN, rect)
                 elif tile == 'S':
                     pygame.draw.rect(screen, GRAY, rect)
+                elif tile == 'D':
+                    pygame.draw.rect(screen, RED, rect)
 
         # 渲染能量球
         for pellet in game.power_pellets:
