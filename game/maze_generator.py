@@ -16,7 +16,9 @@ class Map:
         if seed is not None:
             random.seed(seed)
         self.width = w
+        self.w = w
         self.height = h
+        self.h = h
         self.tiles = ['.' for _ in range(self.width * self.height)]
         self.directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         self._initialize_map()
@@ -214,7 +216,7 @@ class Map:
     def narrow_paths(self):
         """縮窄 2x2 空地塊，隨機選擇牆壁位置，確保不產生死路，返回放置牆壁次數"""
         count = 0
-        S = 'A'  # 臨時牆壁標記
+        S = 'T'  # 臨時牆壁標記
         for y in range(1, self.height - 2):
             for x in range(1, self.width - 2):
                 # 檢查是否為 2x2 空地塊
