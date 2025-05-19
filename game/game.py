@@ -2,13 +2,13 @@
 from typing import List, Tuple
 from .entities import PacMan, Ghost, PowerPellet, ScorePellet
 from .maze_generator import Map
-from config import EDIBLE_DURATION, GHOST_SCORES, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, PATH_DENSITY, FPS, CELL_SIZE
+from config import EDIBLE_DURATION, GHOST_SCORES, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, FPS, CELL_SIZE
 
 class Game:
     def __init__(self):
         """初始化遊戲。"""
         self.maze = Map(w=MAZE_WIDTH, h=MAZE_HEIGHT, seed=MAZE_SEED)
-        self.maze.generate_connected_maze(path_density=PATH_DENSITY)
+        self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = self._initialize_entities()
         self.respawn_points = [(x, y) for y in range(self.maze.h) for x in range(self.maze.w) if self.maze.get_tile(x, y) == 'S']
         self.ghost_score_index = 0
