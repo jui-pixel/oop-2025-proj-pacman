@@ -4,7 +4,7 @@ import pygame
 import math
 from game.game import Game
 from ai.strategies import ControlManager
-from config import CELL_SIZE, FPS, BLACK, WHITE, YELLOW, RED, BLUE, ORANGE, GRAY, GREEN, LIGHT_BLUE, DARK_GRAY, MAZE_WIDTH, MAZE_HEIGHT
+from config import *
 
 pygame.init()
 
@@ -43,15 +43,17 @@ def main():
                 tile = game.maze.get_tile(x, y)
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                 if tile == '#':
-                    pygame.draw.rect(screen, BLACK, rect)
+                    pygame.draw.rect(screen, DARK_GRAY, rect)
                 elif tile == 'X':
                     pygame.draw.rect(screen, BLACK, rect)
                 elif tile == '.':
                     pygame.draw.rect(screen, GRAY, rect)
-                elif tile == 'A':
+                elif tile == 'E':
                     pygame.draw.rect(screen, GREEN, rect)
                 elif tile == 'S':
-                    pygame.draw.rect(screen, GRAY, rect)
+                    pygame.draw.rect(screen, PINK, rect)
+                elif tile == 'D':
+                    pygame.draw.rect(screen, RED, rect)
 
         # 渲染能量球
         for pellet in game.power_pellets:
@@ -78,8 +80,11 @@ def main():
             if ghost.returning_to_spawn:
                 base_color = DARK_GRAY
                 ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))
+            elif ghost.edible and ghost.edible_timer > 0:
+                base_color = LIGHT_BLUE
+                ghost.alpha = 255
             else:
-                base_color = LIGHT_BLUE if ghost.edible else RED
+                base_color = ghost.color  # 使用鬼魂的獨特顏色
                 ghost.alpha = 255
 
             ghost_surface = pygame.Surface((CELL_SIZE // 2, CELL_SIZE // 2), pygame.SRCALPHA)
