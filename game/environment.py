@@ -1,4 +1,5 @@
 # # game/environment.py
+
 # import numpy as np
 # from game.entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
 # from game.maze_generator import Map
