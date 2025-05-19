@@ -1,19 +1,52 @@
-#ghosts/ghost3.py
+# ghosts/ghost3.py
 from ghosts.basic_ghost import BasicGhost
 from game.entities import PacMan
-import random
+from config import CYAN
 
 class Ghost3(BasicGhost):
-    def __init__(self, x: int, y: int, name="Ghost3"):
-        super().__init__(x, y, name)
+    def __init__(self, x: int, y: int, name: str = "Ghost3"):
+        super().__init__(x, y, name, color=CYAN)
 
     def chase_pacman(self, pacman: PacMan, maze):
-        if random.random() < 0.5:
+        """協同 Ghost1，目標為 Pac-Man 前方與 Ghost1 的對稱點。"""
+        from game.entities import initialize_entities
+        _, ghosts, _, _ = initialize_entities(maze)
+        ghost1 = next((g for g in ghosts if g.name == "Ghost1"), None)
+        if not ghost1:
             self.move_random(maze)
-        else:
-            dx = pacman.x - self.x
-            dy = pacman.y - self.y
-            directions = [(1 if dx > 0 else -1, 0), (0, 1 if dy > 0 else -1)]
-            for dir_x, dir_y in directions:
-                if self.set_new_target(dir_x, dir_y, maze):
-                    return
+            return
+
+        dx, dy = 0, 0
+        if pacman.target_x > pacman.x:
+            dx = 1
+        elif pacman.target_x < pacman.x:
+            dx = -1
+        elif pacman.target_y > pacman.y:
+            dy = 1
+        elif pacman.target_y < pacman.y:
+            dy = -1
+
+        mid_x = pacman.x + dx * 2
+        mid_y = pacman.y + dy * 2
+
+        target_x = ghost1.x + 2 * (mid_x - ghost1.x)
+        target_y = ghost1.y + 2 * (mid_y - ghost1.y)
+
+        target_x = max(0, min(maze.w - 1, target_x))
+        target_y = max(0, min(maze.h - 1, target_y))
+
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        best_direction = None
+        min_distance = float('inf')
+
+        for dx, dy in directions:
+            new_x, new_y = self.x + dx, self.y + dy
+            if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'A', 'o', 's', 'S']:
+                distance = ((new_x - target_x) ** 2 + (new_y - target_y) ** 2) ** 0.5
+                if distance < min_distance:
+                    min_distance = distance
+                    best_direction = (dx, dy)
+
+        if best_direction and self.set_new_target(best_direction[0], best_direction[1], maze):
+            return
+        self.move_random(maze)

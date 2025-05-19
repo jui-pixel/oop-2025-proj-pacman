@@ -1,9 +1,10 @@
 # ghosts/basic_ghost.py
 from game.entities import Ghost, PacMan
+from config import RED
 
 class BasicGhost(Ghost):
-    def __init__(self, x: int, y: int, name: str = "BasicGhost"):
-        super().__init__(x, y, name)
+    def __init__(self, x: int, y: int, name: str = "BasicGhost", color: tuple[int, int, int] = RED):
+        super().__init__(x, y, name, color=color)
 
     def chase_pacman(self, pacman: PacMan, maze):
         """直接追逐 Pac-Man"""
