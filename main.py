@@ -4,7 +4,7 @@ import pygame
 import math
 from game.game import Game
 from ai.strategies import ControlManager
-from config import CELL_SIZE, FPS, BLACK, WHITE, YELLOW, RED, BLUE, ORANGE, GRAY, GREEN, LIGHT_BLUE, DARK_GRAY, MAZE_WIDTH, MAZE_HEIGHT
+from config import *
 
 pygame.init()
 
@@ -43,15 +43,17 @@ def main():
                 tile = game.maze.get_tile(x, y)
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                 if tile == '#':
-                    pygame.draw.rect(screen, BLACK, rect)
+                    pygame.draw.rect(screen, DARK_GRAY, rect)
                 elif tile == 'X':
                     pygame.draw.rect(screen, BLACK, rect)
                 elif tile == '.':
                     pygame.draw.rect(screen, GRAY, rect)
-                elif tile == 'A':
+                elif tile == 'E':
                     pygame.draw.rect(screen, GREEN, rect)
                 elif tile == 'S':
-                    pygame.draw.rect(screen, GRAY, rect)
+                    pygame.draw.rect(screen, PINK, rect)
+                elif tile == 'D':
+                    pygame.draw.rect(screen, RED, rect)
 
         # 渲染能量球
         for pellet in game.power_pellets:
