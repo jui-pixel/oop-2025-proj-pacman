@@ -1,18 +1,11 @@
 # game/entities.py
 import random
 from typing import Tuple, List
-
 from config import CELL_SIZE
 
 class Entity:
     def __init__(self, x: int, y: int, symbol: str):
-        """初始化實體。
-
-        Args:
-            x (int): 初始 x 坐標。
-            y (int): 初始 y 坐標。
-            symbol (str): 實體的符號表示。
-        """
+        """初始化實體。"""
         self.x = x
         self.y = y
         self.symbol = symbol
@@ -23,14 +16,7 @@ class Entity:
         self.speed = 2.0
 
     def move_towards_target(self, maze) -> bool:
-        """逐像素移動到目標格子。
-
-        Args:
-            maze: 迷宮對象。
-
-        Returns:
-            bool: 是否到達目標。
-        """
+        """逐像素移動到目標格子。"""
         target_pixel_x = self.target_x * CELL_SIZE + CELL_SIZE // 2
         target_pixel_y = self.target_y * CELL_SIZE + CELL_SIZE // 2
         dx = target_pixel_x - self.current_x
@@ -50,16 +36,7 @@ class Entity:
             return False
 
     def set_new_target(self, dx: int, dy: int, maze) -> bool:
-        """檢查新目標是否可通行，若可則設置新目標。
-
-        Args:
-            dx (int): x 方向偏移。
-            dy (int): y 方向偏移。
-            maze: 迷宮對象。
-
-        Returns:
-            bool: 是否成功設置新目標。
-        """
+        """檢查新目標是否可通行，若可則設置新目標。"""
         new_x, new_y = self.x + dx, self.y + dy
         if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'E', 'o', 's', 'S', 'D']:
             self.target_x, self.target_y = new_x, new_y
@@ -93,22 +70,11 @@ class PacMan(Entity):
         return 0
 
     def rule_based_ai_move(self, maze, power_pellets: List['PowerPellet'], score_pellets: List['ScorePellet'], ghosts: List['Ghost']) -> bool:
-        """簡單的規則 AI：優先收集最近的球，避免不可吃鬼魂。
-
-        Args:
-            maze: 迷宮對象。
-            power_pellets: 能量球列表。
-            score_pellets: 分數球列表。
-            ghosts: 鬼魂列表。
-
-        Returns:
-            bool: 是否成功移動。
-        """
+        """簡單的規則 AI：優先收集最近的球，避免不可吃鬼魂。"""
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         best_direction = None
         best_score = -float('inf')
 
-        # 檢查是否有可吃的鬼魂
         edible_ghosts = [ghost for ghost in ghosts if ghost.edible and ghost.edible_timer > 0]
         if edible_ghosts:
             closest_ghost = min(edible_ghosts, key=lambda g: (g.x - self.x) ** 2 + (g.y - self.y) ** 2)
@@ -152,10 +118,11 @@ class PacMan(Entity):
         return False
 
 class Ghost(Entity):
-    def __init__(self, x: int, y: int, name: str):
-        """初始化鬼魂。"""
+    def __init__(self, x: int, y: int, name: str, color: Tuple[int, int, int] = (255, 0, 0)):
+        """初始化鬼魂，添加顏色屬性。"""
         super().__init__(x, y, 'G')
         self.name = name
+        self.color = color  # 新增：鬼魂的基礎顏色
         self.speed = 2.0
         self.edible = False
         self.edible_timer = 0
@@ -177,7 +144,6 @@ class Ghost(Entity):
                 self.speed = 2.0
             return
 
-        # 更新可吃計時器
         if self.edible:
             self.edible_timer -= 1
             if self.edible_timer <= 0:
@@ -185,7 +151,6 @@ class Ghost(Entity):
                 self.edible_timer = 0
                 print(f"{self.name} is no longer edible.")
 
-        # 更新重生計時器
         if self.respawn_timer > 0:
             self.respawn_timer -= 1
             if self.respawn_timer <= 0 and self.returning_to_spawn:
@@ -249,28 +214,19 @@ class Ghost(Entity):
         pass
 
     def set_edible(self, duration: int):
-        """設置鬼魂為可吃狀態。
-
-        Args:
-            duration (int): 可吃時間（幀數）。
-        """
+        """設置鬼魂為可吃狀態。"""
         self.edible = True
         self.edible_timer = duration
-        self.respawn_timer = 0  # 確保重生計時器不會干擾
+        self.respawn_timer = 0
 
     def set_returning_to_spawn(self, fps: int):
-        """設置鬼魂返回生成點。
-
-        Args:
-            fps (int): 每秒幀數。
-        """
+        """設置鬼魂返回生成點。"""
         self.death_count += 1
         self.returning_to_spawn = True
         self.edible = False
-        self.edible_timer = 0  # 停止可吃計時
+        self.edible_timer = 0
         self.alpha = 255
-        # 設置重生計時器為返回時間（可調整）
-        self.respawn_timer = int(5 * fps)  # 假設 5 秒返回
+        self.respawn_timer = int(5 * fps)
 
     def set_waiting(self, fps: int):
         self.returning_to_spawn = False
