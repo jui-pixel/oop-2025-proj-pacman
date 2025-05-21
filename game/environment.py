@@ -41,9 +41,9 @@ class PacManEnv:
 
         reward = -1
         if self.pacman.eat_pellet(self.power_pellets) > 0:
-            reward = 10
+            reward = 20
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
-            reward = 2
+            reward = 5
 
         for ghost in self.ghosts:
             if self.pacman.x == ghost.x and self.pacman.y == ghost.y:
