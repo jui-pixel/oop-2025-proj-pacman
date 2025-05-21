@@ -22,7 +22,7 @@ class DQNAgent:
         self.target_model = DQN(state_dim, action_dim).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.steps = 0
-        self.target_update_freq = 1000  # Update target network every 1000 steps
+        self.target_update_freq = 1000
         self.update_target_model()
 
     def update_target_model(self):
@@ -32,7 +32,8 @@ class DQNAgent:
         if random.random() < self.epsilon:
             return random.randrange(self.action_dim)
         with torch.no_grad():
-            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            # State shape: [height, width, channels] -> [channels, height, width]
+            state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
             q_values = self.model(state_tensor)
             return q_values.argmax().item()
 
@@ -43,10 +44,11 @@ class DQNAgent:
         batch = random.sample(self.memory, self.batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
 
-        states = torch.FloatTensor(np.array(states)).to(self.device)
+        # States shape: [batch_size, height, width, channels] -> [batch_size, channels, height, width]
+        states = torch.FloatTensor(np.array(states)).permute(0, 3, 1, 2).to(self.device)
         actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
         rewards = torch.FloatTensor(rewards).to(self.device)
-        next_states = torch.FloatTensor(np.array(next_states)).to(self.device)
+        next_states = torch.FloatTensor(np.array(next_states)).permute(0, 3, 1, 2).to(self.device)
         dones = torch.FloatTensor(dones).to(self.device)
 
         q_values = self.model(states).gather(1, actions).squeeze(1)
