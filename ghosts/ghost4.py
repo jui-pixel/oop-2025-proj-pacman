@@ -22,7 +22,7 @@ class Ghost4(BasicGhost):
 
             for dx, dy in directions:
                 new_x, new_y = self.x + dx, self.y + dy
-                if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'D', 'E', 'S']:
+                if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'D', 'E']:
                     distance = ((new_x - pacman.x) ** 2 + (new_y - pacman.y) ** 2) ** 0.5
                     if distance < min_distance:
                         min_distance = distance
