@@ -7,14 +7,14 @@ from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
 class PacManEnv:
     def __init__(self, width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED):
         self.maze = Map(w=width, h=height, seed=seed)
-        self.maze.generate_connected_maze(path_density=0.7)
+        self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
         self.done = False
         self.action_space = [0, 1, 2, 3]  # 0: up, 1: down, 2: left, 3: right
         self.observation_space = (height, width, 5)  # (height, width, channels)
 
     def reset(self):
-        self.maze.generate_connected_maze(path_density=0.7)
+        self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
         self.done = False
         return self._get_state()
