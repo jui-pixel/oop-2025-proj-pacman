@@ -274,6 +274,13 @@ def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], L
                 break
         if pacman:
             break
+    if pacman is None:
+        empty_tiles = [(x, y) for x in range(maze.h) for y in range(maze.w) if maze.get_tile(x, y) == 'E']
+        if empty_tiles:
+            x, y = random.choice(empty_tiles)
+            pacman = PacMan(x, y)
+        else:
+            raise ValueError("No valid start position ('E' or '.') for Pac-Man in maze")
 
     ghosts = []
     ghost_classes = [Ghost1, Ghost2, Ghost3, Ghost4]

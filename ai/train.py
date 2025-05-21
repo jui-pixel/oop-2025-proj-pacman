@@ -7,8 +7,9 @@ import torch
 from game.environment import PacManEnv
 from ai.agent import DQNAgent
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-import matplotlib.pyplot as plt
+import json
 
 def train():
     env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED)
@@ -19,6 +20,7 @@ def train():
 
     episodes = 1000
     max_steps = 1000
+    writer = SummaryWriter()
     episode_rewards = []
 
     for episode in range(episodes):
@@ -35,23 +37,21 @@ def train():
             state = next_state
             total_reward += reward
             step += 1
+            if loss > 0:
+                writer.add_scalar('Loss', loss, episode * max_steps + step)
 
         episode_rewards.append(total_reward)
-        print(f"Episode {episode+1}/{episodes}, Totapip install matplotlibl Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
+        writer.add_scalar('Reward', total_reward, episode)
+        print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
 
         if (episode + 1) % 100 == 0:
             agent.save(f"pacman_dqn_{episode+1}.pth")
 
     agent.save("pacman_dqn_final.pth")
-
-    # Plot rewards
-    plt.plot(episode_rewards)
-    plt.xlabel("Episode")
-    plt.ylabel("Total Reward")
-    plt.title("Training Rewards")
-    plt.savefig("rewards_plot.png")
-    plt.close()
-
+    # Save episode rewards
+    with open("episode_rewards.json", "w") as f:
+        json.dump(episode_rewards, f)
+    writer.close()
     return episode_rewards
 
 if __name__ == "__main__":
