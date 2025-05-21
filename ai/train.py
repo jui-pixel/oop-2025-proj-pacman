@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import json
 
-def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=100):
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=1000):
     env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED)
     state_dim = (env.maze.h, env.maze.w, 5)
     action_dim = len(env.action_space)
@@ -25,7 +25,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     else:
         print("Starting fresh training")
 
-    max_steps = 500  # Reduced for speed
+    max_steps = 500
     writer = SummaryWriter()
     episode_rewards = []
 
@@ -60,4 +60,4 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     return episode_rewards
 
 if __name__ == "__main__":
-    train(resume=True)  # Set resume=True to load prior experience
+    train(resume=True)
