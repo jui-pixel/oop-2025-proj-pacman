@@ -29,6 +29,6 @@ class DQN(nn.Module):
 
     def forward(self, x):
         x = self.conv(x)
-        x = x.view(x.size(0), -1)
+        x = x.reshape(x.size(0), -1)  # Changed from view to reshape
         x = self.fc(x)
         return x
