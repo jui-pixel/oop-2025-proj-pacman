@@ -11,15 +11,21 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import json
 
-def train():
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=100):
     env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED)
     state_dim = (env.maze.h, env.maze.w, 5)
     action_dim = len(env.action_space)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    agent = DQNAgent(state_dim, action_dim, device, buffer_size=10000, batch_size=32, lr=1e-4)
+    agent = DQNAgent(state_dim, action_dim, device, buffer_size=10000, batch_size=64, lr=5e-4)
 
-    episodes = 1000
-    max_steps = 1000
+    # Load prior experience if resuming
+    if resume and os.path.exists(model_path):
+        agent.load(model_path, memory_path)
+        print(f"Loaded model from {model_path} and memory from {memory_path}")
+    else:
+        print("Starting fresh training")
+
+    max_steps = 500  # Reduced for speed
     writer = SummaryWriter()
     episode_rewards = []
 
@@ -45,14 +51,13 @@ def train():
         print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
 
         if (episode + 1) % 100 == 0:
-            agent.save(f"pacman_dqn_{episode+1}.pth")
+            agent.save(f"pacman_dqn_{episode+1}.pth", f"replay_buffer_{episode+1}.pkl")
 
-    agent.save("pacman_dqn_final.pth")
-    # Save episode rewards
+    agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
     with open("episode_rewards.json", "w") as f:
         json.dump(episode_rewards, f)
     writer.close()
     return episode_rewards
 
 if __name__ == "__main__":
-    train()
+    train(resume=True)  # Set resume=True to load prior experience
