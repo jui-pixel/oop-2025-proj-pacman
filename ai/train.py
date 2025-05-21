@@ -16,6 +16,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     state_dim = (env.maze.h, env.maze.w, 5)
     action_dim = len(env.action_space)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("使用裝置：", device)
     agent = DQNAgent(state_dim, action_dim, device, buffer_size=10000, batch_size=64, lr=5e-4)
 
     # Load prior experience if resuming
