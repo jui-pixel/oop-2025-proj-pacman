@@ -13,7 +13,6 @@ class Ghost1(BasicGhost):
         """使用 BFS 直接追逐 Pac-Man。"""
         direction = self.bfs_path(self.x, self.y, pacman.x, pacman.y, maze)
         if direction:
-            print(f"{self.name} at ({self.x}, {self.y}) moving {direction} to ({pacman.x}, {pacman.y})")
             if self.set_new_target(direction[0], direction[1], maze):
                 self.last_x, self.last_y = self.x, self.y
                 return
