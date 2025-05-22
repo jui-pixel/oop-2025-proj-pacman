@@ -1,4 +1,35 @@
+# Python cache and build files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+.env/
+env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Training artifacts (exclude intermediate checkpoints)
+pacman_dqn_*.pth
+!pacman_dqn_final.pth
+replay_buffer_*.pkl
+!replay_buffer_final.pkl
+
+# Other temporary files
+*.log
+*.bak
+*.tmp
+runs/
+training_metrics.png
+episode_rewards.json
+```
