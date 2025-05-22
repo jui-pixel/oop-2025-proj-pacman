@@ -85,7 +85,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
         
         # 每 100 回合保存一次模型和記憶緩衝區
-        if (episode + 1) % 100 == 0:
+        if (episode + 1) % 500 == 0:
             agent.save(f"pacman_dqn_{episode+1}.pth", f"replay_buffer_{episode+1}.pkl")
     
     # 保存最終模型和記憶緩衝區
