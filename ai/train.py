@@ -99,4 +99,5 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     return episode_rewards
 
 if __name__ == "__main__":
-    train(resume=True)  # 執行訓練，預設從先前模型繼續
+    for i in range(50):
+        train(resume=True)  # 執行訓練，預設從先前模型繼續
