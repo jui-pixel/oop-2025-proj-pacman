@@ -67,7 +67,7 @@ class Entity:
             bool: 是否成功設置目標。
         """
         new_x, new_y = self.x + dx, self.y + dy
-        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'E', 'o', 's', 'S', 'D']:
+        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'E', 'S', 'D']:
             self.target_x, self.target_y = new_x, new_y
             return True
         return False
@@ -415,22 +415,34 @@ def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], L
     Returns:
         Tuple: (PacMan, List[Ghost], List[PowerPellet], List[ScorePellet])
     """
-    pacman = None
-    for y in range(1, maze.h - 1):
-        for x in range(1, maze.w - 1):
-            if maze.get_tile(x, y) == '.':
-                pacman = PacMan(x, y)
-                break
-        if pacman:
-            break
-    if pacman is None:
-        empty_tiles = [(x, y) for x in range(maze.h) for y in range(maze.w) if maze.get_tile(x, y) == 'E']
-        if empty_tiles:
-            x, y = random.choice(empty_tiles)
-            pacman = PacMan(x, y)
-        else:
-            raise ValueError("No valid start position ('E' or '.') for Pac-Man in maze")
+    import random
     
+    # 收集所有可行走的點 ('.')
+    valid_positions = [(x, y) for y in range(1, maze.h - 1) for x in range(1, maze.w - 1) 
+                      if maze.get_tile(x, y) == '.']
+    
+    # 定義邊緣與中間之間的區域
+    edge_mid_positions = []
+    for x, y in valid_positions:
+        # 距離邊界 1-2 格，但不完全在中間
+        is_near_edge = (x <= 2 or x >= maze.w - 3 or y <= 2 or y >= maze.h - 3)
+        is_not_middle = not (maze.w // 4 < x < 3 * maze.w // 4 and maze.h // 4 < y < 3 * maze.h // 4)
+        if is_near_edge and is_not_middle:
+            edge_mid_positions.append((x, y))
+    
+    # 從邊緣與中間之間的點中隨機選擇 Pac-Man 出生點
+    if edge_mid_positions:
+        pacman_pos = random.choice(edge_mid_positions)
+    else:
+        # 如果沒有符合條件的點，則從所有 '.' 點中隨機選擇
+        if valid_positions:
+            pacman_pos = random.choice(valid_positions)
+        else:
+            raise ValueError("No valid start position ('.') for Pac-Man in maze")
+    
+    pacman = PacMan(pacman_pos[0], pacman_pos[1])
+    
+    # 初始化鬼魂
     ghosts = []
     ghost_classes = [Ghost1, Ghost2, Ghost3, Ghost4]
     ghost_spawn_points = [(x, y) for y in range(maze.h) for x in range(maze.w) if maze.get_tile(x, y) == 'S']
@@ -442,12 +454,14 @@ def initialize_entities(maze) -> Tuple[PacMan, List[Ghost], List[PowerPellet], L
         spawn_point = ghost_spawn_points[i % len(ghost_spawn_points)]
         ghosts.append(ghost_class(spawn_point[0], spawn_point[1], f"Ghost{i+1}"))
     
+    # 初始化能量球
     power_pellets = []
     a_positions = [(x, y) for y in range(1, maze.h - 1) for x in range(1, maze.w - 1)
                    if maze.get_tile(x, y) == 'E' and (x, y) != (pacman.x, pacman.y)]
     for x, y in a_positions:
         power_pellets.append(PowerPellet(x, y))
     
+    # 初始化分數球
     all_path_positions = [(x, y) for y in range(1, maze.h - 1) for x in range(1, maze.w - 1)
                          if maze.get_tile(x, y) == '.']
     excluded_positions = [(pacman.x, pacman.y)] + ghost_spawn_points + a_positions
