@@ -29,37 +29,85 @@ class DQNAgent:
             lr (float): 學習率，預設為 5e-4。
             epsilon (float): 初始探索率，預設為 1.0（完全隨機）。
         """
-        self.state_dim = state_dim  # 儲存狀態維度
-        self.action_dim = action_dim  # 儲存動作數量
-        self.device = device  # 計算設備
-        self.memory = deque(maxlen=buffer_size)  # 記憶緩衝區，儲存經驗
-        self.priorities = deque(maxlen=buffer_size)  # 儲存優先級（用於 PER）
-        self.batch_size = batch_size  # 訓練批次大小
-        self.gamma = 0.995  # 折扣因子，衡量未來獎勵的重要性
-        self.epsilon = epsilon  # 探索率，控制隨機動作的概率
-        self.epsilon_min = 0.01  # 最小探索率，確保長期仍有探索
-        self.epsilon_decay = 0.999  # 探索率衰減率，逐漸減少隨機性
-        self.model = DQN(state_dim, action_dim).to(device)  # 主模型，用於動作選擇和訓練
-        self.target_model = DQN(state_dim, action_dim).to(device)  # 目標模型，穩定 Q 值計算
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)  # Adam 優化器
-        self.steps = 0  # 記錄訓練步數
-        self.target_update_freq = 1000  # 目標模型更新頻率（步數）
-        self.alpha = 0.4  # 優先級權重，控制 PER 採樣偏見
-        self.beta = 0.4  # 重要性採樣權重，初始值
-        self.beta_increment = 0.002  # 重要性採樣權重增量
-        self.update_target_model()  # 同步初始模型權重
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.device = device
+        self.memory = deque(maxlen=buffer_size)
+        self.priorities = deque(maxlen=buffer_size)
+        self.batch_size = batch_size
+        self.gamma = 0.995
+        self.epsilon = epsilon
+        self.epsilon_min = 0.05  # 提高最小探索率，確保長期探索
+        self.epsilon_decay = 0.9995  # 減慢探索率衰減，延長探索階段
+        self.model = DQN(state_dim, action_dim).to(device)
+        self.target_model = DQN(state_dim, action_dim).to(device)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.steps = 0
+        self.target_update_freq = 1000
+        self.alpha = 0.3  # 降低 alpha，減少 PER 的偏見
+        self.beta = 0.4
+        self.beta_increment = 0.002
+        self.last_action = None  # 記錄上一次動作
+        self.last_position = None  # 記錄上一次位置
+        self.stuck_counter = 0  # 記錄停滯次數
+        self.turn_probability = 0.2  # 隨機轉向概率
+        self.update_target_model()
 
     def update_target_model(self):
         """
         將主模型的權重複製到目標模型，確保兩者一致。
-
-        這是 DQN 的核心機制，通過定期更新目標模型穩定訓練。
         """
         self.target_model.load_state_dict(self.model.state_dict())
 
+    def _is_valid_action(self, state, action):
+        """
+        檢查動作是否有效（是否會撞牆）。
+
+        Args:
+            state (numpy.ndarray): 當前狀態，形狀為 (height, width, channels)。
+            action (int): 動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
+
+        Returns:
+            bool: 動作是否有效。
+        """
+        pacman_x, pacman_y = np.where(state[:, :, 0] == 1.0)  # 找到 Pac-Man 位置
+        if len(pacman_x) == 0:
+            return True  # 如果無法找到位置，假設動作有效
+        pacman_x, pacman_y = pacman_x[0], pacman_y[0]
+
+        dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
+        new_x, new_y = pacman_x + dx, pacman_y + dy
+
+        # 檢查新位置是否為牆（state 的第 5 通道表示牆）
+        if 0 <= new_x < state.shape[0] and 0 <= new_y < state.shape[1]:
+            return state[new_x, new_y, 5] != 1.0  # 不是牆則有效
+        return False
+
+    def _check_stuck(self, state):
+        """
+        檢查 Pac-Man 是否停滯（位置未改變）。
+
+        Args:
+            state (numpy.ndarray): 當前狀態。
+
+        Returns:
+            bool: 是否停滯。
+        """
+        pacman_x, pacman_y = np.where(state[:, :, 0] == 1.0)
+        if len(pacman_x) == 0:
+            return False
+        current_position = (pacman_x[0], pacman_y[0])
+
+        if self.last_position is not None and current_position == self.last_position:
+            self.stuck_counter += 1
+        else:
+            self.stuck_counter = 0
+        self.last_position = current_position
+        return self.stuck_counter >= 3  # 連續 3 次未移動視為停滯
+
     def get_action(self, state):
         """
-        使用 ε-貪婪策略根據當前狀態選擇動作。
+        使用改進的 ε-貪婪策略選擇動作，增加有效移動和轉向。
 
         Args:
             state (numpy.ndarray): 當前狀態，形狀為 (height, width, channels)。
@@ -67,12 +115,37 @@ class DQNAgent:
         Returns:
             int: 選擇的動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
         """
-        if random.random() < self.epsilon:
-            return random.randrange(self.action_dim)  # 隨機探索
-        with torch.no_grad():  # 禁用梯度計算以節省資源
+        # 檢查是否停滯
+        is_stuck = self._check_stuck(state)
+
+        # 隨機探索或強制轉向
+        if random.random() < self.epsilon or is_stuck or (self.last_action is not None and random.random() < self.turn_probability):
+            valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
+            if not valid_actions:  # 如果沒有有效動作，隨機選擇
+                return random.randrange(self.action_dim)
+            action = random.choice(valid_actions)
+            # 避免反覆選擇同一動作
+            if self.last_action is not None and len(valid_actions) > 1:
+                valid_actions.remove(self.last_action)
+                action = random.choice(valid_actions) if valid_actions else action
+            self.last_action = action
+            return action
+
+        # 利用策略：選擇最大 Q 值的動作
+        with torch.no_grad():
             state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
-            q_values = self.model(state_tensor)  # 計算 Q 值
-            return q_values.argmax().item()  # 選擇最大 Q 值的動作
+            q_values = self.model(state_tensor)
+
+            # 優先選擇有效動作
+            valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
+            if not valid_actions:
+                return random.randrange(self.action_dim)
+
+            q_values_np = q_values.cpu().numpy()[0]
+            q_values_valid = [(q_values_np[a], a) for a in valid_actions]
+            action = max(q_values_valid, key=lambda x: x[0])[1]
+            self.last_action = action
+            return action
 
     def train(self):
         """
@@ -82,15 +155,13 @@ class DQNAgent:
             float: 當前批次的損失值，若記憶不足則返回 0。
         """
         if len(self.memory) < self.batch_size:
-            return 0.0  # 記憶不足，無法訓練
+            return 0.0
 
-        # 計算優先級概率（基於 TD 誤差）
         priorities = np.array(self.priorities) ** self.alpha
         probabilities = priorities / priorities.sum()
         indices = np.random.choice(len(self.memory), self.batch_size, p=probabilities)
         batch = [self.memory[i] for i in indices]
 
-        # 將批次數據轉換為張量
         states, actions, rewards, next_states, dones = zip(*batch)
         states = torch.FloatTensor(np.array(states)).permute(0, 3, 1, 2).to(self.device)
         actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
@@ -98,34 +169,29 @@ class DQNAgent:
         next_states = torch.FloatTensor(np.array(next_states)).permute(0, 3, 1, 2).to(self.device)
         dones = torch.FloatTensor(dones).to(self.device)
 
-        # 計算 Q 值和目標 Q 值
         q_values = self.model(states).gather(1, actions).squeeze(1)
         next_q_values = self.target_model(next_states).max(1)[0].detach()
         target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
-        # 更新優先級（基於 TD 誤差）
         td_errors = (q_values - target_q_values).abs().cpu().detach().numpy()
         for idx, error in zip(indices, td_errors):
-            self.priorities[idx] = error + 1e-5  # 添加小值避免零優先級
+            self.priorities[idx] = error + 1e-5
 
-        # 計算重要性採樣權重
         weights = (len(self.memory) * probabilities[indices]) ** (-self.beta)
         weights /= weights.max()
         weights = torch.FloatTensor(weights).to(self.device)
 
-        # 計算加權損失並反向傳播
         loss = (weights * nn.MSELoss(reduction='none')(q_values, target_q_values)).mean()
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        # 更新訓練步數和參數
         self.steps += 1
         if self.steps % self.target_update_freq == 0:
-            self.update_target_model()  # 定期更新目標模型
-        self.beta = min(1.0, self.beta + self.beta_increment)  # 遞增 beta
+            self.update_target_model()
+        self.beta = min(1.0, self.beta + self.beta_increment)
         if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay  # 衰減探索率
+            self.epsilon *= self.epsilon_decay
 
         return loss.item()
 
@@ -140,7 +206,7 @@ class DQNAgent:
             next_state (numpy.ndarray): 下一個狀態。
             done (bool): 是否結束。
         """
-        max_priority = max(self.priorities) if self.priorities else 1.0  # 新經驗給最高優先級
+        max_priority = max(self.priorities) if self.priorities else 1.0
         self.memory.append((state, action, reward, next_state, done))
         self.priorities.append(max_priority)
 
@@ -176,7 +242,7 @@ class DQNAgent:
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.epsilon = checkpoint['epsilon']
         self.steps = checkpoint['steps']
-        self.update_target_model()  # 同步目標模型
+        self.update_target_model()
         if memory_path and os.path.exists(memory_path):
             with open(memory_path, 'rb') as f:
                 memory = pickle.load(f)
