@@ -7,7 +7,7 @@
 import numpy as np
 from game.entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
 from game.maze_generator import Map
-from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW
+from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, EDIBLE_DURATION, GHOST_SCORES, FPS, CELL_SIZE, BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW
 import pygame
 
 class PacManEnv:
@@ -23,10 +23,13 @@ class PacManEnv:
         self.maze = Map(w=width, h=height, seed=seed)
         self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
+        self.respawn_points = [(x, y) for y in range(self.maze.h) for x in range(self.maze.w)
+                              if self.maze.get_tile(x, y) == 'S']
+        self.ghost_score_index = 0  # 鬼魂分數索引
         self.done = False
-        self.action_space = [0, 1, 2, 3]
+        self.action_space = [0, 1, 2, 3]  # 動作：上、下、左、右
         self.observation_space = (height, width, 6)
-        self.cell_size = 20  # 每個格子的大小（像素），與 main.py 一致
+        self.cell_size = CELL_SIZE  # 使用 config 中的 CELL_SIZE
         self.screen = None
         self.clock = None
         self.render_enabled = False
@@ -40,6 +43,7 @@ class PacManEnv:
         """
         self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
+        self.ghost_score_index = 0
         self.done = False
         return self._get_state()
 
@@ -67,6 +71,43 @@ class PacManEnv:
                     state[x, y, 5] = 1.0
         return state
 
+    def _update_entities(self, action):
+        """
+        更新 Pac-Man 和鬼魂的狀態。
+
+        Args:
+            action (int): 動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
+        """
+        # 移動 Pac-Man
+        dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
+        moving = self.pacman.set_new_target(dx, dy, self.maze)
+        if moving:
+            self.pacman.move_towards_target(self.maze)
+
+        # 移動鬼魂
+        for ghost in self.ghosts:
+            if ghost.move_towards_target(self.maze):
+                if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) in self.respawn_points:
+                    ghost.set_waiting(FPS)
+                else:
+                    ghost.move(self.pacman, self.maze, FPS)
+
+    def _check_collision(self):
+        """
+        檢查 Pac-Man 與鬼魂的碰撞，更新分數或結束遊戲。
+        """
+        for ghost in self.ghosts:
+            distance = ((self.pacman.x * CELL_SIZE - ghost.x * CELL_SIZE) ** 2 +
+                       (self.pacman.y * CELL_SIZE - ghost.y * CELL_SIZE) ** 2) ** 0.5
+            if distance < CELL_SIZE / 2:
+                if ghost.edible and ghost.edible_timer > 0:
+                    self.pacman.score += GHOST_SCORES[self.ghost_score_index]
+                    self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)
+                    ghost.set_returning_to_spawn(FPS)
+                elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
+                    self.done = True
+                break
+
     def step(self, action):
         """
         執行一步動作，更新環境狀態並計算獎勵。
@@ -77,51 +118,41 @@ class PacManEnv:
         Returns:
             Tuple: (新狀態, 獎勵, 是否結束, 附加資訊)
         """
-        dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
-        moving = self.pacman.set_new_target(dx, dy, self.maze)
-        if moving:
-            self.pacman.move_towards_target(self.maze)
+        # 更新實體狀態
+        self._update_entities(action)
 
-        reward = -0.1
+        # 計算獎勵
+        reward = -0.1  # 基本懲罰，鼓勵快速行動
         if self.pacman.eat_pellet(self.power_pellets) > 0:
-            reward = 40
+            reward = 40  # 吃到能量球的獎勵
+            for ghost in self.ghosts:
+                ghost.set_edible(EDIBLE_DURATION)  # 設置鬼魂為可吃
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
-            reward = 10
+            reward = 10  # 吃到分數球的獎勵
 
+        # 檢查鬼魂距離獎勵
         min_ghost_dist = float('inf')
         for ghost in self.ghosts:
             if not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                 dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
                 min_ghost_dist = min(min_ghost_dist, dist)
         if min_ghost_dist > 5:
-            reward += 0.5
+            reward += 0.5  # 與鬼魂保持距離的獎勵
 
-        for ghost in self.ghosts:
-            if self.pacman.x == ghost.x and self.pacman.y == ghost.y:
-                if ghost.edible and ghost.respawn_timer > 0:
-                    reward = [100, 150, 250, 400][min(ghost.death_count, 3)]
-                    ghost.set_returning_to_spawn(30)
-                elif not ghost.returning_to_spawn and not ghost.waiting:
-                    reward = -100
-                    self.done = True
+        # 檢查碰撞
+        self._check_collision()
 
+        # 檢查遊戲結束條件
         if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
-            reward += 1000
+            reward += 1000  # 完成遊戲的獎勵
             self.done = True
-
-        for ghost in self.ghosts:
-            if ghost.move_towards_target(self.maze):
-                if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == 'S':
-                    ghost.set_waiting(30)
-                else:
-                    ghost.move(self.pacman, self.maze, 30)
 
         return self._get_state(), reward, self.done, {}
 
     def render(self):
         """
         使用 Pygame 渲染遊戲環境，顯示迷宮和遊戲實體。
-        僅在 render_enabled=True 時生效，移除閃爍等效果，確保主角清晰可見。
+        僅在 render_enabled=True 時生效，確保主角清晰可見。
         """
         if not self.render_enabled:
             return
