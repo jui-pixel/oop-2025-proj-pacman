@@ -37,20 +37,20 @@ class DQNAgent:
         self.batch_size = batch_size
         self.gamma = 0.995
         self.epsilon = epsilon
-        self.epsilon_min = 0.05  # 提高最小探索率，確保長期探索
-        self.epsilon_decay = 0.9995  # 減慢探索率衰減，延長探索階段
+        self.epsilon_min = 0.05
+        self.epsilon_decay = 0.9995
         self.model = DQN(state_dim, action_dim).to(device)
         self.target_model = DQN(state_dim, action_dim).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.steps = 0
         self.target_update_freq = 1000
-        self.alpha = 0.3  # 降低 alpha，減少 PER 的偏見
+        self.alpha = 0.3
         self.beta = 0.4
         self.beta_increment = 0.002
-        self.last_action = None  # 記錄上一次動作
-        self.last_position = None  # 記錄上一次位置
-        self.stuck_counter = 0  # 記錄停滯次數
-        self.turn_probability = 0.2  # 隨機轉向概率
+        self.last_action = None
+        self.last_position = None
+        self.stuck_counter = 0
+        self.turn_probability = 0.2
         self.update_target_model()
 
     def update_target_model(self):
@@ -70,17 +70,16 @@ class DQNAgent:
         Returns:
             bool: 動作是否有效。
         """
-        pacman_x, pacman_y = np.where(state[:, :, 0] == 1.0)  # 找到 Pac-Man 位置
+        pacman_x, pacman_y = np.where(state[:, :, 0] == 1.0)
         if len(pacman_x) == 0:
-            return True  # 如果無法找到位置，假設動作有效
+            return True
         pacman_x, pacman_y = pacman_x[0], pacman_y[0]
 
         dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
         new_x, new_y = pacman_x + dx, pacman_y + dy
 
-        # 檢查新位置是否為牆（state 的第 5 通道表示牆）
         if 0 <= new_x < state.shape[0] and 0 <= new_y < state.shape[1]:
-            return state[new_x, new_y, 5] != 1.0  # 不是牆則有效
+            return state[new_x, new_y, 5] != 1.0
         return False
 
     def _check_stuck(self, state):
@@ -103,7 +102,7 @@ class DQNAgent:
         else:
             self.stuck_counter = 0
         self.last_position = current_position
-        return self.stuck_counter >= 3  # 連續 3 次未移動視為停滯
+        return self.stuck_counter >= 3
 
     def get_action(self, state):
         """
@@ -115,28 +114,24 @@ class DQNAgent:
         Returns:
             int: 選擇的動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
         """
-        # 檢查是否停滯
         is_stuck = self._check_stuck(state)
 
-        # 隨機探索或強制轉向
         if random.random() < self.epsilon or is_stuck or (self.last_action is not None and random.random() < self.turn_probability):
             valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
-            if not valid_actions:  # 如果沒有有效動作，隨機選擇
+            if not valid_actions:
                 return random.randrange(self.action_dim)
             action = random.choice(valid_actions)
-            # 避免反覆選擇同一動作
-            if self.last_action is not None and len(valid_actions) > 1:
+            # Avoid repeatedly choosing the same action, if possible
+            if self.last_action is not None and self.last_action in valid_actions and len(valid_actions) > 1:
                 valid_actions.remove(self.last_action)
-                action = random.choice(valid_actions) if valid_actions else action
+                action = random.choice(valid_actions)
             self.last_action = action
             return action
 
-        # 利用策略：選擇最大 Q 值的動作
         with torch.no_grad():
             state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
             q_values = self.model(state_tensor)
 
-            # 優先選擇有效動作
             valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
             if not valid_actions:
                 return random.randrange(self.action_dim)
