@@ -17,7 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import json
 
-def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=1000):
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=100):
     """
     訓練 DQN 代理，執行指定數量的訓練回合並保存模型與記憶緩衝區。
 
