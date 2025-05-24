@@ -37,19 +37,20 @@ class DQNAgent:
         self.batch_size = batch_size
         self.gamma = 0.995
         self.epsilon = epsilon
-        self.epsilon_min = 0.1  # 進一步提高最小探索率
-        self.epsilon_decay = 0.9997  # 更慢的衰減
+        self.epsilon_min = 0.1
+        self.epsilon_decay = 0.9997
         self.model = DQN(state_dim, action_dim).to(device)
         self.target_model = DQN(state_dim, action_dim).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.steps = 0
-        self.target_update_freq = 500  # 提高更新頻率
-        self.alpha = 0.25  # 進一步降低 PER 偏見
+        self.target_update_freq = 500
+        self.alpha = 0.25
         self.beta = 0.4
         self.beta_increment = 0.002
         self.last_action = None
         self.last_position = None
         self.stuck_counter = 0
+        self.turn_probability = 0.5  # 提高轉向概率以增加隨機移動的多樣性
         self.update_target_model()
 
     def update_target_model(self):
@@ -101,11 +102,11 @@ class DQNAgent:
         else:
             self.stuck_counter = 0
         self.last_position = current_position
-        return self.stuck_counter >= 2  # 降低停滯閾值至 2 次
+        return self.stuck_counter >= 2
 
     def get_action(self, state):
         """
-        使用改進的 ε-貪婪策略選擇動作，確保移動並增加轉向。
+        使用改進的 ε-貪婪策略選擇動作，確保移動並增加轉向（僅改動隨機移動部分）。
 
         Args:
             state (numpy.ndarray): 當前狀態，形狀為 (height, width, channels)。
@@ -115,14 +116,15 @@ class DQNAgent:
         """
         is_stuck = self._check_stuck(state)
 
-        if random.random() < self.epsilon or is_stuck:
+        if random.random() < self.epsilon or is_stuck or (self.last_action is not None and random.random() < self.turn_probability):
             valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
             if not valid_actions:
                 return random.randrange(self.action_dim)
-            action = random.choice(valid_actions)
-            if self.last_action is not None and self.last_action in valid_actions and len(valid_actions) > 1:
-                valid_actions.remove(self.last_action)
-                action = random.choice(valid_actions)
+
+            # 改進隨機移動：優先選擇與上一次動作不同的方向
+            preferred_actions = [a for a in valid_actions if a != self.last_action] if self.last_action is not None else valid_actions
+            # 如果所有有效動作都與上一次相同（例如只有一個有效動作），則允許選擇該動作
+            action = random.choice(preferred_actions if preferred_actions else valid_actions)
             self.last_action = action
             return action
 
@@ -136,7 +138,7 @@ class DQNAgent:
 
             q_values_np = q_values.cpu().numpy()[0]
             q_values_valid = [(q_values_np[a], a) for a in valid_actions]
-            if not q_values_valid:  # 確保至少有一個動作
+            if not q_values_valid:
                 return random.choice(valid_actions)
             action = max(q_values_valid, key=lambda x: x[0])[1]
             self.last_action = action
