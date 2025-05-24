@@ -91,7 +91,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         # 記錄回合獎勵並輸出進度
         episode_rewards.append(total_reward)
         writer.add_scalar('Reward', total_reward, episode)
-        print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
+        print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}, Seed = {seed}")
 
         # 每 100 回合保存一次模型（可選，註解掉以減少 I/O）
         # if (episode + 1) % 100 == 0:
