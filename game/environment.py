@@ -140,7 +140,7 @@ class PacManEnv:
 
         reward = 0.0  # 初始獎勵為 0
         if (self.pacman.x, self.pacman.y) != old_position:
-            reward += 0.2  # 獎勵有效移動
+            reward += 0.03  # 獎勵有效移動
         else:
             reward -= 0.01  # 懲罰停滯
             if self._check_stuck():
