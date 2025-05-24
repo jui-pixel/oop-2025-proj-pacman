@@ -51,6 +51,8 @@ class DQNAgent:
         self.last_position = None
         self.stuck_counter = 0
         self.update_target_model()
+        self.action_cooldown = 0  # 添加動作冷卻計數器
+        self.cooldown_steps = 10  # 每 10 步執行一次動作
 
     def update_target_model(self):
         """
@@ -113,21 +115,30 @@ class DQNAgent:
         Returns:
             int: 選擇的動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
         """
+        if self.action_cooldown > 0:
+            self.action_cooldown -= 1
+            return self.last_action if self.last_action is not None else random.randrange(self.action_dim)
         # 先挑選所有有效動作
         valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
         if not valid_actions:
-            return random.randrange(self.action_dim)
+            self.action_cooldown = self.cooldown_steps
+            self.last_action = random.randrange(self.action_dim)
+            return self.last_action
 
         is_stuck = self._check_stuck(state)
 
         if random.random() < self.epsilon or is_stuck:
-            return random.choice(valid_actions)  # 隨機選擇有效動作
+            self.action_cooldown = self.cooldown_steps
+            self.last_action = random.randrange(self.action_dim)
+            return self.last_action  # 隨機選擇有效動作
 
         # 最大 Q 值選取，限制在 valid_actions
         with torch.no_grad():  # 禁用梯度計算以節省資源
             state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
             q_values = self.model(state_tensor)  # 計算 Q 值
-            return q_values.argmax().item()  # 選擇最大 Q 值的動作
+            self.action_cooldown = self.cooldown_steps
+            self.last_action = q_values.argmax().item()  # 選擇最大 Q 值的動作
+            return self.last_action
 
     def train(self):
         """
