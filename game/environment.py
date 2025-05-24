@@ -108,7 +108,8 @@ class PacManEnv:
                     ghost.set_returning_to_spawn(FPS)
                 elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                     self.done = True
-                break
+                    return True
+        return False
 
     def _check_stuck(self):
         """
@@ -161,7 +162,8 @@ class PacManEnv:
         if min_ghost_dist > 5:
             reward += 0.5
 
-        self._check_collision()
+        if self._check_collision():
+            reward -= 100
 
         if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
             reward += 1000
