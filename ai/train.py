@@ -59,6 +59,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     max_steps = 1000  # 每個回合的最大步數
     writer = SummaryWriter()  # 初始化 TensorBoard 記錄器
     episode_rewards = []  # 記錄每個回合的總獎勵
+    best_avg_reward = float('-inf') # 初始化最佳平均獎勵
     
     # 訓練迴圈
     for episode in range(episodes):
@@ -106,5 +107,4 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     return episode_rewards
 
 if __name__ == "__main__":
-    for _ in range(50):
-        train(resume=True)  # 執行訓練，預設從先前模型繼續
+    train(resume=True)  # 執行訓練，預設從先前模型繼續
