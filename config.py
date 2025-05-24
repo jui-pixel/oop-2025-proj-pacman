@@ -1,7 +1,7 @@
 # config.py
 """遊戲常量和配置模塊。"""
 
-CELL_SIZE = 20
+CELL_SIZE = 30
 FPS = 90
 
 # 顏色

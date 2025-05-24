@@ -222,22 +222,26 @@ class PacManEnv:
             pygame.draw.ellipse(self.screen, ORANGE, pellet_rect)
 
         pacman_rect = pygame.Rect(
-            self.pacman.x * self.cell_size + self.cell_size // 4,
-            self.pacman.y * self.cell_size + self.cell_size // 4,
-            self.cell_size // 2, self.cell_size // 2)
+            self.pacman.current_x - CELL_SIZE // 4,
+            self.pacman.current_y - CELL_SIZE // 4,
+            CELL_SIZE // 2, CELL_SIZE // 2)
         pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)
 
         for ghost in self.ghosts:
-            ghost_rect = pygame.Rect(
-                ghost.x * self.cell_size + self.cell_size // 4,
-                ghost.y * self.cell_size + self.cell_size // 4,
-                self.cell_size // 2, self.cell_size // 2)
             if ghost.returning_to_spawn:
-                pygame.draw.ellipse(self.screen, DARK_GRAY, ghost_rect)
-            elif ghost.edible and ghost.respawn_timer > 0:
-                pygame.draw.ellipse(self.screen, (173, 216, 230), ghost_rect)
+                base_color = DARK_GRAY
+            elif ghost.edible and ghost.edible_timer > 0:
+                base_color = (173, 216, 230)
+                ghost.alpha = 255
             else:
-                pygame.draw.ellipse(self.screen, ghost.color, ghost_rect)
+                base_color = ghost.color
+                ghost.alpha = 255
+            
+            ghost_surface = pygame.Surface((CELL_SIZE // 2, CELL_SIZE // 2), pygame.SRCALPHA)
+            ghost_surface.fill((0, 0, 0, 0))  # 透明背景
+            pygame.draw.ellipse(ghost_surface, (*base_color, ghost.alpha),
+                               (0, 0, CELL_SIZE // 2, CELL_SIZE // 2))
+            self.screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
 
         pygame.display.flip()
         self.clock.tick(30)

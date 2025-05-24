@@ -121,12 +121,7 @@ class DQNAgent:
         is_stuck = self._check_stuck(state)
 
         if random.random() < self.epsilon or is_stuck:
-            # 隨機移動：優先選擇與上一次動作不同的方向
-            preferred_actions = [a for a in valid_actions if a != self.last_action] if self.last_action is not None else valid_actions
-            action = random.choice(preferred_actions if preferred_actions else valid_actions)
-            self.last_action = action
-            # print(f"隨機選擇動作: {action}, 有效動作: {valid_actions}, 是否停滯: {is_stuck}")
-            return action
+            return random.choice(valid_actions)  # 隨機選擇有效動作
 
         # 最大 Q 值選取，限制在 valid_actions
         with torch.no_grad():  # 禁用梯度計算以節省資源
