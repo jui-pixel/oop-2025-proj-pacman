@@ -145,14 +145,14 @@ class PacManEnv:
         else:
             reward -= 0.001  # 懲罰停滯
             if self._check_stuck():
-                reward -= 0.01  # 額外懲罰連續停滯
+                reward -= 0.002  # 額外懲罰連續停滯
 
         if self.pacman.eat_pellet(self.power_pellets) > 0:
-            reward += 40
+            reward += 20
             for ghost in self.ghosts:
                 ghost.set_edible(EDIBLE_DURATION)
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
-            reward += 10
+            reward += 2
 
         min_ghost_dist = float('inf')
         for ghost in self.ghosts:
@@ -160,13 +160,13 @@ class PacManEnv:
                 dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
                 min_ghost_dist = min(min_ghost_dist, dist)
         if min_ghost_dist > 5:
-            reward += 0.5
+            reward += 0.002
 
         if self._check_collision():
             reward -= 100
 
         if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
-            reward += 1000
+            reward += 10000
             self.done = True
 
         return self._get_state(), reward, self.done, {}
