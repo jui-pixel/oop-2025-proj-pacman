@@ -16,7 +16,7 @@ from ai.dqn import DQN
 import pickle
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=5e-4, epsilon=1.0):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=5e-4, epsilon=1.2):
         """
         初始化 DQN 代理，設置主模型、目標模型、記憶緩衝區和訓練參數。
 
@@ -27,7 +27,7 @@ class DQNAgent:
             buffer_size (int): 記憶緩衝區的最大容量，預設為 10000。
             batch_size (int): 每次訓練的批次大小，預設為 64。
             lr (float): 學習率，預設為 5e-4。
-            epsilon (float): 初始探索率，預設為 1.0（完全隨機）。
+            epsilon (float): 初始探索率，預設為 1.2（增加探索）。
         """
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -37,20 +37,20 @@ class DQNAgent:
         self.batch_size = batch_size
         self.gamma = 0.995
         self.epsilon = epsilon
-        self.epsilon_min = 0.05
-        self.epsilon_decay = 0.9995
+        self.epsilon_min = 0.1  # 進一步提高最小探索率
+        self.epsilon_decay = 0.9997  # 更慢的衰減
         self.model = DQN(state_dim, action_dim).to(device)
         self.target_model = DQN(state_dim, action_dim).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.steps = 0
-        self.target_update_freq = 1000
-        self.alpha = 0.3
+        self.target_update_freq = 500  # 提高更新頻率
+        self.alpha = 0.25  # 進一步降低 PER 偏見
         self.beta = 0.4
         self.beta_increment = 0.002
         self.last_action = None
         self.last_position = None
         self.stuck_counter = 0
-        self.turn_probability = 0.2
+        self.turn_probability = 0.3  # 提高轉向概率
         self.update_target_model()
 
     def update_target_model(self):
@@ -102,11 +102,11 @@ class DQNAgent:
         else:
             self.stuck_counter = 0
         self.last_position = current_position
-        return self.stuck_counter >= 3
+        return self.stuck_counter >= 2  # 降低停滯閾值至 2 次
 
     def get_action(self, state):
         """
-        使用改進的 ε-貪婪策略選擇動作，增加有效移動和轉向。
+        使用改進的 ε-貪婪策略選擇動作，確保移動並增加轉向。
 
         Args:
             state (numpy.ndarray): 當前狀態，形狀為 (height, width, channels)。
@@ -121,7 +121,6 @@ class DQNAgent:
             if not valid_actions:
                 return random.randrange(self.action_dim)
             action = random.choice(valid_actions)
-            # Avoid repeatedly choosing the same action, if possible
             if self.last_action is not None and self.last_action in valid_actions and len(valid_actions) > 1:
                 valid_actions.remove(self.last_action)
                 action = random.choice(valid_actions)
@@ -138,6 +137,8 @@ class DQNAgent:
 
             q_values_np = q_values.cpu().numpy()[0]
             q_values_valid = [(q_values_np[a], a) for a in valid_actions]
+            if not q_values_valid:  # 確保至少有一個動作
+                return random.choice(valid_actions)
             action = max(q_values_valid, key=lambda x: x[0])[1]
             self.last_action = action
             return action
