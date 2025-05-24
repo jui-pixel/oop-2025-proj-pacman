@@ -23,7 +23,7 @@ class PacManEnv:
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
         self.done = False  # 遊戲結束標誌
         self.action_space = [0, 1, 2, 3]  # 動作空間：上(0)、下(1)、左(2)、右(3)
-        self.observation_space = (height, width, 5)  # 觀察空間：(高度, 寬度, 5個通道)
+        self.observation_space = (height, width, 6)  # 觀察空間：(高度, 寬度, 6個通道)
 
     def reset(self):
         """
