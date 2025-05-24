@@ -85,12 +85,18 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         writer.add_scalar('Reward', total_reward, episode)
         print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
         
+        if (episode + 1) >= 100:
+            avg_reward = np.mean(episode_rewards[-100:])
+            if avg_reward > best_avg_reward:
+                best_avg_reward = avg_reward
+                agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")  # 直接保存為最終模型
+                print(f"New best average reward: {best_avg_reward:.2f}, saved best model at Episode {episode+1}")
         # # 每 100 回合保存一次模型和記憶緩衝區
         # if (episode + 1) % 100 == 0:
         #     agent.save(f"pacman_dqn_{episode+1}.pth", f"replay_buffer_{episode+1}.pkl")
     
-    # 保存最終模型和記憶緩衝區
-    agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
+    # # 保存最終模型和記憶緩衝區
+    # agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
     
     # 保存回合獎勵到 JSON 檔案
     with open("episode_rewards.json", "w") as f:
