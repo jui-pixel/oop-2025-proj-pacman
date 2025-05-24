@@ -35,7 +35,10 @@ class DQN(nn.Module):
         
         # 全連接層：映射到動作 Q 值
         self.fc = nn.Sequential(
-            nn.Linear(conv_out_size, 256),
+            nn.Linear(conv_out_size, 512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, 256),
             nn.ReLU(),
             nn.Linear(256, output_dim)
         )

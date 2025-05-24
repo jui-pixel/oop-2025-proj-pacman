@@ -83,6 +83,14 @@ class PacManEnv:
             reward = 20  # 吃能量球獎勵
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
             reward = 5   # 吃分數球獎勵
+            
+        # 計算與最近能量球和分數球的距離獎勵
+        min_power_dist = float('inf') if not self.power_pellets else min(
+            abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.power_pellets)
+        min_score_dist = float('inf') if not self.score_pellets else min(
+            abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.score_pellets)
+        reward += max(0, 1.0 - min_power_dist * 0.1)  # 接近能量球給予獎勵
+        reward += max(0, 0.5 - min_score_dist * 0.1)  # 接近分數球給予獎勵
         
         # 檢查與鬼魂的碰撞
         for ghost in self.ghosts:

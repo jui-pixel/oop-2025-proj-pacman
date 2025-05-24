@@ -104,7 +104,7 @@ class DQNAIControl(ControlStrategy):
         if not PYTORCH_AVAILABLE:
             raise ImportError("PyTorch is required for DQN AI.")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.agent = DQNAgent((maze_height, maze_width, 5), 4, self.device)
+        self.agent = DQNAgent((maze_height, maze_width, 5), 4, self.device, 10000, 128, 1e-4, 0.0)
         try:
             self.agent.load("pacman_dqn_final.pth")
         except FileNotFoundError:
@@ -124,7 +124,7 @@ class DQNAIControl(ControlStrategy):
         """
         if not moving:
             # 構建當前狀態
-            state = np.zeros((maze.h, maze.w, 5), dtype=np.float32)
+            state = np.zeros((maze.h, maze.w, 6), dtype=np.float32)
             state[pacman.x, pacman.y, 0] = 1  # Pac-Man 位置
             for pellet in power_pellets:
                 state[pellet.x, pellet.y, 1] = 1  # 能量球位置
@@ -135,7 +135,12 @@ class DQNAIControl(ControlStrategy):
                     state[ghost.x, ghost.y, 3] = 1  # 可吃鬼魂
                 else:
                     state[ghost.x, ghost.y, 4] = 1  # 不可吃鬼魂
-            
+            # 加入牆壁位置 (通道 5)
+            for y in range(self.maze.h):
+                for x in range(self.maze.w):
+                    if self.maze.get_tile(x, y) in ['#', 'X', 'D']:  # 表示牆壁
+                        state[x, y, 5] = 1.0
+                
             # 選擇動作
             action = self.agent.get_action(state)
             dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]  # 將動作映射到方向

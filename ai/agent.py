@@ -15,7 +15,7 @@ from ai.dqn import DQN
 import pickle
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=5e-4):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=5e-4, epsilon=1.0):
         """
         初始化 DQN 代理，設置模型、記憶緩衝區和訓練參數。
 
@@ -33,7 +33,7 @@ class DQNAgent:
         self.memory = deque(maxlen=buffer_size)  # 記憶緩衝區
         self.batch_size = batch_size
         self.gamma = 0.99  # 折扣因子
-        self.epsilon = 1.0  # 探索率
+        self.epsilon = epsilon  # 探索率
         self.epsilon_min = 0.01  # 最小探索率
         self.epsilon_decay = 0.9999  # 探索率衰減率
         self.model = DQN(state_dim, action_dim).to(device)  # 主模型
