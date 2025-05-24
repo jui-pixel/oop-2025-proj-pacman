@@ -110,3 +110,7 @@ def plot_metrics(runs_dir="runs", json_path="episode_rewards.json"):
     # 調整佈局並保存圖表
     plt.tight_layout()  # 自動調整子圖間距
     plt.savefig("training_metrics.png")  # 保存為 PNG
+    
+if __name__ == "__main__":
+    plot_metrics()  # 執行繪圖函數
+    print("Metrics plotted and saved as 'training_metrics.png'.")  # 提示完成
