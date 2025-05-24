@@ -43,9 +43,9 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         state_dim=state_dim,
         action_dim=action_dim,
         device=device,
-        buffer_size=10000,  # 記憶緩衝區大小
-        batch_size=64,      # 批次大小
-        lr=5e-4             # 學習率
+        buffer_size=50000,  # 記憶緩衝區大小
+        batch_size=128,      # 批次大小
+        lr=1e-4             # 學習率
     )
     
     # 如果 resume=True 且模型檔案存在，載入先前訓練的模型和記憶緩衝區
