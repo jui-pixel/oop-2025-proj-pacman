@@ -97,6 +97,13 @@ class PacManEnv:
             reward = 40  # 吃能量球獎勵
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
             reward = 10  # 吃分數球獎勵
+        
+        min_power_dist = float('inf') if not self.power_pellets else min(
+            abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.power_pellets)
+        min_score_dist = float('inf') if not self.score_pellets else min(
+            abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.score_pellets)
+        reward += max(0, 1.0 - min_power_dist * 0.1)  # 接近能量球獎勵
+        reward += max(0, 0.5 - min_score_dist * 0.1)  # 接近分數球獎勵
 
         # 計算與鬼魂的距離，遠離不可吃鬼魂獲得小獎勵
         min_ghost_dist = float('inf')
@@ -115,7 +122,7 @@ class PacManEnv:
                     reward = [100, 150, 250, 400][min(ghost.death_count, 3)]
                     ghost.set_returning_to_spawn(30)  # 鬼魂進入重生模式
                 elif not ghost.returning_to_spawn and not ghost.waiting:
-                    reward = -100  # 被不可吃鬼魂抓住，遊戲結束
+                    reward = -50  # 被不可吃鬼魂抓住，遊戲結束
                     self.done = True
 
         # 更新鬼魂狀態

@@ -25,13 +25,7 @@ class DQN(nn.Module):
             nn.Conv2d(input_dim[2], 16, kernel_size=3, stride=1, padding=1),  # 第一層：輸入通道 -> 16
             nn.BatchNorm2d(16),  # 批次正規化，穩定特徵分佈
             nn.ReLU(),  # 激活函數，增加非線性
-            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),  # 第二層：16 -> 32
-            nn.BatchNorm2d(32),  # 批次正規化
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),  # 第三層：32 -> 64
-            nn.BatchNorm2d(64),  # 批次正規化
-            nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),  # 第四層：64 -> 128
+            nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1),  # 第二層：16 -> 64
             nn.ReLU()  # 最後一層無批次正規化，直接激活
         )
 
@@ -40,11 +34,9 @@ class DQN(nn.Module):
 
         # 定義全連接層序列，映射卷積輸出到動作 Q 值
         self.fc = nn.Sequential(
-            nn.Linear(conv_out_size, 1024),  # 將卷積展平輸出映射到 1024 維
+            nn.Linear(conv_out_size, 512),  # 將卷積展平輸出映射到 512 維
             nn.ReLU(),  # 激活函數
             nn.Dropout(0.5),  # Dropout 防止過擬合
-            nn.Linear(1024, 512),  # 1024 -> 512
-            nn.ReLU(),
             nn.Linear(512, output_dim)  # 512 -> 動作數（Q 值）
         )
 

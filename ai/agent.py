@@ -35,18 +35,18 @@ class DQNAgent:
         self.memory = deque(maxlen=buffer_size)  # 記憶緩衝區，儲存經驗
         self.priorities = deque(maxlen=buffer_size)  # 儲存優先級（用於 PER）
         self.batch_size = batch_size  # 訓練批次大小
-        self.gamma = 0.99  # 折扣因子，衡量未來獎勵的重要性
+        self.gamma = 0.995  # 折扣因子，衡量未來獎勵的重要性
         self.epsilon = epsilon  # 探索率，控制隨機動作的概率
-        self.epsilon_min = 0.1  # 最小探索率，確保長期仍有探索
-        self.epsilon_decay = 0.9999  # 探索率衰減率，逐漸減少隨機性
+        self.epsilon_min = 0.01  # 最小探索率，確保長期仍有探索
+        self.epsilon_decay = 0.995  # 探索率衰減率，逐漸減少隨機性
         self.model = DQN(state_dim, action_dim).to(device)  # 主模型，用於動作選擇和訓練
         self.target_model = DQN(state_dim, action_dim).to(device)  # 目標模型，穩定 Q 值計算
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)  # Adam 優化器
         self.steps = 0  # 記錄訓練步數
         self.target_update_freq = 1000  # 目標模型更新頻率（步數）
-        self.alpha = 0.6  # 優先級權重，控制 PER 採樣偏見
+        self.alpha = 0.4  # 優先級權重，控制 PER 採樣偏見
         self.beta = 0.4  # 重要性採樣權重，初始值
-        self.beta_increment = 0.001  # 重要性採樣權重增量
+        self.beta_increment = 0.002  # 重要性採樣權重增量
         self.update_target_model()  # 同步初始模型權重
 
     def update_target_model(self):

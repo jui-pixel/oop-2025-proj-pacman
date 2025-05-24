@@ -110,7 +110,7 @@ class DQNAIControl(ControlStrategy):
             raise ImportError("PyTorch is required for DQN AI.")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # 初始化 DQN 代理，狀態維度為 (高度, 寬度, 6)，動作數為 4
-        self.agent = DQNAgent((maze_height, maze_width, 6), 4, self.device, 10000, 128, 1e-4, 0.1)
+        self.agent = DQNAgent((maze_height, maze_width, 6), 4, self.device, 10000, 128, 1e-4, 0.01)
         try:
             self.agent.load("pacman_dqn_final.pth")  # 載入預訓練模型
         except FileNotFoundError:

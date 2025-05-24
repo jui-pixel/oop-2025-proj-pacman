@@ -44,7 +44,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         state_dim=state_dim,
         action_dim=action_dim,
         device=device,
-        buffer_size=50000,  # 記憶緩衝區容量，儲存更多經驗
+        buffer_size=100000,  # 記憶緩衝區容量，儲存更多經驗
         batch_size=128,     # 批次大小，平衡計算效率和穩定性
         lr=1e-5 if resume else 1e-4  # 降低學習率以穩定繼續訓練
     )
@@ -57,7 +57,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     else:
         print("Starting fresh training")
 
-    max_steps = 1000  # 每個回合的最大步數，防止無限迴圈
+    max_steps = 10000  # 每個回合的最大步數，防止無限迴圈
     writer = SummaryWriter()  # 初始化 TensorBoard 記錄器
     episode_rewards = []  # 儲存每個回合的總獎勵
 
