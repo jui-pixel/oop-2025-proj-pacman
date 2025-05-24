@@ -42,13 +42,13 @@ class Map:
         在迷宮中央添加 7x5 的房間，包含鬼魂重生點 'S' 和門 'D'。
         """
         room = [
-            ".......",
-            ".XXDXX.",
-            ".XSSSX.",
-            ".XXXXX.",
-            "......."
+            ".....",
+            ".XDX.",
+            ".DSD.",
+            ".XDX.",
+            "....."
         ]
-        room_w, room_h = 7, 5
+        room_w, room_h = 5, 5
         start_x = (self.width - room_w) // 2
         start_y = (self.height - room_h) // 2
         
@@ -444,12 +444,12 @@ class Map:
         self.place_power_pellets()
 
 if __name__ == "__main__":
-    width = 25
-    height = 25
+    width = 19
+    height = 19
     seed = 1
     
-    if width < 9 or height < 9:
-        print("錯誤：迷宮最小尺寸為 9x9 以容納中央房間")
+    if width < 7 or height < 7:
+        print("錯誤：迷宮最小尺寸為 7x7 以容納中央房間")
         sys.exit(1)
     
     maze = Map(width, height, seed=seed)
