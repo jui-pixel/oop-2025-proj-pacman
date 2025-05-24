@@ -35,7 +35,7 @@ class DQNAgent:
         self.gamma = 0.99  # 折扣因子
         self.epsilon = 1.0  # 探索率
         self.epsilon_min = 0.01  # 最小探索率
-        self.epsilon_decay = 0.95  # 探索率衰減
+        self.epsilon_decay = 0.9999  # 探索率衰減率
         self.model = DQN(state_dim, action_dim).to(device)  # 主模型
         self.target_model = DQN(state_dim, action_dim).to(device)  # 目標模型
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
