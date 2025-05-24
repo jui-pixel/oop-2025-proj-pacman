@@ -50,7 +50,7 @@ class DQNAgent:
         self.last_action = None
         self.last_position = None
         self.stuck_counter = 0
-        self.turn_probability = 0.5  # 提高轉向概率以增加隨機移動的多樣性
+        self.turn_probability = 0.5
         self.update_target_model()
 
     def update_target_model(self):
@@ -106,7 +106,7 @@ class DQNAgent:
 
     def get_action(self, state):
         """
-        使用改進的 ε-貪婪策略選擇動作，確保移動並增加轉向（僅改動隨機移動部分）。
+        使用改進的 ε-貪婪策略選擇動作，確保移動並增加轉向（先挑選 valid_actions）。
 
         Args:
             state (numpy.ndarray): 當前狀態，形狀為 (height, width, channels)。
@@ -114,27 +114,24 @@ class DQNAgent:
         Returns:
             int: 選擇的動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
         """
+        # 先挑選所有有效動作
+        valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
+        if not valid_actions:
+            return random.randrange(self.action_dim)
+
         is_stuck = self._check_stuck(state)
 
         if random.random() < self.epsilon or is_stuck or (self.last_action is not None and random.random() < self.turn_probability):
-            valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
-            if not valid_actions:
-                return random.randrange(self.action_dim)
-
-            # 改進隨機移動：優先選擇與上一次動作不同的方向
+            # 隨機移動：優先選擇與上一次動作不同的方向
             preferred_actions = [a for a in valid_actions if a != self.last_action] if self.last_action is not None else valid_actions
-            # 如果所有有效動作都與上一次相同（例如只有一個有效動作），則允許選擇該動作
             action = random.choice(preferred_actions if preferred_actions else valid_actions)
             self.last_action = action
             return action
 
+        # 最大 Q 值選取部分保持不變
         with torch.no_grad():
             state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
             q_values = self.model(state_tensor)
-
-            valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
-            if not valid_actions:
-                return random.randrange(self.action_dim)
 
             q_values_np = q_values.cpu().numpy()[0]
             q_values_valid = [(q_values_np[a], a) for a in valid_actions]
