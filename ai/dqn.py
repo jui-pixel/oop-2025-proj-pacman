@@ -22,16 +22,16 @@ class DQN(nn.Module):
 
         # 定義卷積層序列，包含 4 層卷積，每層後（除最後一層外）添加批次正規化
         self.conv = nn.Sequential(
-            nn.Conv2d(input_dim[2], 32, kernel_size=3, stride=1, padding=1),  # 第一層：輸入通道 -> 32
-            nn.BatchNorm2d(32),  # 批次正規化，穩定特徵分佈
+            nn.Conv2d(input_dim[2], 16, kernel_size=3, stride=1, padding=1),  # 第一層：輸入通道 -> 16
+            nn.BatchNorm2d(16),  # 批次正規化，穩定特徵分佈
             nn.ReLU(),  # 激活函數，增加非線性
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),  # 第二層：32 -> 64
+            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),  # 第二層：16 -> 32
+            nn.BatchNorm2d(32),  # 批次正規化
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),  # 第三層：32 -> 64
             nn.BatchNorm2d(64),  # 批次正規化
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),  # 第三層：64 -> 128
-            nn.BatchNorm2d(128),  # 批次正規化
-            nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),  # 第四層：128 -> 128
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),  # 第四層：64 -> 128
             nn.ReLU()  # 最後一層無批次正規化，直接激活
         )
 
