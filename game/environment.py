@@ -124,7 +124,12 @@ class PacManEnv:
                 elif not ghost.returning_to_spawn and not ghost.waiting:
                     reward = -50  # 被不可吃鬼魂抓住，遊戲結束
                     self.done = True
-
+        
+        # 檢查是否吃完所有分數球和能量球，給予 1000 分獎勵
+        if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
+            reward += 1000  # 吃完所有物品的額外獎勵
+            self.done = True  # 任務完成，結束遊戲
+        
         # 更新鬼魂狀態
         for ghost in self.ghosts:
             if ghost.move_towards_target(self.maze):
