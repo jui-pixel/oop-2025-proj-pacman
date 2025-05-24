@@ -34,7 +34,7 @@ class DQNAgent:
         self.batch_size = batch_size
         self.gamma = 0.99  # 折扣因子
         self.epsilon = epsilon  # 探索率
-        self.epsilon_min = 0.01  # 最小探索率
+        self.epsilon_min = 0.1  # 最小探索率
         self.epsilon_decay = 0.9999  # 探索率衰減率
         self.model = DQN(state_dim, action_dim).to(device)  # 主模型
         self.target_model = DQN(state_dim, action_dim).to(device)  # 目標模型

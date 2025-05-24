@@ -50,9 +50,9 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     
     # 如果 resume=True 且模型檔案存在，載入先前訓練的模型和記憶緩衝區
     if resume and os.path.exists(model_path):
-        agent.load(model_path, memory_path)
+        agent.load(model_path)  # 不載入記憶緩衝區
         agent.epsilon = 0.1
-        print(f"Loaded model from {model_path} and memory from {memory_path}")
+        print(f"Loaded model from {model_path}")
     else:
         print("Starting fresh training")
     
