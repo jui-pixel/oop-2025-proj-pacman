@@ -67,7 +67,7 @@ class PacManEnv:
                 state[ghost.x, ghost.y, 4] = 1.0
         for y in range(self.maze.h):
             for x in range(self.maze.w):
-                if self.maze.get_tile(x, y) in ['#', 'X', 'D']:
+                if self.maze.get_tile(x, y) in ['#', 'X']:
                     state[x, y, 5] = 1.0
         return state
 
