@@ -16,7 +16,7 @@ from ai.dqn import DQN
 import pickle
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=5e-4, epsilon=1.2):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=5e-4, epsilon=1.0):
         """
         初始化 DQN 代理，設置主模型、目標模型、記憶緩衝區和訓練參數。
 
@@ -120,14 +120,15 @@ class DQNAgent:
 
         is_stuck = self._check_stuck(state)
 
-        if random.random() < self.epsilon or is_stuck :
+        if random.random() < self.epsilon or is_stuck:
             # 隨機移動：優先選擇與上一次動作不同的方向
             preferred_actions = [a for a in valid_actions if a != self.last_action] if self.last_action is not None else valid_actions
             action = random.choice(preferred_actions if preferred_actions else valid_actions)
             self.last_action = action
             return action
 
-        with torch.no_grad():
+        # 最大 Q 值選取，限制在 valid_actions
+        with torch.no_grad():  # 禁用梯度計算以節省資源
             state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
             q_values = self.model(state_tensor)  # 計算 Q 值
             return q_values.argmax().item()  # 選擇最大 Q 值的動作
