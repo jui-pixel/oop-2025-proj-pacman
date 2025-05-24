@@ -42,6 +42,11 @@ class DQNAgent:
         self.steps = 0  # 訓練步數
         self.target_update_freq = 1000  # 目標模型更新頻率
         self.update_target_model()  # 同步初始模型
+        self.memory = deque(maxlen=buffer_size)
+        self.priorities = deque(maxlen=buffer_size)  # 儲存優先級
+        self.alpha = 0.6  # 優先級權重
+        self.beta = 0.4  # 重要性採樣權重
+        self.beta_increment = 0.001
 
     def update_target_model(self):
         """將主模型的權重複製到目標模型。"""
@@ -73,39 +78,47 @@ class DQNAgent:
         """
         if len(self.memory) < self.batch_size:
             return 0.0
-        
-        # 隨機採樣批次
-        batch = random.sample(self.memory, self.batch_size)
+
+        # 計算優先級概率
+        priorities = np.array(self.priorities) ** self.alpha
+        probabilities = priorities / priorities.sum()
+        indices = np.random.choice(len(self.memory), self.batch_size, p=probabilities)
+        batch = [self.memory[i] for i in indices]
+
         states, actions, rewards, next_states, dones = zip(*batch)
-        
-        # 轉換為張量
         states = torch.FloatTensor(np.array(states)).permute(0, 3, 1, 2).to(self.device)
         actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
         rewards = torch.FloatTensor(rewards).to(self.device)
         next_states = torch.FloatTensor(np.array(next_states)).permute(0, 3, 1, 2).to(self.device)
         dones = torch.FloatTensor(dones).to(self.device)
-        
-        # 計算當前 Q 值
+
         q_values = self.model(states).gather(1, actions).squeeze(1)
-        # 計算目標 Q 值
         next_q_values = self.target_model(next_states).max(1)[0].detach()
         target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
-        
-        # 計算損失
-        loss = nn.MSELoss()(q_values, target_q_values)
+
+        # 計算 TD 誤差並更新優先級
+        td_errors = (q_values - target_q_values).abs().cpu().detach().numpy()
+        for idx, error in zip(indices, td_errors):
+            self.priorities[idx] = error + 1e-5  # 避免零優先級
+
+        # 重要性採樣權重
+        weights = (len(self.memory) * probabilities[indices]) ** (-self.beta)
+        weights /= weights.max()
+        weights = torch.FloatTensor(weights).to(self.device)
+
+        loss = (weights * nn.MSELoss(reduction='none')(q_values, target_q_values)).mean()
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        
+
         self.steps += 1
-        # 定期更新目標模型
         if self.steps % self.target_update_freq == 0:
             self.update_target_model()
-        
-        # 衰減探索率
+
+        self.beta = min(1.0, self.beta + self.beta_increment)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-        
+
         return loss.item()
 
     def remember(self, state, action, reward, next_state, done):
@@ -119,7 +132,9 @@ class DQNAgent:
             next_state (numpy.ndarray): 下一個狀態。
             done (bool): 是否結束。
         """
+        max_priority = max(self.priorities) if self.priorities else 1.0
         self.memory.append((state, action, reward, next_state, done))
+        self.priorities.append(max_priority)
 
     def save(self, path, memory_path=None):
         """

@@ -19,28 +19,24 @@ class DQN(nn.Module):
         """
         super(DQN, self).__init__()
         self.input_dim = input_dim
-        
-        # 卷積層：提取空間特徵
         self.conv = nn.Sequential(
-            nn.Conv2d(input_dim[2], 16, kernel_size=3, stride=1, padding=1),  # 第一層卷積
+            nn.Conv2d(input_dim[2], 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),  # 第二層卷積
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),  # 第三層卷積
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),  # 額外卷積層
             nn.ReLU()
         )
-        
-        # 計算卷積層輸出大小
         conv_out_size = self._get_conv_out(input_dim)
-        
-        # 全連接層：映射到動作 Q 值
         self.fc = nn.Sequential(
-            nn.Linear(conv_out_size, 512),
+            nn.Linear(conv_out_size, 1024),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(512, 256),
+            nn.Linear(1024, 512),
             nn.ReLU(),
-            nn.Linear(256, output_dim)
+            nn.Linear(512, output_dim)
         )
 
     def _get_conv_out(self, shape):

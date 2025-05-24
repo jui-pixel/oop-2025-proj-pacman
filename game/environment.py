@@ -77,8 +77,10 @@ class PacManEnv:
         if moving:
             self.pacman.move_towards_target(self.maze)
         
+        
+        
         # 計算獎勵
-        reward = 0.5  # 基本步進獎勵
+        reward = -0.1  # 基本步進懲罰
         if self.pacman.eat_pellet(self.power_pellets) > 0:
             reward = 40  # 吃能量球獎勵
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
