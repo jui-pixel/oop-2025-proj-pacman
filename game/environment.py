@@ -8,6 +8,7 @@ import numpy as np
 from game.entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
 from game.maze_generator import Map
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
+import pygame  # 引入 Pygame 用於可視化
 
 class PacManEnv:
     def __init__(self, width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED):
@@ -19,13 +20,17 @@ class PacManEnv:
             height (int): 迷宮高度，預設從 config 導入。
             seed (int): 隨機種子，用於生成一致的迷宮，預設從 config 導入。
         """
-        self.maze = Map(w=width, h=height, seed=seed)  # 初始化迷宮
-        self.maze.generate_maze()  # 生成迷宮結構
-        # 初始化遊戲實體：Pac-Man、鬼魂、能量球、分數球
+        self.maze = Map(w=width, h=height, seed=seed)
+        self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
-        self.done = False  # 遊戲結束標誌，初始為 False
-        self.action_space = [0, 1, 2, 3]  # 動作空間：上(0)、下(1)、左(2)、右(3)
-        self.observation_space = (height, width, 6)  # 狀態空間：高度、寬度、6 通道
+        self.done = False
+        self.action_space = [0, 1, 2, 3]
+        self.observation_space = (height, width, 6)
+        # Pygame 可視化相關
+        self.cell_size = 20  # 每個格子的大小（像素）
+        self.screen = None  # Pygame 視窗
+        self.clock = None  # 控制幀率
+        self.render_enabled = False  # 可視化是否啟用
 
     def reset(self):
         """
@@ -34,37 +39,29 @@ class PacManEnv:
         Returns:
             numpy.ndarray: 初始狀態，形狀為 (height, width, 6)。
         """
-        self.maze.generate_maze()  # 重新生成迷宮
-        # 重新初始化所有遊戲實體
+        self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
-        self.done = False  # 重置結束標誌
-        return self._get_state()  # 返回初始狀態
+        self.done = False
+        return self._get_state()
 
     def _get_state(self):
         """
         構建當前遊戲狀態，包含 Pac-Man、能量球、分數球、鬼魂和牆壁的二維表示。
 
         Returns:
-            numpy.ndarray: 當前狀態，形狀為 (height, width, 6)，6 通道分別表示：
-                0: Pac-Man 位置
-                1: 能量球位置
-                2: 分數球位置
-                3: 可吃鬼魂位置
-                4: 不可吃鬼魂位置
-                5: 牆壁位置
+            numpy.ndarray: 當前狀態，形狀為 (height, width, 6)。
         """
         state = np.zeros((self.maze.h, self.maze.w, 6), dtype=np.float32)
-        state[self.pacman.x, self.pacman.y, 0] = 1.0  # 標記 Pac-Man 位置
+        state[self.pacman.x, self.pacman.y, 0] = 1.0
         for pellet in self.power_pellets:
-            state[pellet.x, pellet.y, 1] = 1.0  # 標記能量球
+            state[pellet.x, pellet.y, 1] = 1.0
         for pellet in self.score_pellets:
-            state[pellet.x, pellet.y, 2] = 1.0  # 標記分數球
+            state[pellet.x, pellet.y, 2] = 1.0
         for ghost in self.ghosts:
             if ghost.edible and ghost.respawn_timer > 0:
-                state[ghost.x, ghost.y, 3] = 1.0  # 標記可吃鬼魂
+                state[ghost.x, ghost.y, 3] = 1.0
             else:
-                state[ghost.x, ghost.y, 4] = 1.0  # 標記不可吃鬼魂
-        # 標記牆壁位置
+                state[ghost.x, ghost.y, 4] = 1.0
         for y in range(self.maze.h):
             for x in range(self.maze.w):
                 if self.maze.get_tile(x, y) in ['#', 'X', 'D']:
@@ -80,68 +77,106 @@ class PacManEnv:
 
         Returns:
             Tuple: (新狀態, 獎勵, 是否結束, 附加資訊)
-                - 新狀態 (numpy.ndarray): 形狀為 (height, width, 6)。
-                - 獎勵 (float): 當前步的獎勵值。
-                - 是否結束 (bool): 遊戲是否結束。
-                - 附加資訊 (dict): 目前為空，保留擴展用。
         """
-        # 將動作映射為方向向量
         dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
-        moving = self.pacman.set_new_target(dx, dy, self.maze)  # 設置 Pac-Man 新目標
+        moving = self.pacman.set_new_target(dx, dy, self.maze)
         if moving:
-            self.pacman.move_towards_target(self.maze)  # 移動 Pac-Man
+            self.pacman.move_towards_target(self.maze)
 
-        # 計算獎勵
-        reward = -0.1  # 基本步進懲罰，鼓勵快速完成
+        reward = -0.1
         if self.pacman.eat_pellet(self.power_pellets) > 0:
-            reward = 40  # 吃能量球獎勵
+            reward = 40
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
-            reward = 10  # 吃分數球獎勵
-        
-        min_power_dist = float('inf') if not self.power_pellets else min(
-            abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.power_pellets)
-        min_score_dist = float('inf') if not self.score_pellets else min(
-            abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.score_pellets)
-        reward += max(0, 1.0 - min_power_dist * 0.1)  # 接近能量球獎勵
-        reward += max(0, 0.5 - min_score_dist * 0.1)  # 接近分數球獎勵
+            reward = 10
 
-        # 計算與鬼魂的距離，遠離不可吃鬼魂獲得小獎勵
         min_ghost_dist = float('inf')
         for ghost in self.ghosts:
             if not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                 dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
                 min_ghost_dist = min(min_ghost_dist, dist)
         if min_ghost_dist > 5:
-            reward += 0.5  # 遠離鬼魂獎勵
+            reward += 0.5
 
-        # 檢查與鬼魂的碰撞
         for ghost in self.ghosts:
             if self.pacman.x == ghost.x and self.pacman.y == ghost.y:
                 if ghost.edible and ghost.respawn_timer > 0:
-                    # 吃可吃鬼魂，根據死亡次數給不同獎勵
                     reward = [100, 150, 250, 400][min(ghost.death_count, 3)]
-                    ghost.set_returning_to_spawn(30)  # 鬼魂進入重生模式
+                    ghost.set_returning_to_spawn(30)
                 elif not ghost.returning_to_spawn and not ghost.waiting:
-                    reward = -50  # 被不可吃鬼魂抓住，遊戲結束
+                    reward = -100
                     self.done = True
-        
-        # 檢查是否吃完所有分數球和能量球，給予 1000 分獎勵
+
         if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
-            reward += 1000  # 吃完所有物品的額外獎勵
-            self.done = True  # 任務完成，結束遊戲
-        
-        # 更新鬼魂狀態
+            reward += 1000
+            self.done = True
+
         for ghost in self.ghosts:
             if ghost.move_towards_target(self.maze):
                 if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == 'S':
-                    ghost.set_waiting(30)  # 鬼魂到達重生點，進入等待模式
+                    ghost.set_waiting(30)
                 else:
-                    ghost.move(self.pacman, self.maze, 30)  # 鬼魂移動邏輯
+                    ghost.move(self.pacman, self.maze, 30)
 
-        return self._get_state(), reward, self.done, {}  # 返回結果
+        return self._get_state(), reward, self.done, {}
 
     def render(self):
         """
-        渲染遊戲環境（由 main.py 實現，僅保留接口）。
+        使用 Pygame 渲染遊戲環境，顯示迷宮和遊戲實體。
+        僅在 render_enabled=True 時生效。
         """
-        pass
+        if not self.render_enabled:
+            return
+
+        # 初始化 Pygame（僅在第一次調用 render 時）
+        if self.screen is None:
+            pygame.init()
+            self.screen = pygame.display.set_mode((self.maze.w * self.cell_size, self.maze.h * self.cell_size))
+            pygame.display.set_caption("Pac-Man DQN Training")
+            self.clock = pygame.time.Clock()
+
+        # 檢查 Pygame 事件（允許關閉視窗）
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+
+        # 清空畫面
+        self.screen.fill((0, 0, 0))  # 黑色背景
+
+        # 繪製迷宮
+        for y in range(self.maze.h):
+            for x in range(self.maze.w):
+                tile = self.maze.get_tile(x, y)
+                if tile in ['#', 'X', 'D']:
+                    pygame.draw.rect(self.screen, (0, 0, 255),  # 藍色牆壁
+                                     (x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size))
+                elif tile == 'S':
+                    pygame.draw.rect(self.screen, (255, 165, 0),  # 橙色重生點
+                                     (x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size))
+
+        # 繪製分數球
+        for pellet in self.score_pellets:
+            pygame.draw.circle(self.screen, (255, 255, 255),  # 白色分數球
+                               (pellet.x * self.cell_size + self.cell_size // 2, pellet.y * self.cell_size + self.cell_size // 2),
+                               self.cell_size // 4)
+
+        # 繪製能量球
+        for pellet in self.power_pellets:
+            pygame.draw.circle(self.screen, (255, 255, 0),  # 黃色能量球
+                               (pellet.x * self.cell_size + self.cell_size // 2, pellet.y * self.cell_size + self.cell_size // 2),
+                               self.cell_size // 2)
+
+        # 繪製鬼魂
+        for ghost in self.ghosts:
+            color = (0, 0, 255) if ghost.edible else (255, 0, 0)  # 可吃時藍色，否則紅色
+            pygame.draw.rect(self.screen, color,
+                             (ghost.x * self.cell_size, ghost.y * self.cell_size, self.cell_size, self.cell_size))
+
+        # 繪製 Pac-Man
+        pygame.draw.circle(self.screen, (255, 255, 0),  # 黃色 Pac-Man
+                           (self.pacman.x * self.cell_size + self.cell_size // 2, self.pacman.y * self.cell_size + self.cell_size // 2),
+                           self.cell_size // 2)
+
+        # 更新畫面並控制幀率
+        pygame.display.flip()
+        self.clock.tick(30)  # 30 FPS
