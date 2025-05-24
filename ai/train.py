@@ -113,5 +113,5 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     return episode_rewards
 
 if __name__ == "__main__":
-    for _ in range(10):  # 執行三次訓練
+    for _ in range(10):  # 執行10次訓練
         train(resume=True, visualize=True, render_frequency=10)  # 啟用可視化，每 10 步渲染一次
