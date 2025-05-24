@@ -38,7 +38,7 @@ class DQNAgent:
         self.gamma = 0.995  # 折扣因子，衡量未來獎勵的重要性
         self.epsilon = epsilon  # 探索率，控制隨機動作的概率
         self.epsilon_min = 0.01  # 最小探索率，確保長期仍有探索
-        self.epsilon_decay = 0.995  # 探索率衰減率，逐漸減少隨機性
+        self.epsilon_decay = 0.999  # 探索率衰減率，逐漸減少隨機性
         self.model = DQN(state_dim, action_dim).to(device)  # 主模型，用於動作選擇和訓練
         self.target_model = DQN(state_dim, action_dim).to(device)  # 目標模型，穩定 Q 值計算
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)  # Adam 優化器
