@@ -50,7 +50,6 @@ class DQNAgent:
         self.last_action = None
         self.last_position = None
         self.stuck_counter = 0
-        self.turn_probability = 0.5
         self.update_target_model()
 
     def update_target_model(self):
@@ -121,7 +120,7 @@ class DQNAgent:
 
         is_stuck = self._check_stuck(state)
 
-        if random.random() < self.epsilon or is_stuck or (self.last_action is not None and random.random() < self.turn_probability):
+        if random.random() < self.epsilon or is_stuck :
             # 隨機移動：優先選擇與上一次動作不同的方向
             preferred_actions = [a for a in valid_actions if a != self.last_action] if self.last_action is not None else valid_actions
             action = random.choice(preferred_actions if preferred_actions else valid_actions)
