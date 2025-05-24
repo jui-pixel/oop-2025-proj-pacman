@@ -129,17 +129,10 @@ class DQNAgent:
             return action
 
         # 最大 Q 值選取部分保持不變
-        with torch.no_grad():
+        with torch.no_grad():  # 禁用梯度計算以節省資源
             state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
-            q_values = self.model(state_tensor)
-
-            q_values_np = q_values.cpu().numpy()[0]
-            q_values_valid = [(q_values_np[a], a) for a in valid_actions]
-            if not q_values_valid:
-                return random.choice(valid_actions)
-            action = max(q_values_valid, key=lambda x: x[0])[1]
-            self.last_action = action
-            return action
+            q_values = self.model(state_tensor)  # 計算 Q 值
+            return q_values.argmax().item()  # 選擇最大 Q 值的動作
 
     def train(self):
         """
