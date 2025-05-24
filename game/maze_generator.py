@@ -44,8 +44,8 @@ class Map:
         room = [
             ".......",
             ".XXDXX.",
-            ".XSSSX.",
-            ".XXXXX.",
+            ".DSSSD.",
+            ".XXDXX.",
             "......."
         ]
         room_w, room_h = 7, 5
