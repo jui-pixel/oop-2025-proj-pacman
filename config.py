@@ -41,7 +41,7 @@ MAROON = (128, 0, 0)
 INDIGO = (75, 0, 130)
 CHOCOLATE = (210, 105, 30)
 
-# 遊戲參數
+# 遊戲參數 若WIDTH和HEIGHT皆為15，SEED為1，則會生成一個讓鬼出不來的迷宮
 MAZE_WIDTH = 16
 MAZE_HEIGHT = 16
 MAZE_SEED = 1
