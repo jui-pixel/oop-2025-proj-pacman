@@ -16,7 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import json
 
-def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=100):
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=1000):
     """
     訓練 DQN 代理，執行指定數量的訓練回合並保存模型與記憶緩衝區。
 
@@ -51,6 +51,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     # 如果 resume=True 且模型檔案存在，載入先前訓練的模型和記憶緩衝區
     if resume and os.path.exists(model_path):
         agent.load(model_path, memory_path)
+        agent.epsilon = 0.1
         print(f"Loaded model from {model_path} and memory from {memory_path}")
     else:
         print("Starting fresh training")
