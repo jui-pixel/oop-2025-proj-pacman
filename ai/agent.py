@@ -16,7 +16,7 @@ from ai.dqn import DQN
 import pickle
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=5e-4, epsilon=1.0):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=1e-4, epsilon=1.0):
         """
         初始化 DQN 代理，設置主模型、目標模型、記憶緩衝區和訓練參數。
 
