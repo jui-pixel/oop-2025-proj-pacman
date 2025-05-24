@@ -84,13 +84,22 @@ class PacManEnv:
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
             reward = 10   # 吃分數球獎勵
             
-        # 計算與最近能量球和分數球的距離獎勵
-        min_power_dist = float('inf') if not self.power_pellets else min(
-            abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.power_pellets)
-        min_score_dist = float('inf') if not self.score_pellets else min(
-            abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.score_pellets)
-        reward += max(0, 1.0 - min_power_dist * 0.1)  # 接近能量球給予獎勵
-        reward += max(0, 0.5 - min_score_dist * 0.1)  # 接近分數球給予獎勵
+        # # 計算與最近能量球和分數球的距離獎勵
+        # min_power_dist = float('inf') if not self.power_pellets else min(
+        #     abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.power_pellets)
+        # min_score_dist = float('inf') if not self.score_pellets else min(
+        #     abs(self.pacman.x - p.x) + abs(self.pacman.y - p.y) for p in self.score_pellets)
+        # reward += max(0, 1.0 - min_power_dist * 0.1)  # 接近能量球給予獎勵
+        # reward += max(0, 0.5 - min_score_dist * 0.1)  # 接近分數球給予獎勵
+        
+        # 移除距離獎勵，改用生存獎勵
+        min_ghost_dist = float('inf')
+        for ghost in self.ghosts:
+            if not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
+                dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
+                min_ghost_dist = min(min_ghost_dist, dist)
+        if min_ghost_dist > 5:  # 遠離鬼魂給予小獎勵
+            reward += 0.5
         
         # 檢查與鬼魂的碰撞
         for ghost in self.ghosts:
