@@ -125,6 +125,7 @@ class DQNAgent:
             preferred_actions = [a for a in valid_actions if a != self.last_action] if self.last_action is not None else valid_actions
             action = random.choice(preferred_actions if preferred_actions else valid_actions)
             self.last_action = action
+            # print(f"隨機選擇動作: {action}, 有效動作: {valid_actions}, 是否停滯: {is_stuck}")
             return action
 
         # 最大 Q 值選取，限制在 valid_actions
