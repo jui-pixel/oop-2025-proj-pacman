@@ -50,7 +50,6 @@ class DQNAgent:
         self.last_action = None
         self.last_position = None
         self.stuck_counter = 0
-        self.turn_probability = 0.3  # 提高轉向概率
         self.update_target_model()
 
     def update_target_model(self):
@@ -116,7 +115,7 @@ class DQNAgent:
         """
         is_stuck = self._check_stuck(state)
 
-        if random.random() < self.epsilon or is_stuck or (self.last_action is not None and random.random() < self.turn_probability):
+        if random.random() < self.epsilon or is_stuck or (self.last_action is not None):
             valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
             if not valid_actions:
                 return random.randrange(self.action_dim)
