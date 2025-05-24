@@ -7,8 +7,8 @@
 import numpy as np
 from game.entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
 from game.maze_generator import Map
-from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
-import pygame  # 引入 Pygame 用於可視化
+from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW
+import pygame
 
 class PacManEnv:
     def __init__(self, width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED):
@@ -26,11 +26,10 @@ class PacManEnv:
         self.done = False
         self.action_space = [0, 1, 2, 3]
         self.observation_space = (height, width, 6)
-        # Pygame 可視化相關
-        self.cell_size = 20  # 每個格子的大小（像素）
-        self.screen = None  # Pygame 視窗
-        self.clock = None  # 控制幀率
-        self.render_enabled = False  # 可視化是否啟用
+        self.cell_size = 20  # 每個格子的大小（像素），與 main.py 一致
+        self.screen = None
+        self.clock = None
+        self.render_enabled = False
 
     def reset(self):
         """
@@ -122,61 +121,77 @@ class PacManEnv:
     def render(self):
         """
         使用 Pygame 渲染遊戲環境，顯示迷宮和遊戲實體。
-        僅在 render_enabled=True 時生效。
+        僅在 render_enabled=True 時生效，移除閃爍等效果，確保主角清晰可見。
         """
         if not self.render_enabled:
             return
 
-        # 初始化 Pygame（僅在第一次調用 render 時）
         if self.screen is None:
             pygame.init()
             self.screen = pygame.display.set_mode((self.maze.w * self.cell_size, self.maze.h * self.cell_size))
             pygame.display.set_caption("Pac-Man DQN Training")
             self.clock = pygame.time.Clock()
 
-        # 檢查 Pygame 事件（允許關閉視窗）
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
 
-        # 清空畫面
-        self.screen.fill((0, 0, 0))  # 黑色背景
+        self.screen.fill(BLACK)  # 黑色背景
 
-        # 繪製迷宮
+        # 渲染迷宮
         for y in range(self.maze.h):
             for x in range(self.maze.w):
                 tile = self.maze.get_tile(x, y)
-                if tile in ['#', 'X', 'D']:
-                    pygame.draw.rect(self.screen, (0, 0, 255),  # 藍色牆壁
-                                     (x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size))
+                rect = pygame.Rect(x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size)
+                if tile == '#':
+                    pygame.draw.rect(self.screen, DARK_GRAY, rect)  # 邊界
+                elif tile == 'X':
+                    pygame.draw.rect(self.screen, BLACK, rect)  # 牆壁
+                elif tile == '.':
+                    pygame.draw.rect(self.screen, GRAY, rect)  # 路徑
+                elif tile == 'E':
+                    pygame.draw.rect(self.screen, GREEN, rect)  # 能量球位置
                 elif tile == 'S':
-                    pygame.draw.rect(self.screen, (255, 165, 0),  # 橙色重生點
-                                     (x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size))
+                    pygame.draw.rect(self.screen, PINK, rect)  # 重生點
+                elif tile == 'D':
+                    pygame.draw.rect(self.screen, RED, rect)  # 門
 
-        # 繪製分數球
-        for pellet in self.score_pellets:
-            pygame.draw.circle(self.screen, (255, 255, 255),  # 白色分數球
-                               (pellet.x * self.cell_size + self.cell_size // 2, pellet.y * self.cell_size + self.cell_size // 2),
-                               self.cell_size // 4)
-
-        # 繪製能量球
+        # 渲染能量球
         for pellet in self.power_pellets:
-            pygame.draw.circle(self.screen, (255, 255, 0),  # 黃色能量球
-                               (pellet.x * self.cell_size + self.cell_size // 2, pellet.y * self.cell_size + self.cell_size // 2),
-                               self.cell_size // 2)
+            pellet_rect = pygame.Rect(
+                pellet.x * self.cell_size + self.cell_size // 4,
+                pellet.y * self.cell_size + self.cell_size // 4,
+                self.cell_size // 2, self.cell_size // 2)
+            pygame.draw.ellipse(self.screen, BLUE, pellet_rect)
 
-        # 繪製鬼魂
+        # 渲染分數球
+        for pellet in self.score_pellets:
+            pellet_rect = pygame.Rect(
+                pellet.x * self.cell_size + self.cell_size // 4,
+                pellet.y * self.cell_size + self.cell_size // 4,
+                self.cell_size // 2, self.cell_size // 2)
+            pygame.draw.ellipse(self.screen, ORANGE, pellet_rect)
+
+        # 渲染 Pac-Man
+        pacman_rect = pygame.Rect(
+            self.pacman.x * self.cell_size + self.cell_size // 4,
+            self.pacman.y * self.cell_size + self.cell_size // 4,
+            self.cell_size // 2, self.cell_size // 2)
+        pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)
+
+        # 渲染鬼魂
         for ghost in self.ghosts:
-            color = (0, 0, 255) if ghost.edible else (255, 0, 0)  # 可吃時藍色，否則紅色
-            pygame.draw.rect(self.screen, color,
-                             (ghost.x * self.cell_size, ghost.y * self.cell_size, self.cell_size, self.cell_size))
+            ghost_rect = pygame.Rect(
+                ghost.x * self.cell_size + self.cell_size // 4,
+                ghost.y * self.cell_size + self.cell_size // 4,
+                self.cell_size // 2, self.cell_size // 2)
+            if ghost.returning_to_spawn:
+                pygame.draw.ellipse(self.screen, DARK_GRAY, ghost_rect)  # 固定灰色
+            elif ghost.edible and ghost.respawn_timer > 0:
+                pygame.draw.ellipse(self.screen, (173, 216, 230), ghost_rect)  # 固定淺藍色
+            else:
+                pygame.draw.ellipse(self.screen, ghost.color, ghost_rect)  # 固定鬼魂顏色
 
-        # 繪製 Pac-Man
-        pygame.draw.circle(self.screen, (255, 255, 0),  # 黃色 Pac-Man
-                           (self.pacman.x * self.cell_size + self.cell_size // 2, self.pacman.y * self.cell_size + self.cell_size // 2),
-                           self.cell_size // 2)
-
-        # 更新畫面並控制幀率
         pygame.display.flip()
-        self.clock.tick(30)  # 30 FPS
+        self.clock.tick(30)
