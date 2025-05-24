@@ -63,6 +63,10 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     
     # 訓練迴圈
     for episode in range(episodes):
+        seed = np.random.randint(0, 10000)  # 隨機種子
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=seed)  # 每次創建新環境
         state = env.reset()  # 重置環境
         total_reward = 0
         done = False
