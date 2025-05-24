@@ -141,11 +141,11 @@ class PacManEnv:
 
         reward = 0.0  # 初始獎勵為 0
         if (self.pacman.x, self.pacman.y) != old_position:
-            reward += 0.03  # 獎勵有效移動
+            reward += 0.003  # 獎勵有效移動
         else:
-            reward -= 0.01  # 懲罰停滯
+            reward -= 0.001  # 懲罰停滯
             if self._check_stuck():
-                reward -= 0.1  # 額外懲罰連續停滯
+                reward -= 0.01  # 額外懲罰連續停滯
 
         if self.pacman.eat_pellet(self.power_pellets) > 0:
             reward += 40
