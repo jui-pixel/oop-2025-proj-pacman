@@ -57,7 +57,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     else:
         print("Starting fresh training")
 
-    max_steps = 10000  # 每個回合的最大步數，防止無限迴圈
+    max_steps = 5000  # 每個回合的最大步數，防止無限迴圈
     writer = SummaryWriter()  # 初始化 TensorBoard 記錄器
     episode_rewards = []  # 儲存每個回合的總獎勵
 
