@@ -31,7 +31,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     """
     # 初始化 Pac-Man 遊戲環境
     env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED)
-    state_dim = (env.maze.h, env.maze.w, 5)  # 狀態維度：(高度, 寬度, 5 通道)
+    state_dim = (env.maze.h, env.maze.w, 6)  # 狀態維度：(高度, 寬度, 6 通道)
     action_dim = len(env.action_space)  # 動作維度：4（上、下、左、右）
     
     # 選擇計算設備（GPU 或 CPU）

@@ -39,12 +39,12 @@ class PacManEnv:
 
     def _get_state(self):
         """
-        獲取當前遊戲狀態，包含 Pac-Man、能量球、分數球和鬼魂位置。
+        獲取當前遊戲狀態，包含 Pac-Man、能量球、分數球、鬼魂和牆壁位置。
         
         Returns:
-            numpy 陣列，形狀為 (height, width, 5)，表示遊戲狀態。
+            numpy 陣列，形狀為 (height, width, 6)，表示遊戲狀態。
         """
-        state = np.zeros((self.maze.h, self.maze.w, 5), dtype=np.float32)
+        state = np.zeros((self.maze.h, self.maze.w, 6), dtype=np.float32)
         state[self.pacman.x, self.pacman.y, 0] = 1.0  # Pac-Man 位置
         for pellet in self.power_pellets:
             state[pellet.x, pellet.y, 1] = 1.0  # 能量球
@@ -55,6 +55,11 @@ class PacManEnv:
                 state[ghost.x, ghost.y, 3] = 1.0  # 可吃鬼魂
             else:
                 state[ghost.x, ghost.y, 4] = 1.0  # 不可吃鬼魂
+        # 加入牆壁位置 (通道 5)
+        for y in range(self.maze.h):
+            for x in range(self.maze.w):
+                if self.maze.get_tile(x, y) in ['#', 'X', 'D']:  # 表示牆壁
+                    state[x, y, 5] = 1.0
         return state
 
     def step(self, action):
