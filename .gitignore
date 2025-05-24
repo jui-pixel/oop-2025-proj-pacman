@@ -7,7 +7,7 @@ __pycache__/
 build/
 dist/
 *.egg-info/
-
+*.cpython-*
 # Virtual environments
 venv/
 .env/

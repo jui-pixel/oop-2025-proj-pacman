@@ -58,6 +58,10 @@ class Game:
         
         # 檢查碰撞
         self._check_collision(fps)
+        
+        if not self.power_pellets and not self.score_pellets:
+            print(f"Game Won! All pellets collected. Final Score: {self.pacman.score}")
+            self.running = False  # 遊戲結束
 
     def _check_collision(self, fps: int) -> None:
         """
