@@ -127,7 +127,7 @@ class DQNAgent:
             self.last_action = action
             return action
 
-        with torch.no_grad():  # 禁用梯度計算以節省資源
+        with torch.no_grad():
             state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
             q_values = self.model(state_tensor)  # 計算 Q 值
             return q_values.argmax().item()  # 選擇最大 Q 值的動作
