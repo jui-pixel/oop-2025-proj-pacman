@@ -154,7 +154,6 @@ class DQNAgent:
         self.epsilon = checkpoint['epsilon']
         self.steps = checkpoint['steps']
         self.update_target_model()
-        self.memory.clear()
         if memory_path and os.path.exists(memory_path):
             with open(memory_path, 'rb') as f:
                 memory = pickle.load(f)
