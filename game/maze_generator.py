@@ -444,8 +444,8 @@ class Map:
         self.place_power_pellets()
 
 if __name__ == "__main__":
-    width = 25
-    height = 25
+    width = 16
+    height = 16
     seed = 1
     
     if width < 9 or height < 9:
