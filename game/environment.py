@@ -80,9 +80,9 @@ class PacManEnv:
         # 計算獎勵
         reward = 0.5  # 基本步進獎勵
         if self.pacman.eat_pellet(self.power_pellets) > 0:
-            reward = 20  # 吃能量球獎勵
+            reward = 40  # 吃能量球獎勵
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
-            reward = 5   # 吃分數球獎勵
+            reward = 10   # 吃分數球獎勵
             
         # 計算與最近能量球和分數球的距離獎勵
         min_power_dist = float('inf') if not self.power_pellets else min(
@@ -96,7 +96,7 @@ class PacManEnv:
         for ghost in self.ghosts:
             if self.pacman.x == ghost.x and self.pacman.y == ghost.y:
                 if ghost.edible and ghost.respawn_timer > 0:
-                    reward = [50, 100, 150, 200][min(ghost.death_count, 3)]  # 吃鬼魂獎勵
+                    reward = [100, 150, 250, 400][min(ghost.death_count, 3)]  # 吃鬼魂獎勵
                     ghost.set_returning_to_spawn(30)
                 elif not ghost.returning_to_spawn and not ghost.waiting:
                     reward = -100  # 被鬼魂抓住，遊戲結束

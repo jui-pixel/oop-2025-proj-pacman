@@ -136,9 +136,9 @@ class DQNAIControl(ControlStrategy):
                 else:
                     state[ghost.x, ghost.y, 4] = 1  # 不可吃鬼魂
             # 加入牆壁位置 (通道 5)
-            for y in range(self.maze.h):
-                for x in range(self.maze.w):
-                    if self.maze.get_tile(x, y) in ['#', 'X', 'D']:  # 表示牆壁
+            for y in range(maze.h):
+                for x in range(maze.w):
+                    if maze.get_tile(x, y) in ['#', 'X', 'D']:  # 表示牆壁
                         state[x, y, 5] = 1.0
                 
             # 選擇動作
