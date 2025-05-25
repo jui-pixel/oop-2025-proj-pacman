@@ -37,7 +37,7 @@ class DQNAgent:
         self.gamma = 0.995
         self.epsilon = epsilon
         self.epsilon_min = 0.05
-        self.epsilon_decay = 0.99995
+        self.epsilon_decay = 0.9995
         self.model = DQN(state_dim, action_dim).to(device)
         self.target_model = DQN(state_dim, action_dim).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
