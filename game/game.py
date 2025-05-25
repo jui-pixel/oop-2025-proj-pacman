@@ -53,6 +53,8 @@ class Game:
             if ghost.move_towards_target(self.maze):
                 if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == 'S':
                     ghost.set_waiting(fps)  # 鬼魂到達重生點後等待
+                elif ghost.returning_to_spawn:
+                    ghost.return_to_spawn(self.maze)
                 else:
                     ghost.move(self.pacman, self.maze, fps)  # 執行鬼魂移動邏輯
         
@@ -78,7 +80,6 @@ class Game:
                     self.pacman.score += GHOST_SCORES[self.ghost_score_index]  # 增加分數
                     self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)
                     ghost.set_returning_to_spawn(fps)  # 鬼魂返回重生點
-                    ghost.return_to_spawn(maze=self.maze)
                 elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                     print(f"Game Over! Score: {self.pacman.score}")
                     self.running = False  # 遊戲結束

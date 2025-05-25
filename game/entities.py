@@ -249,7 +249,6 @@ class Ghost(Entity):
         
         Args:
             maze (Map): 迷宮物件。
-            fps (int): 每秒幀數。
         """
         self.speed = self.return_speed
         spawn_points = [(x, y) for x, y in [(x, y) for y in range(maze.h) 
