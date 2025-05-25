@@ -52,6 +52,7 @@ class DQNAgent:
         self.action_cooldown = 0
         self.cooldown_steps = 5
         self.recent_rewards = deque(maxlen=100)
+        self.last_avg_reward = 0.0
         self.update_target_model()
 
     def update_target_model(self):
@@ -107,18 +108,21 @@ class DQNAgent:
 
     def update_epsilon(self, reward):
         """
-        動態調整 epsilon：如果最近獎勵無增長，增加探索。
-
-        Args:
-            reward (float): 當前步驟的獎勵。
+        動態調整 epsilon：根據當前平均獎勵與上次平均獎勵的比較調整。
         """
         self.recent_rewards.append(reward)
         if len(self.recent_rewards) == self.recent_rewards.maxlen:
             avg_reward = np.mean(self.recent_rewards)
-            if avg_reward < 1.0:
-                self.epsilon = min(self.epsilon+0.1, 1.0)
-            else:
+            if avg_reward > self.last_avg_reward:
+                # 獎勵提升，減少探索
                 self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+            elif avg_reward < self.last_avg_reward:
+                # 獎勵下降，增加探索
+                self.epsilon = min(self.epsilon * 1.05, 1.0)
+            else:
+                # 獎勵無變化，按衰減調整
+                self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+            self.last_avg_reward = avg_reward  # 更新上次平均獎勵
 
     def get_action(self, state):
         """
