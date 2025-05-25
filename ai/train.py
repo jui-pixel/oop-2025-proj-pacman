@@ -51,7 +51,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         buffer_size=100000,
         batch_size=128,
         lr=1e-4 if resume else 1e-3,
-        epsilon = 0.3 if resume else 0.9
+        epsilon = 0.1 if resume else 0.9
     )
 
     # 載入先前模型
