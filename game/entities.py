@@ -243,7 +243,7 @@ class Ghost(Entity):
         else:
             self.chase_pacman(pacman, maze)
 
-    def return_to_spawn(self, maze, fps: int):
+    def return_to_spawn(self, maze):
         """
         快速返回最近的重生點 'S'。
         
