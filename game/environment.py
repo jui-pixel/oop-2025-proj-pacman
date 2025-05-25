@@ -139,7 +139,7 @@ class PacManEnv:
         old_position = (self.pacman.x, self.pacman.y)
         self._update_entities(action)
 
-        reward = 0.0  # 初始獎勵為 0
+        reward = 0.0001  # 獎勵為 0.0001
         if (self.pacman.x, self.pacman.y) != old_position:
             reward += 0.003  # 獎勵有效移動
         else:
