@@ -15,7 +15,7 @@ from ai.dqn import DQN
 import pickle
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=50000, batch_size=128, lr=5e-4, epsilon=2.0):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=50000, batch_size=128, lr=5e-4, epsilon=0.9):
         """
         初始化 DQN 代理，設置主模型、目標模型、記憶緩衝區和訓練參數。
 
@@ -118,7 +118,7 @@ class DQNAgent:
                 self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
             elif avg_reward < self.last_avg_reward:
                 # 獎勵下降，增加探索
-                self.epsilon = min(self.epsilon * 1.05, 1.0)
+                self.epsilon = min(self.epsilon * 1.05, 0.9)
             else:
                 # 獎勵無變化，按衰減調整
                 self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
