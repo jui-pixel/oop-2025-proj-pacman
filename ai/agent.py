@@ -15,7 +15,7 @@ from ai.dqn import DQN
 import pickle
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=50000, batch_size=64, lr=1e-3, epsilon=2.0):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=50000, batch_size=128, lr=5e-4, epsilon=2.0):
         """
         初始化 DQN 代理，設置主模型、目標模型、記憶緩衝區和訓練參數。
 
@@ -24,8 +24,8 @@ class DQNAgent:
             action_dim (int): 動作數量，例如 4（上、下、左、右）。
             device (str): 計算設備，"cuda" 或 "cpu"，預設為 "cpu"。
             buffer_size (int): 記憶緩衝區的最大容量，預設為 50000。
-            batch_size (int): 每次訓練的批次大小，預設為 64。
-            lr (float): 學習率，預設為 1e-3。
+            batch_size (int): 每次訓練的批次大小，預設為 128。
+            lr (float): 學習率，預設為 5e-4。
             epsilon (float): 初始探索率，預設為 2.0（增加探索）。
         """
         self.state_dim = state_dim
@@ -36,19 +36,22 @@ class DQNAgent:
         self.batch_size = batch_size
         self.gamma = 0.995
         self.epsilon = epsilon
-        self.epsilon_min = 0.1
-        self.epsilon_decay = 0.99995  # 進一步減慢衰減
+        self.epsilon_min = 0.05
+        self.epsilon_decay = 0.99995
         self.model = DQN(state_dim, action_dim).to(device)
         self.target_model = DQN(state_dim, action_dim).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.steps = 0
-        self.target_update_freq = 200  # 加快目標模型更新
-        self.alpha = 0.6  # 增加優先級權重
-        self.beta = 0.5  # 增加重要性採樣權重
+        self.target_update_freq = 300
+        self.alpha = 0.6
+        self.beta = 0.5
         self.beta_increment = 0.002
         self.last_action = None
         self.last_position = None
         self.stuck_counter = 0
+        self.action_cooldown = 0
+        self.cooldown_steps = 5
+        self.recent_rewards = deque(maxlen=100)
         self.update_target_model()
 
     def update_target_model(self):
@@ -102,9 +105,24 @@ class DQNAgent:
         self.last_position = current_position
         return self.stuck_counter >= 2
 
+    def update_epsilon(self, reward):
+        """
+        動態調整 epsilon：如果最近獎勵無增長，增加探索。
+
+        Args:
+            reward (float): 當前步驟的獎勵。
+        """
+        self.recent_rewards.append(reward)
+        if len(self.recent_rewards) == self.recent_rewards.maxlen:
+            avg_reward = np.mean(self.recent_rewards)
+            if avg_reward < 1.0:
+                self.epsilon = min(self.epsilon * 1.1, 1.0)
+            else:
+                self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+
     def get_action(self, state):
         """
-        使用改進的 ε-貪婪策略選擇動作，確保移動並增加轉向（先挑選 valid_actions）。
+        使用基於權重的 ε-貪婪策略選擇動作，根據 last_action 調整權重。
 
         Args:
             state (numpy.ndarray): 當前狀態，形狀為 (height, width, channels)。
@@ -112,15 +130,40 @@ class DQNAgent:
         Returns:
             int: 選擇的動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
         """
+        if self.action_cooldown > 0:
+            self.action_cooldown -= 1
+            return self.last_action if self.last_action is not None else random.randrange(self.action_dim)
 
         valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
         if not valid_actions:
+            self.action_cooldown = self.cooldown_steps
             return random.randrange(self.action_dim)
 
         is_stuck = self._check_stuck(state)
 
         if random.random() < self.epsilon or is_stuck:
-            action = random.choice(valid_actions)
+            # 根據 last_action 調整權重
+            base_weights = [1.0] * self.action_dim
+            if self.last_action is not None:
+                if self.last_action == 0:  # 上一步是上
+                    weights = [0.9, 0.5, 1.0, 1.0]  # [上, 下, 左, 右]
+                elif self.last_action == 1:  # 上一步是下
+                    weights = [0.5, 0.9, 1.0, 1.0]
+                elif self.last_action == 2:  # 上一步是左
+                    weights = [1.0, 1.0, 0.9, 0.5]
+                elif self.last_action == 3:  # 上一步是右
+                    weights = [1.0, 1.0, 0.5, 0.9]
+            else:
+                weights = base_weights
+
+            # 應用到有效動作
+            action_weights = [weights[a] for a in valid_actions]
+            if sum(action_weights) == 0:  # 防止除以零
+                action_weights = [1.0] * len(valid_actions)
+            else:
+                action_weights = [w / sum(action_weights) for w in action_weights]  # 正規化
+
+            action = random.choices(valid_actions, weights=action_weights, k=1)[0]
         else:
             with torch.no_grad():
                 state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
@@ -133,6 +176,7 @@ class DQNAgent:
                     action = max(q_values_valid, key=lambda x: x[0])[1]
 
         self.last_action = action
+        self.action_cooldown = self.cooldown_steps
         return action
 
     def train(self):
@@ -159,10 +203,10 @@ class DQNAgent:
 
         q_values = self.model(states).gather(1, actions).squeeze(1)
 
-        # Double DQN 實現
+        # Double DQN
         with torch.no_grad():
-            next_actions = self.model(next_states).argmax(1, keepdim=True)  # 主模型選擇動作
-            next_q_values = self.target_model(next_states).gather(1, next_actions).squeeze(1)  # 目標模型評估
+            next_actions = self.model(next_states).argmax(1, keepdim=True)
+            next_q_values = self.target_model(next_states).gather(1, next_actions).squeeze(1)
             target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
         td_errors = (q_values - target_q_values).abs().cpu().detach().numpy()
@@ -183,7 +227,7 @@ class DQNAgent:
             self.update_target_model()
         self.beta = min(1.0, self.beta + self.beta_increment)
         if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
+            self.update_epsilon(rewards.mean().item())
 
         return loss.item()
 
