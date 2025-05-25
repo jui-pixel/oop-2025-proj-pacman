@@ -49,7 +49,7 @@ class DQNAgent:
         self.last_position = None
         self.stuck_counter = 0
         self.action_cooldown = 0
-        self.cooldown_steps = 5
+        self.cooldown_steps = 0
         self.recent_rewards = deque(maxlen=100)
         self.update_target_model()
 
