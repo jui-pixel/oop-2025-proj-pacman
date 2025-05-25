@@ -26,7 +26,7 @@ class DQNAgent:
             buffer_size (int): 記憶緩衝區的最大容量，預設為 50000。
             batch_size (int): 每次訓練的批次大小，預設為 128。
             lr (float): 學習率，預設為 5e-4。
-            epsilon (float): 初始探索率，預設為 2.0（增加探索）。
+            epsilon (float): 初始探索率，預設為 0.9。
         """
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -37,7 +37,6 @@ class DQNAgent:
         self.gamma = 0.995
         self.epsilon = epsilon
         self.epsilon_min = 0.05
-        self.epsilon_decay = 0.9995
         self.model = DQN(state_dim, action_dim).to(device)
         self.target_model = DQN(state_dim, action_dim).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
@@ -52,12 +51,11 @@ class DQNAgent:
         self.action_cooldown = 0
         self.cooldown_steps = 5
         self.recent_rewards = deque(maxlen=100)
-        self.last_avg_reward = 0.0
         self.update_target_model()
 
     def update_target_model(self):
         """
-        將主模型的權重複製到目標模型，確保兩者一致。
+        將主模型的權重復製到目標模型，確保兩者一致。
         """
         self.target_model.load_state_dict(self.model.state_dict())
 
@@ -105,24 +103,6 @@ class DQNAgent:
             self.stuck_counter = 0
         self.last_position = current_position
         return self.stuck_counter >= 2
-
-    def update_epsilon(self, reward):
-        """
-        動態調整 epsilon：根據當前平均獎勵與上次平均獎勵的比較調整。
-        """
-        self.recent_rewards.append(reward)
-        if len(self.recent_rewards) == self.recent_rewards.maxlen:
-            avg_reward = np.mean(self.recent_rewards)
-            if avg_reward > self.last_avg_reward:
-                # 獎勵提升，減少探索
-                self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
-            elif avg_reward < self.last_avg_reward:
-                # 獎勵下降，增加探索
-                self.epsilon = min(self.epsilon * 1.05, 0.9)
-            else:
-                # 獎勵無變化，按衰減調整
-                self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
-            self.last_avg_reward = avg_reward  # 更新上次平均獎勵
 
     def get_action(self, state):
         """
@@ -230,8 +210,6 @@ class DQNAgent:
         if self.steps % self.target_update_freq == 0:
             self.update_target_model()
         self.beta = min(1.0, self.beta + self.beta_increment)
-        if self.epsilon > self.epsilon_min:
-            self.update_epsilon(rewards.mean().item())
 
         return loss.item()
 

@@ -1,4 +1,3 @@
-# ai/train.py
 """
 訓練 Pac-Man 的 DQN 代理，負責初始化環境、執行訓練迴圈並記錄指標。
 支援從先前模型繼續訓練，並將結果保存到 TensorBoard 和 JSON 檔案。
@@ -16,7 +15,8 @@ from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import json
-import pygame  # 引入 Pygame 用於可視化
+import pygame
+import math  # 用於指數衰減
 
 def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=1000, visualize=False, render_frequency=10):
     """
@@ -56,7 +56,6 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     # 載入先前模型
     if resume and os.path.exists(model_path):
         agent.load(model_path, memory_path)
-        agent.epsilon = 0.3
         print(f"Loaded model from {model_path} and memory from {memory_path}")
     else:
         print("Starting fresh training")
@@ -65,8 +64,16 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     writer = SummaryWriter()
     episode_rewards = []
 
+    # Epsilon 調整參數
+    epsilon_start = 0.9
+    epsilon_min = 0.05
+    decay_rate = 200  # 控制衰減速度
+
     # 主訓練迴圈
     for episode in range(episodes):
+        # 根據 episode 計算 epsilon（指數衰減）
+        agent.epsilon = epsilon_min + (epsilon_start - epsilon_min) * math.exp(-episode / decay_rate)
+
         seed = np.random.randint(0, 10000)
         np.random.seed(seed)
         torch.manual_seed(seed)
