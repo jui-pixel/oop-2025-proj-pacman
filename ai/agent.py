@@ -49,8 +49,6 @@ class DQNAgent:
         self.last_action = None
         self.last_position = None
         self.stuck_counter = 0
-        self.action_cooldown = 0
-        self.cooldown_steps = 0
         self.update_target_model()
 
     def update_target_model(self):
@@ -114,13 +112,9 @@ class DQNAgent:
         Returns:
             int: 選擇的動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
         """
-        if self.action_cooldown > 0:
-            self.action_cooldown -= 1
-            return self.last_action if self.last_action is not None else random.randrange(self.action_dim)
 
         valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
         if not valid_actions:
-            self.action_cooldown = self.cooldown_steps
             return random.randrange(self.action_dim)
 
         is_stuck = self._check_stuck(state)
@@ -139,7 +133,6 @@ class DQNAgent:
                     action = max(q_values_valid, key=lambda x: x[0])[1]
 
         self.last_action = action
-        self.action_cooldown = self.cooldown_steps
         return action
 
     def train(self):
