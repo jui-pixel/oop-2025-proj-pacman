@@ -106,6 +106,7 @@ class PacManEnv:
                     self.pacman.score += GHOST_SCORES[self.ghost_score_index]
                     self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)
                     ghost.set_returning_to_spawn(FPS)
+                    ghost.return_to_spawn(maze=self.maze)
                 elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                     self.done = True
                     return True
