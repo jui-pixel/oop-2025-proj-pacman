@@ -1,4 +1,3 @@
-# ai/agent.py
 """
 定義 DQN 代理，負責管理記憶緩衝區、動作選擇和模型訓練。
 支援優先級經驗回放 (PER)、模型保存和載入，實現深度強化學習的核心邏輯。
@@ -16,7 +15,7 @@ from ai.dqn import DQN
 import pickle
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=10000, batch_size=64, lr=1e-4, epsilon=1.0):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=50000, batch_size=64, lr=1e-3, epsilon=2.0):
         """
         初始化 DQN 代理，設置主模型、目標模型、記憶緩衝區和訓練參數。
 
@@ -24,10 +23,10 @@ class DQNAgent:
             state_dim (Tuple[int, int, int]): 狀態維度 (高度, 寬度, 通道數)，例如 (31, 28, 6)。
             action_dim (int): 動作數量，例如 4（上、下、左、右）。
             device (str): 計算設備，"cuda" 或 "cpu"，預設為 "cpu"。
-            buffer_size (int): 記憶緩衝區的最大容量，預設為 10000。
+            buffer_size (int): 記憶緩衝區的最大容量，預設為 50000。
             batch_size (int): 每次訓練的批次大小，預設為 64。
-            lr (float): 學習率，預設為 5e-4。
-            epsilon (float): 初始探索率，預設為 1.2（增加探索）。
+            lr (float): 學習率，預設為 1e-3。
+            epsilon (float): 初始探索率，預設為 2.0（增加探索）。
         """
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -38,21 +37,21 @@ class DQNAgent:
         self.gamma = 0.995
         self.epsilon = epsilon
         self.epsilon_min = 0.1
-        self.epsilon_decay = 0.9997
+        self.epsilon_decay = 0.99995  # 進一步減慢衰減
         self.model = DQN(state_dim, action_dim).to(device)
         self.target_model = DQN(state_dim, action_dim).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.steps = 0
-        self.target_update_freq = 500
-        self.alpha = 0.25
-        self.beta = 0.4
+        self.target_update_freq = 200  # 加快目標模型更新
+        self.alpha = 0.6  # 增加優先級權重
+        self.beta = 0.5  # 增加重要性採樣權重
         self.beta_increment = 0.002
         self.last_action = None
         self.last_position = None
         self.stuck_counter = 0
+        self.action_cooldown = 0
+        self.cooldown_steps = 0
         self.update_target_model()
-        self.action_cooldown = 0  # 添加動作冷卻計數器
-        self.cooldown_steps = 10  # 每 10 步執行一次動作
 
     def update_target_model(self):
         """
@@ -118,31 +117,34 @@ class DQNAgent:
         if self.action_cooldown > 0:
             self.action_cooldown -= 1
             return self.last_action if self.last_action is not None else random.randrange(self.action_dim)
-        # 先挑選所有有效動作
+
         valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
         if not valid_actions:
             self.action_cooldown = self.cooldown_steps
-            self.last_action = random.randrange(self.action_dim)
-            return self.last_action
+            return random.randrange(self.action_dim)
 
         is_stuck = self._check_stuck(state)
 
         if random.random() < self.epsilon or is_stuck:
-            self.action_cooldown = self.cooldown_steps
-            self.last_action = random.randrange(self.action_dim)
-            return self.last_action  # 隨機選擇有效動作
+            action = random.choice(valid_actions)
+        else:
+            with torch.no_grad():
+                state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
+                q_values = self.model(state_tensor)
+                q_values_np = q_values.cpu().numpy()[0]
+                q_values_valid = [(q_values_np[a], a) for a in valid_actions]
+                if not q_values_valid:
+                    action = random.choice(valid_actions)
+                else:
+                    action = max(q_values_valid, key=lambda x: x[0])[1]
 
-        # 最大 Q 值選取，限制在 valid_actions
-        with torch.no_grad():  # 禁用梯度計算以節省資源
-            state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
-            q_values = self.model(state_tensor)  # 計算 Q 值
-            self.action_cooldown = self.cooldown_steps
-            self.last_action = q_values.argmax().item()  # 選擇最大 Q 值的動作
-            return self.last_action
+        self.last_action = action
+        self.action_cooldown = self.cooldown_steps
+        return action
 
     def train(self):
         """
-        從記憶緩衝區採樣並訓練主模型，使用優先級經驗回放和重要性採樣。
+        從記憶緩衝區採樣並訓練主模型，使用優先級經驗回放和重要性採樣，實現 Double DQN。
 
         Returns:
             float: 當前批次的損失值，若記憶不足則返回 0。
@@ -163,8 +165,12 @@ class DQNAgent:
         dones = torch.FloatTensor(dones).to(self.device)
 
         q_values = self.model(states).gather(1, actions).squeeze(1)
-        next_q_values = self.target_model(next_states).max(1)[0].detach()
-        target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
+
+        # Double DQN 實現
+        with torch.no_grad():
+            next_actions = self.model(next_states).argmax(1, keepdim=True)  # 主模型選擇動作
+            next_q_values = self.target_model(next_states).gather(1, next_actions).squeeze(1)  # 目標模型評估
+            target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
         td_errors = (q_values - target_q_values).abs().cpu().detach().numpy()
         for idx, error in zip(indices, td_errors):
