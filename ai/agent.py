@@ -146,13 +146,13 @@ class DQNAgent:
             base_weights = [1.0] * self.action_dim
             if self.last_action is not None:
                 if self.last_action == 0:  # 上一步是上
-                    weights = [0.9, 0.5, 1.0, 1.0]  # [上, 下, 左, 右]
+                    weights = [1.1, 0.5, 1.0, 1.0]  # [上, 下, 左, 右]
                 elif self.last_action == 1:  # 上一步是下
-                    weights = [0.5, 0.9, 1.0, 1.0]
+                    weights = [0.5, 1.1, 1.0, 1.0]
                 elif self.last_action == 2:  # 上一步是左
-                    weights = [1.0, 1.0, 0.9, 0.5]
+                    weights = [1.0, 1.0, 1.1, 0.5]
                 elif self.last_action == 3:  # 上一步是右
-                    weights = [1.0, 1.0, 0.5, 0.9]
+                    weights = [1.0, 1.0, 0.5, 1.1]
             else:
                 weights = base_weights
 
