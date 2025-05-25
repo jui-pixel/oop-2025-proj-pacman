@@ -246,4 +246,4 @@ class PacManEnv:
             self.screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
 
         pygame.display.flip()
-        self.clock.tick(FPS)
+        self.clock.tick(10)
