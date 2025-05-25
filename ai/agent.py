@@ -116,7 +116,7 @@ class DQNAgent:
         if len(self.recent_rewards) == self.recent_rewards.maxlen:
             avg_reward = np.mean(self.recent_rewards)
             if avg_reward < 1.0:
-                self.epsilon = min(self.epsilon * 1.1, 1.0)
+                self.epsilon = min(self.epsilon+0.1, 1.0)
             else:
                 self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
 
