@@ -164,7 +164,6 @@ class DQNAgent:
 
         self.last_action = action
         self.action_cooldown = self.cooldown_steps
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
         return action
 
     def _get_n_step_info(self):
