@@ -193,7 +193,7 @@ class Ghost(Entity):
         super().__init__(x, y, 'G')
         self.name = name
         self.color = color
-        self.speed = 2.0
+        self.speed = 1.0
         self.edible = False
         self.edible_timer = 0
         self.respawn_timer = 0
@@ -216,7 +216,6 @@ class Ghost(Entity):
         if self.waiting:
             self.wait_timer -= 1
             if self.wait_timer <= 0:
-                print(f"{self.name} finished waiting, resuming chase.")
                 self.waiting = False
                 self.speed = 2.0
             return
@@ -233,7 +232,6 @@ class Ghost(Entity):
             if self.respawn_timer <= 0 and self.returning_to_spawn:
                 self.reset_position(maze, [(x, y) for x, y in [(x, y) for y in range(maze.h) 
                                                                for x in range(maze.w) if maze.get_tile(x, y) == 'S']])
-                print(f"{self.name} has respawned at spawn point.")
             return
         
         if self.returning_to_spawn:
@@ -243,13 +241,12 @@ class Ghost(Entity):
         else:
             self.chase_pacman(pacman, maze)
 
-    def return_to_spawn(self, maze, fps: int):
+    def return_to_spawn(self, maze):
         """
         快速返回最近的重生點 'S'。
         
         Args:
             maze (Map): 迷宮物件。
-            fps (int): 每秒幀數。
         """
         self.speed = self.return_speed
         spawn_points = [(x, y) for x, y in [(x, y) for y in range(maze.h) 
