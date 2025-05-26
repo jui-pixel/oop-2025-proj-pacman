@@ -165,7 +165,7 @@ class PacManEnv:
             reward += 0.005
 
         if self._check_collision():
-            reward -= 100
+            reward -= 10
 
         if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
             reward += 10000

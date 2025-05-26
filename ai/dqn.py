@@ -36,7 +36,7 @@ class DQN(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(conv_out_size, 512),  # 將卷積展平輸出映射到 512 維
             nn.ReLU(),  # 激活函數
-            nn.Dropout(0.5),  # Dropout 防止過擬合
+            nn.Dropout(0.2),  # Dropout 防止過擬合
             nn.Linear(512, output_dim)  # 512 -> 動作數（Q 值）
         )
 
