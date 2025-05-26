@@ -303,66 +303,63 @@ class Map:
 
     def narrow_paths(self):
         """
-        縮窄 2x2 空地塊，隨機添加牆壁，確保不產生死路。
-        
+        縮窄 2x2 的路徑區域，隨機嘗試在四個點放置牆壁 'X'，檢查是否在九宮格內形成死路。
+        若放置 'X' 後九宮格內的路徑點變為死路，則放置成功；若無死路，則取消放置。
+
         Returns:
-            int: 放置的牆壁數量。
+            int: 成功放置的牆壁數量。
         """
         count = 0
-        S = 'A'  # 臨時牆壁標記
+        S = 'A'  # 臨時牆壁標記，後續統一轉換為 'X'
+
+        # 遍歷迷宮，尋找 2x2 的路徑區域
         for y in range(1, self.height - 2):
             for x in range(1, self.width - 2):
+                # 檢查是否為 2x2 路徑塊（全為 '.'）
                 if not (self.get_tile(x, y) == '.' and self.get_tile(x + 1, y) == '.' and
                         self.get_tile(x, y + 1) == '.' and self.get_tile(x + 1, y + 1) == '.'):
                     continue
                 
+                # 定義 2x2 區域的四個點
                 block = [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
-                neighbors = set()
-                for bx, by in block:
-                    for dx, dy in self.directions:
-                        nx, ny = bx + dx, by + dy
-                        if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == '.' and (nx, ny) not in block:
-                            neighbors.add((nx, ny))
-                
+                random.shuffle(block)  # 隨機打亂四個點的順序
+
+                # 嘗試在每個點放置 'X'
                 placed = False
-                conditions = [
-                    ((x, y), lambda: self.get_tile(x - 1, y) != '.' and self.get_tile(x, y - 1) != '.'),
-                    ((x + 1, y), lambda: self.get_tile(x + 2, y) != '.' and self.get_tile(x + 1, y - 1) != '.'),
-                    ((x, y + 1), lambda: self.get_tile(x, y + 2) != '.' and self.get_tile(x - 1, y + 1) != '.'),
-                    ((x + 1, y + 1), lambda: self.get_tile(x + 2, y + 1) != '.' and self.get_tile(x + 1, y + 2) != '.')
-                ]
-                random.shuffle(conditions)
-                
-                for (cx, cy), condition in conditions:
-                    if condition() and self._check_connectivity(neighbors, (cx, cy)):
-                        self.set_tile(cx, cy, S)
-                        dead_end = any(self.if_dead_end(nx, ny) for dx, dy in self.directions 
-                                      for nx, ny in [(cx + dx, cy + dy)] if self.xy_valid(nx, ny))
-                        if not dead_end:
-                            placed = True
-                            count += 1
+                for bx, by in block:
+                    self.set_tile(bx, by, S)  # 放置臨時牆壁
+
+                    # 檢查九宮格內的路徑點是否變成死路
+                    dead_end_created = False
+                    for dx in range(-1, 2):
+                        for dy in range(-1, 2):
+                            nx, ny = bx + dx, by + dy
+                            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == '.':
+                                if self.if_dead_end(nx, ny):
+                                    dead_end_created = True
+                                    break
+                        if dead_end_created:
                             break
-                        self.set_tile(cx, cy, '.')
-                
+
+                    if not dead_end_created:
+                        # 放置成功，保留 'X' 並計數
+                        placed = True
+                        count += 1
+                        break
+                    else:
+                        # 放置失敗，取消放置（恢復為 '.'）
+                        self.set_tile(bx, by, '.')
+
+                # 如果未成功放置，則該 2x2 區域不放置牆壁
                 if not placed:
-                    random.shuffle(block)
-                    for bx, by in block:
-                        if self._check_connectivity(neighbors, (bx, by)):
-                            self.set_tile(bx, by, S)
-                            dead_end = any(self.if_dead_end(nx, ny) for dx, dy in self.directions 
-                                          for nx, ny in [(bx + dx, by + dy)] if self.xy_valid(nx, ny))
-                            if not dead_end:
-                                placed = True
-                                count += 1
-                                break
-                            self.set_tile(bx, by, '.')
-        
-        # 將臨時標記轉為牆壁
+                    continue
+
+        # 將所有臨時標記 'A' 轉為實際牆壁 'X'
         for y in range(self.height):
             for x in range(self.width):
                 if self.get_tile(x, y) == 'A':
                     self.set_tile(x, y, 'X')
-        
+
         return count
 
     def place_power_pellets(self):
@@ -439,14 +436,13 @@ class Map:
         self.extend_walls()
         self.convert_all_T_to_wall()
         self.add_central_room()
+        while self.narrow_paths():
+            pass
+        self.place_power_pellets()
         half_width = self.width // 2
         for y in range(self.height):
             for x in range(1, half_width):
                 self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))
-        while self.narrow_paths():
-            pass
-        self.place_power_pellets()
-
 if __name__ == "__main__":
     width = 19
     height = 19
