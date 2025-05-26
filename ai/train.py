@@ -94,7 +94,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
 
         episode_rewards.append(total_reward)
         writer.add_scalar('Reward', total_reward, episode)
-        print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}, Seed = {seed}")
+        print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
 
     agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
     with open("episode_rewards.json", "w") as f:
