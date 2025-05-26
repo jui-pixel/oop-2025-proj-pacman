@@ -201,15 +201,15 @@ class PacManEnv:
         self._update_entities(action)
 
         # 基礎獎勵，鼓勵代理採取動作
-        reward = 0.001  # 基礎獎勵
-        # 如果位置改變，額外獎勵移動
-        if (self.pacman.x, self.pacman.y) != old_position:
-            reward += 0.001  # 獎勵有效移動
-        else:
-            # 懲罰停滯
-            reward -= 0.001  # 懲罰停滯
-            if self._check_stuck():
-                reward -= 0.01  # 額外懲罰連續停滯
+        reward = 0.0  # 基礎獎勵
+        # # 如果位置改變，額外獎勵移動
+        # if (self.pacman.x, self.pacman.y) != old_position:
+        #     reward += 0.001  # 獎勵有效移動
+        # else:
+        #     # 懲罰停滯
+        #     reward -= 0.001  # 懲罰停滯
+        #     if self._check_stuck():
+        #         reward -= 0.01  # 額外懲罰連續停滯
 
         # 檢查並處理吃掉能量球，增加獎勵並使鬼魂可食用
         if self.pacman.eat_pellet(self.power_pellets) > 0:
@@ -227,8 +227,8 @@ class PacManEnv:
             if not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                 dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
                 min_ghost_dist = min(min_ghost_dist, dist)
-        if min_ghost_dist > 5:
-            reward += 0.005  # 獎勵與鬼魂保持 5 格以上距離
+        # if min_ghost_dist > 5:
+        #     reward += 0.005  # 獎勵與鬼魂保持 5 格以上距離
 
         # 檢查碰撞，減少獎勵或結束遊戲
         if self._check_collision():
