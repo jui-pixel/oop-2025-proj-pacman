@@ -391,7 +391,7 @@ class Map:
         
         empty_count = len(empty_cells)
         # 調整能量球數量，確保至少 8 個，且不超過空地數量的 10%
-        num_pellets = max(8, min(int(empty_count * 0.1), 20))
+        num_pellets = min(8, max(int(empty_count * 0.1), 20))
         
         # 使用 4x4 網格均勻分佈能量球
         grid_size_x = max(1, self.width // 4)
