@@ -45,7 +45,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         buffer_size=100000,
         batch_size=128,
         lr=1e-4,
-        epsilon=0.9
+        epsilon=0.05 if resume else 0.9,  # 如果是從頭開始訓練，使用較高的初始 epsilon
     )
 
     if resume and os.path.exists(model_path):
