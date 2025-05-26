@@ -86,7 +86,7 @@ class PacManEnv:
             action (int): 動作索引，僅在移動完成後應用。
         """
         # 僅當無當前動作或移動完成時，應用新動作
-        if self.current_action is None or not self.pacman.move_towards_target(self.maze):
+        if self.current_action is None and self.pacman.move_towards_target(self.maze):
             if action is not None:
                 dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
                 if self.pacman.set_new_target(dx, dy, self.maze):

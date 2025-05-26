@@ -18,9 +18,10 @@ import json
 import pygame
 import argparse
 
-def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=100, visualize=False, render_frequency=10):
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=10, visualize=False, render_frequency=10):
     """
     訓練 Dueling DQN 代理，執行指定數量的訓練回合並保存模型。
+    僅在 Pac-Man 完成移動後進行訓練。
 
     Args:
         resume (bool): 是否從先前模型繼續訓練。
@@ -45,7 +46,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         buffer_size=100000,
         batch_size=128,
         lr=1e-4,
-        epsilon=0.05 if resume else 0.9,  # 如果是從頭開始訓練，使用較高的初始 epsilon
+        epsilon=0.5 if resume else 0.9,  # 如果是從頭開始訓練，使用較高的初始 epsilon
     )
 
     if resume and os.path.exists(model_path):
@@ -59,28 +60,34 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     episode_rewards = []
 
     for episode in range(episodes):
-        seed = np.random.randint(0, 10000)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=seed)
+        # seed = np.random.randint(0, 10000)
+        # np.random.seed(seed)
+        # torch.manual_seed(seed)
+        # env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=seed)
         env.render_enabled = visualize
 
         state = env.reset()
         total_reward = 0
         done = False
         step = 0
+        last_action = None
 
         while not done and step < max_steps:
             action = agent.get_action(state)
             next_state, reward, done, _ = env.step(action)
-            agent.remember(state, action, reward, next_state, done)
-            loss = agent.train()
+            
+            # 僅在移動完成時記錄經驗和訓練
+            if env.current_action is None:  # 表示移動已完成
+                if last_action is not None:  # 確保有上一次動作
+                    agent.remember(state, last_action, reward, next_state, done)
+                    loss = agent.train()
+                    if loss > 0:
+                        writer.add_scalar('Loss', loss, episode * max_steps + step)
+            
             state = next_state
             total_reward += reward
+            last_action = action  # 更新最後動作
             step += 1
-
-            if loss > 0:
-                writer.add_scalar('Loss', loss, episode * max_steps + step)
 
             if visualize and step % render_frequency == 0:
                 env.render()
