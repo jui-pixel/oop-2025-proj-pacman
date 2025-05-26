@@ -295,3 +295,9 @@ class DQNAgent:
             with open(memory_path, 'rb') as f:
                 memory = pickle.load(f)
                 self.memory = deque(memory, maxlen=self.memory.maxlen)
+    
+    def update_epsilon(self):
+        """
+        更新 ε-貪婪策略中的探索率。
+        """
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
