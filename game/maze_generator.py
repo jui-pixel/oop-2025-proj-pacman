@@ -41,11 +41,11 @@ class Map:
         在迷宮中央添加 5x5 的房間，包含鬼魂重生點 'S' 和門 'D'。
         """
         room = [
-            ".....",
+            "E...E",
             ".XDX.",
             ".DSD.",
             ".XDX.",
-            "....."
+            "E...E"
         ]
         room_w, room_h = 5, 5
         start_x = (self.width - room_w) // 2
@@ -59,16 +59,16 @@ class Map:
             for i, cell in enumerate(row):
                 self.set_tile(start_x + i, start_y + j, cell)
         
-        # 添加房間入口
-        entrances = [
-            (start_x + 3, start_y - 1),
-            (start_x + 3, start_y + room_h),
-            (start_x - 1, start_y + 2),
-            (start_x + room_w, start_y + 2)
-        ]
-        for ex, ey in entrances:
-            if self.xy_valid(ex, ey):
-                self.set_tile(ex, ey, '.')
+        # # 添加房間入口
+        # entrances = [
+        #     (start_x + 3, start_y - 1),
+        #     (start_x + 3, start_y + room_h),
+        #     (start_x - 1, start_y + 2),
+        #     (start_x + room_w, start_y + 2)
+        # ]
+        # for ex, ey in entrances:
+        #     if self.xy_valid(ex, ey):
+        #         self.set_tile(ex, ey, '.')
 
     def __str__(self):
         """
