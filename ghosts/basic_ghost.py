@@ -120,3 +120,19 @@ class BasicGhost(Ghost):
             self.target_x, self.target_y = new_x, new_y
             return True
         return False
+
+    def return_to_spawn(self, maze):
+        """
+        快速返回最近的重生點 'S'。
+        
+        Args:
+            maze (Map): 迷宮物件。
+        """
+        spawn_points = [(x, y) for x, y in [(x, y) for y in range(maze.h) 
+                                           for x in range(maze.w) if maze.get_tile(x, y) == 'S']]
+        closest_spawn = min(spawn_points, key=lambda p: (p[0] - self.x) ** 2 + (p[1] - self.y) ** 2)
+        direction = self.bfs_path(self.x, self.y, closest_spawn[0], closest_spawn[1], maze)
+        if direction:
+            if self.set_new_target(direction[0], direction[1], maze):
+                self.last_x, self.last_y = self.x, self.y
+                return

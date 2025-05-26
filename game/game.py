@@ -53,6 +53,8 @@ class Game:
             if ghost.move_towards_target(self.maze):
                 if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == 'S':
                     ghost.set_waiting(fps)  # 鬼魂到達重生點後等待
+                elif ghost.returning_to_spawn:
+                    ghost.return_to_spawn(self.maze)
                 else:
                     ghost.move(self.pacman, self.maze, fps)  # 執行鬼魂移動邏輯
         

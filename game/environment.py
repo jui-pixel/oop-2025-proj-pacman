@@ -2,6 +2,7 @@
 """
 定義 Pac-Man 遊戲的強化學習環境，遵循 OpenAI Gym 規範。
 負責初始化遊戲迷宮、管理狀態轉換、計算獎勵並提供狀態觀察。
+此環境模擬 Pac-Man 遊戲，支援 Dueling DQN 代理的訓練。
 """
 
 import numpy as np
@@ -18,7 +19,7 @@ class PacManEnv:
         Args:
             width (int): 迷宮寬度，預設從 config 導入。
             height (int): 迷宮高度，預設從 config 導入。
-            seed (int): 隨機種子，用於生成一致的迷宮，預設從 config 導入。
+            seed (int): 隨機種子，預設從 config 導入。
         """
         self.maze = Map(w=width, h=height, seed=seed)
         self.maze.generate_maze()
@@ -35,10 +36,11 @@ class PacManEnv:
         self.render_enabled = False
         self.last_position = None
         self.stuck_counter = 0
+        self.current_action = None  # 跟踪當前動作，確保移動完成後重置
 
     def reset(self):
         """
-        重置環境，重新生成迷宮和實體，恢復初始狀態。
+        重置環境，重新生成迷宮和實體。
 
         Returns:
             numpy.ndarray: 初始狀態，形狀為 (height, width, 6)。
@@ -49,11 +51,12 @@ class PacManEnv:
         self.done = False
         self.last_position = (self.pacman.x, self.pacman.y)
         self.stuck_counter = 0
+        self.current_action = None  # 重置當前動作
         return self._get_state()
 
     def _get_state(self):
         """
-        構建當前遊戲狀態，包含 Pac-Man、能量球、分數球、鬼魂和牆壁的二維表示。
+        構建當前遊戲狀態，包含 6 通道表示。
 
         Returns:
             numpy.ndarray: 當前狀態，形狀為 (height, width, 6)。
@@ -80,23 +83,35 @@ class PacManEnv:
         更新 Pac-Man 和鬼魂的狀態。
 
         Args:
-            action (int): 動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
+            action (int): 動作索引，僅在移動完成後應用。
         """
-        dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
-        moving = self.pacman.set_new_target(dx, dy, self.maze)
-        if moving:
-            self.pacman.move_towards_target(self.maze)
+        # 僅當無當前動作或移動完成時，應用新動作
+        if self.current_action is None and self.pacman.move_towards_target(self.maze):
+            if action is not None:
+                dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
+                if self.pacman.set_new_target(dx, dy, self.maze):
+                    self.current_action = action  # 設置當前動作
 
+        # 執行 Pac-Man 移動
+        if self.current_action is not None and self.pacman.move_towards_target(self.maze):
+            self.current_action = None  # 移動完成，重置動作
+
+        # 更新鬼魂狀態
         for ghost in self.ghosts:
             if ghost.move_towards_target(self.maze):
                 if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) in self.respawn_points:
                     ghost.set_waiting(FPS)
+                elif ghost.returning_to_spawn:
+                    ghost.return_to_spawn(self.maze)
                 else:
                     ghost.move(self.pacman, self.maze, FPS)
 
     def _check_collision(self):
         """
-        檢查 Pac-Man 與鬼魂的碰撞，更新分數或結束遊戲。
+        檢查 Pac-Man 與鬼魂的碰撞。
+
+        Returns:
+            bool: 是否發生碰撞導致遊戲結束。
         """
         for ghost in self.ghosts:
             distance = ((self.pacman.x * CELL_SIZE - ghost.x * CELL_SIZE) ** 2 +
@@ -108,11 +123,12 @@ class PacManEnv:
                     ghost.set_returning_to_spawn(FPS)
                 elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                     self.done = True
-                break
+                    return True
+        return False
 
     def _check_stuck(self):
         """
-        檢查 Pac-Man 是否停滯（位置未改變）。
+        檢查 Pac-Man 是否停滯。
 
         Returns:
             bool: 是否停滯。
@@ -123,35 +139,37 @@ class PacManEnv:
         else:
             self.stuck_counter = 0
         self.last_position = current_position
-        return self.stuck_counter >= 1  # 立即檢測停滯
+        return self.stuck_counter >= 1
 
     def step(self, action):
         """
         執行一步動作，更新環境狀態並計算獎勵。
 
         Args:
-            action (int): 動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
+            action (int): 動作索引。
 
         Returns:
-            Tuple: (新狀態, 獎勵, 是否結束, 附加資訊)
+            Tuple: (新狀態, 獎勵, 是否結束, 附加資訊)。
         """
         old_position = (self.pacman.x, self.pacman.y)
         self._update_entities(action)
 
-        reward = 0.0  # 初始獎勵為 0
+        reward = 0.0
+        # 獎勵移動，懲罰停滯
         if (self.pacman.x, self.pacman.y) != old_position:
-            reward += 0.2  # 獎勵有效移動
+            reward += 0.001
         else:
-            reward -= 1.0  # 懲罰停滯
+            reward -= 0.001
             if self._check_stuck():
-                reward -= 0.5  # 額外懲罰連續停滯
+                reward -= 0.01
 
         if self.pacman.eat_pellet(self.power_pellets) > 0:
-            reward += 40
+            reward += 20
             for ghost in self.ghosts:
                 ghost.set_edible(EDIBLE_DURATION)
+
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
-            reward += 10
+            reward += 2
 
         min_ghost_dist = float('inf')
         for ghost in self.ghosts:
@@ -159,20 +177,20 @@ class PacManEnv:
                 dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
                 min_ghost_dist = min(min_ghost_dist, dist)
         if min_ghost_dist > 5:
-            reward += 0.5
+            reward += 0.005
 
-        self._check_collision()
+        if self._check_collision():
+            reward -= 10
 
         if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
-            reward += 1000
+            reward += 10000
             self.done = True
 
         return self._get_state(), reward, self.done, {}
 
     def render(self):
         """
-        使用 Pygame 渲染遊戲環境，顯示迷宮和遊戲實體。
-        僅在 render_enabled=True 時生效，確保主角清晰可見。
+        使用 Pygame 渲染遊戲環境。
         """
         if not self.render_enabled:
             return
@@ -236,12 +254,11 @@ class PacManEnv:
             else:
                 base_color = ghost.color
                 ghost.alpha = 255
-            
             ghost_surface = pygame.Surface((CELL_SIZE // 2, CELL_SIZE // 2), pygame.SRCALPHA)
-            ghost_surface.fill((0, 0, 0, 0))  # 透明背景
+            ghost_surface.fill((0, 0, 0, 0))
             pygame.draw.ellipse(ghost_surface, (*base_color, ghost.alpha),
                                (0, 0, CELL_SIZE // 2, CELL_SIZE // 2))
             self.screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
 
         pygame.display.flip()
-        self.clock.tick(30)
+        self.clock.tick(10)
