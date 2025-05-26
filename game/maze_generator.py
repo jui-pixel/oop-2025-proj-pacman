@@ -26,7 +26,6 @@ class Map:
         self.tiles = ['.' for _ in range(self.width * self.height)]  # 初始化為路徑
         self.directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 上下左右方向
         self._initialize_map()
-        self.add_central_room()
 
     def _initialize_map(self):
         """初始化迷宮邊界，設置為 '#'。"""
@@ -39,14 +38,14 @@ class Map:
 
     def add_central_room(self):
         """
-        在迷宮中央添加 7x5 的房間，包含鬼魂重生點 'S' 和門 'D'。
+        在迷宮中央添加 5x5 的房間，包含鬼魂重生點 'S' 和門 'D'。
         """
         room = [
-            ".....",
+            "E...E",
             ".XDX.",
             ".DSD.",
             ".XDX.",
-            "....."
+            "E...E"
         ]
         room_w, room_h = 5, 5
         start_x = (self.width - room_w) // 2
@@ -60,16 +59,16 @@ class Map:
             for i, cell in enumerate(row):
                 self.set_tile(start_x + i, start_y + j, cell)
         
-        # 添加房間入口
-        entrances = [
-            (start_x + 3, start_y - 1),
-            (start_x + 3, start_y + room_h),
-            (start_x - 1, start_y + 2),
-            (start_x + room_w, start_y + 2)
-        ]
-        for ex, ey in entrances:
-            if self.xy_valid(ex, ey):
-                self.set_tile(ex, ey, '.')
+        # # 添加房間入口
+        # entrances = [
+        #     (start_x + 3, start_y - 1),
+        #     (start_x + 3, start_y + room_h),
+        #     (start_x - 1, start_y + 2),
+        #     (start_x + room_w, start_y + 2)
+        # ]
+        # for ex, ey in entrances:
+        #     if self.xy_valid(ex, ey):
+        #         self.set_tile(ex, ey, '.')
 
     def __str__(self):
         """
@@ -304,78 +303,76 @@ class Map:
 
     def narrow_paths(self):
         """
-        縮窄 2x2 空地塊，隨機添加牆壁，確保不產生死路。
-        
+        縮窄 2x2 的路徑區域，隨機嘗試在四個點放置牆壁 'X'，檢查是否在九宮格內形成死路。
+        若放置 'X' 後九宮格內的路徑點變為死路，則放置成功；若無死路，則取消放置。
+
         Returns:
-            int: 放置的牆壁數量。
+            int: 成功放置的牆壁數量。
         """
         count = 0
-        S = 'A'  # 臨時牆壁標記
+        S = 'A'  # 臨時牆壁標記，後續統一轉換為 'X'
+
+        # 遍歷迷宮，尋找 2x2 的路徑區域
         for y in range(1, self.height - 2):
             for x in range(1, self.width - 2):
+                # 檢查是否為 2x2 路徑塊（全為 '.'）
                 if not (self.get_tile(x, y) == '.' and self.get_tile(x + 1, y) == '.' and
                         self.get_tile(x, y + 1) == '.' and self.get_tile(x + 1, y + 1) == '.'):
                     continue
                 
+                # 定義 2x2 區域的四個點
                 block = [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
-                neighbors = set()
-                for bx, by in block:
-                    for dx, dy in self.directions:
-                        nx, ny = bx + dx, by + dy
-                        if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == '.' and (nx, ny) not in block:
-                            neighbors.add((nx, ny))
-                
+                random.shuffle(block)  # 隨機打亂四個點的順序
+
+                # 嘗試在每個點放置 'X'
                 placed = False
-                conditions = [
-                    ((x, y), lambda: self.get_tile(x - 1, y) != '.' and self.get_tile(x, y - 1) != '.'),
-                    ((x + 1, y), lambda: self.get_tile(x + 2, y) != '.' and self.get_tile(x + 1, y - 1) != '.'),
-                    ((x, y + 1), lambda: self.get_tile(x, y + 2) != '.' and self.get_tile(x - 1, y + 1) != '.'),
-                    ((x + 1, y + 1), lambda: self.get_tile(x + 2, y + 1) != '.' and self.get_tile(x + 1, y + 2) != '.')
-                ]
-                random.shuffle(conditions)
-                
-                for (cx, cy), condition in conditions:
-                    if condition() and self._check_connectivity(neighbors, (cx, cy)):
-                        self.set_tile(cx, cy, S)
-                        dead_end = any(self.if_dead_end(nx, ny) for dx, dy in self.directions 
-                                      for nx, ny in [(cx + dx, cy + dy)] if self.xy_valid(nx, ny))
-                        if not dead_end:
-                            placed = True
-                            count += 1
+                for bx, by in block:
+                    self.set_tile(bx, by, S)  # 放置臨時牆壁
+
+                    # 檢查九宮格內的路徑點是否變成死路
+                    dead_end_created = False
+                    for dx in range(-1, 2):
+                        for dy in range(-1, 2):
+                            nx, ny = bx + dx, by + dy
+                            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == '.':
+                                if self.if_dead_end(nx, ny):
+                                    dead_end_created = True
+                                    break
+                        if dead_end_created:
                             break
-                        self.set_tile(cx, cy, '.')
-                
+
+                    if not dead_end_created:
+                        # 放置成功，保留 'X' 並計數
+                        placed = True
+                        count += 1
+                        break
+                    else:
+                        # 放置失敗，取消放置（恢復為 '.'）
+                        self.set_tile(bx, by, '.')
+
+                # 如果未成功放置，則該 2x2 區域不放置牆壁
                 if not placed:
-                    random.shuffle(block)
-                    for bx, by in block:
-                        if self._check_connectivity(neighbors, (bx, by)):
-                            self.set_tile(bx, by, S)
-                            dead_end = any(self.if_dead_end(nx, ny) for dx, dy in self.directions 
-                                          for nx, ny in [(bx + dx, by + dy)] if self.xy_valid(nx, ny))
-                            if not dead_end:
-                                placed = True
-                                count += 1
-                                break
-                            self.set_tile(bx, by, '.')
-        
-        # 將臨時標記轉為牆壁
+                    continue
+
+        # 將所有臨時標記 'A' 轉為實際牆壁 'X'
         for y in range(self.height):
             for x in range(self.width):
                 if self.get_tile(x, y) == 'A':
                     self.set_tile(x, y, 'X')
-        
+
         return count
 
     def place_power_pellets(self):
         """
-        在迷宮中均勻放置能量球（'E'），數量根據空地數量動態調整。
-        
+        在迷宮中均勻放置能量球（'E'），數量根據空地數量動態調整，確保分佈均勻。
+
         Returns:
             int: 放置的能量球數量。
         """
         if self.seed is not None:
             random.seed(self.seed + 1000)
         
+        # 收集可放置能量球的格子，排除重生點及其周圍
         empty_cells = []
         exclude_cells = set()
         for y in range(self.height):
@@ -393,12 +390,14 @@ class Map:
                     empty_cells.append((x, y))
         
         empty_count = len(empty_cells)
-        num_pellets = max(4, min(int(empty_count * 0.08), 20))
+        # 調整能量球數量，確保至少 8 個，且不超過空地數量的 10%
+        num_pellets = min(8, max(int(empty_count * 0.1), 20))
         
-        grid_size_x = self.width // 4
-        grid_size_y = self.height // 4
+        # 使用 4x4 網格均勻分佈能量球
+        grid_size_x = max(1, self.width // 4)
+        grid_size_y = max(1, self.height // 4)
         pellet_positions = []
-        pellets_per_grid = max(1, num_pellets // 16)
+        pellets_per_grid = max(1, num_pellets // 16)  # 每個網格至少放置 1 個
         
         for gy in range(4):
             for gx in range(4):
@@ -407,23 +406,25 @@ class Map:
                 y_start = gy * grid_size_y
                 y_end = min((gy + 1) * grid_size_y, self.height)
                 grid_cells = [(x, y) for x in range(x_start, x_end) for y in range(y_start, y_end)
-                             if (x, y) in empty_cells]
+                            if (x, y) in empty_cells]
                 if grid_cells:
                     num_to_place = min(len(grid_cells), pellets_per_grid)
                     selected_cells = random.sample(grid_cells, num_to_place)
                     pellet_positions.extend(selected_cells)
                     empty_cells = [c for c in empty_cells if c not in selected_cells]
         
+        # 處理剩餘能量球，隨機分佈
         remaining = num_pellets - len(pellet_positions)
         if remaining > 0 and empty_cells:
             additional_cells = random.sample(empty_cells, min(remaining, len(empty_cells)))
             pellet_positions.extend(additional_cells)
         
+        # 放置能量球
         for x, y in pellet_positions:
             self.set_tile(x, y, 'E')
         
         if self.seed is not None:
-            random.seed(self.seed)
+            random.seed(self.seed)  # 恢復原始隨機種子
         
         return len(pellet_positions)
 
@@ -434,15 +435,14 @@ class Map:
         """
         self.extend_walls()
         self.convert_all_T_to_wall()
-        
+        self.add_central_room()
+        while self.narrow_paths():
+            pass
+        self.place_power_pellets()
         half_width = self.width // 2
         for y in range(self.height):
             for x in range(1, half_width):
                 self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))
-        while self.narrow_paths():
-            pass
-        self.place_power_pellets()
-
 if __name__ == "__main__":
     width = 19
     height = 19
