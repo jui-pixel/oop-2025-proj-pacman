@@ -193,7 +193,7 @@ class Ghost(Entity):
         super().__init__(x, y, 'G')
         self.name = name
         self.color = color
-        self.speed = 2.0
+        self.speed = 1.0
         self.edible = False
         self.edible_timer = 0
         self.respawn_timer = 0
