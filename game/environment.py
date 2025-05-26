@@ -36,6 +36,7 @@ class PacManEnv:
         self.render_enabled = False
         self.last_position = None
         self.stuck_counter = 0
+        self.current_action = None  # 跟踪當前動作，確保移動完成後重置
 
     def reset(self):
         """
@@ -50,6 +51,7 @@ class PacManEnv:
         self.done = False
         self.last_position = (self.pacman.x, self.pacman.y)
         self.stuck_counter = 0
+        self.current_action = None  # 重置當前動作
         return self._get_state()
 
     def _get_state(self):
@@ -81,12 +83,20 @@ class PacManEnv:
         更新 Pac-Man 和鬼魂的狀態。
 
         Args:
-            action (int): 動作索引。
+            action (int): 動作索引，僅在移動完成後應用。
         """
-        dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
-        moving = self.pacman.set_new_target(dx, dy, self.maze)
-        if moving:
-            self.pacman.move_towards_target(self.maze)
+        # 僅當無當前動作或移動完成時，應用新動作
+        if self.current_action is None or not self.pacman.move_towards_target(self.maze):
+            if action is not None:
+                dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
+                if self.pacman.set_new_target(dx, dy, self.maze):
+                    self.current_action = action  # 設置當前動作
+
+        # 執行 Pac-Man 移動
+        if self.current_action is not None and self.pacman.move_towards_target(self.maze):
+            self.current_action = None  # 移動完成，重置動作
+
+        # 更新鬼魂狀態
         for ghost in self.ghosts:
             if ghost.move_towards_target(self.maze):
                 if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) in self.respawn_points:
