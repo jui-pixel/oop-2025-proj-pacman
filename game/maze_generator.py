@@ -26,7 +26,6 @@ class Map:
         self.tiles = ['.' for _ in range(self.width * self.height)]  # 初始化為路徑
         self.directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 上下左右方向
         self._initialize_map()
-        self.add_central_room()
 
     def _initialize_map(self):
         """初始化迷宮邊界，設置為 '#'。"""
@@ -368,14 +367,15 @@ class Map:
 
     def place_power_pellets(self):
         """
-        在迷宮中均勻放置能量球（'E'），數量根據空地數量動態調整。
-        
+        在迷宮中均勻放置能量球（'E'），數量根據空地數量動態調整，確保分佈均勻。
+
         Returns:
             int: 放置的能量球數量。
         """
         if self.seed is not None:
             random.seed(self.seed + 1000)
         
+        # 收集可放置能量球的格子，排除重生點及其周圍
         empty_cells = []
         exclude_cells = set()
         for y in range(self.height):
@@ -393,12 +393,14 @@ class Map:
                     empty_cells.append((x, y))
         
         empty_count = len(empty_cells)
-        num_pellets = max(4, min(int(empty_count * 0.08), 20))
+        # 調整能量球數量，確保至少 8 個，且不超過空地數量的 10%
+        num_pellets = max(8, min(int(empty_count * 0.1), 20))
         
-        grid_size_x = self.width // 4
-        grid_size_y = self.height // 4
+        # 使用 4x4 網格均勻分佈能量球
+        grid_size_x = max(1, self.width // 4)
+        grid_size_y = max(1, self.height // 4)
         pellet_positions = []
-        pellets_per_grid = max(1, num_pellets // 16)
+        pellets_per_grid = max(1, num_pellets // 16)  # 每個網格至少放置 1 個
         
         for gy in range(4):
             for gx in range(4):
@@ -407,23 +409,25 @@ class Map:
                 y_start = gy * grid_size_y
                 y_end = min((gy + 1) * grid_size_y, self.height)
                 grid_cells = [(x, y) for x in range(x_start, x_end) for y in range(y_start, y_end)
-                             if (x, y) in empty_cells]
+                            if (x, y) in empty_cells]
                 if grid_cells:
                     num_to_place = min(len(grid_cells), pellets_per_grid)
                     selected_cells = random.sample(grid_cells, num_to_place)
                     pellet_positions.extend(selected_cells)
                     empty_cells = [c for c in empty_cells if c not in selected_cells]
         
+        # 處理剩餘能量球，隨機分佈
         remaining = num_pellets - len(pellet_positions)
         if remaining > 0 and empty_cells:
             additional_cells = random.sample(empty_cells, min(remaining, len(empty_cells)))
             pellet_positions.extend(additional_cells)
         
+        # 放置能量球
         for x, y in pellet_positions:
             self.set_tile(x, y, 'E')
         
         if self.seed is not None:
-            random.seed(self.seed)
+            random.seed(self.seed)  # 恢復原始隨機種子
         
         return len(pellet_positions)
 
@@ -434,7 +438,7 @@ class Map:
         """
         self.extend_walls()
         self.convert_all_T_to_wall()
-        
+        self.add_central_room()
         half_width = self.width // 2
         for y in range(self.height):
             for x in range(1, half_width):
