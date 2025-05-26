@@ -216,7 +216,6 @@ class Ghost(Entity):
         if self.waiting:
             self.wait_timer -= 1
             if self.wait_timer <= 0:
-                print(f"{self.name} finished waiting, resuming chase.")
                 self.waiting = False
                 self.speed = 2.0
             return
@@ -233,7 +232,6 @@ class Ghost(Entity):
             if self.respawn_timer <= 0 and self.returning_to_spawn:
                 self.reset_position(maze, [(x, y) for x, y in [(x, y) for y in range(maze.h) 
                                                                for x in range(maze.w) if maze.get_tile(x, y) == 'S']])
-                print(f"{self.name} has respawned at spawn point.")
             return
         
         if self.returning_to_spawn:
