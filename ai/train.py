@@ -1,8 +1,7 @@
-# ai/train.py
 """
 訓練 Pac-Man 的 DQN 代理，負責初始化環境、執行訓練迴圈並記錄指標。
 支援從先前模型繼續訓練，並將結果保存到 TensorBoard 和 JSON 檔案。
-新增可視化選項，使用 Pygame 即時顯示訓練過程。
+新增可視化選項，使用 Pygame 即時顯示訓練過程，通過命令列參數控制。
 """
 
 import sys
@@ -16,9 +15,11 @@ from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import json
-import pygame  # 引入 Pygame 用於可視化
+import pygame
+import math  # 用於指數衰減
+import argparse  # 導入 argparse 模組以解析命令列參數
 
-def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=1000, visualize=False, render_frequency=10):
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=100, visualize=False, render_frequency=10):
     """
     訓練 DQN 代理，執行指定數量的訓練回合並保存模型與記憶緩衝區。
 
@@ -26,8 +27,8 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         resume (bool): 是否從先前模型繼續訓練，預設為 False。
         model_path (str): 模型檔案路徑，預設為 "pacman_dqn_final.pth"。
         memory_path (str): 記憶緩衝區檔案路徑，預設為 "replay_buffer.pkl"。
-        episodes (int): 訓練回合數，預設為 1000。
-        visualize (bool): 是否啟用 Pygame 可視化，預設為 False。
+        episodes (int): 訓練回合數，預設為 100。
+        visualize (bool): 是否啟用 Pygame 可視化，預設為 False，現由命令列參數控制。
         render_frequency (int): 渲染頻率（每多少步渲染一次），預設為 10。
 
     Returns:
@@ -35,7 +36,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     """
     # 初始化 Pac-Man 遊戲環境
     env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED)
-    env.render_enabled = visualize  # 設置可視化開關
+    env.render_enabled = visualize  # 設置可視化開關，根據參數動態決定
     state_dim = (env.maze.h, env.maze.w, 6)
     action_dim = len(env.action_space)
 
@@ -50,23 +51,31 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         device=device,
         buffer_size=100000,
         batch_size=128,
-        lr=1e-5 if resume else 1e-4
+        lr=1e-4 if resume else 1e-3,
+        epsilon=0.1 if resume else 0.9
     )
 
     # 載入先前模型
     if resume and os.path.exists(model_path):
         agent.load(model_path, memory_path)
-        agent.epsilon = 0.3
         print(f"Loaded model from {model_path} and memory from {memory_path}")
     else:
         print("Starting fresh training")
 
-    max_steps = 5000
+    max_steps = 10000
     writer = SummaryWriter()
     episode_rewards = []
 
+    # Epsilon 調整參數
+    epsilon_start = 0.9
+    epsilon_min = 0.05
+    decay_rate = 200  # 控制衰減速度
+
     # 主訓練迴圈
     for episode in range(episodes):
+        # 根據 episode 計算 epsilon（指數衰減）
+        agent.epsilon = epsilon_min + (epsilon_start - epsilon_min) * math.exp(-episode / decay_rate)
+
         seed = np.random.randint(0, 10000)
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -113,5 +122,14 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     return episode_rewards
 
 if __name__ == "__main__":
-    for _ in range(10):  # 執行10次訓練
-        train(resume=True, visualize=True, render_frequency=10)  # 啟用可視化，每 10 步渲染一次
+    # 使用 argparse 解析命令列參數
+    parser = argparse.ArgumentParser(description="訓練 Pac-Man DQN 代理，並可選擇啟用可視化")
+    parser.add_argument('-v', '--visualize', type=str, default='False', help="是否啟用 Pygame 可視化 ('True' 或 'False')")
+    args = parser.parse_args()
+
+    # 將 visualize 參數從字符串轉換為布林值
+    visualize = args.visualize.lower() == 'true'
+
+    # 執行 10 次訓練，根據命令列參數設置 visualize
+    for _ in range(10):  # 執行 10 次訓練
+        train(resume=True, visualize=visualize, render_frequency=10)
