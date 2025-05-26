@@ -18,7 +18,7 @@ import json
 import pygame
 import math  # 用於指數衰減
 
-def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=1000, visualize=False, render_frequency=10):
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=100, visualize=False, render_frequency=10):
     """
     訓練 DQN 代理，執行指定數量的訓練回合並保存模型與記憶緩衝區。
 
