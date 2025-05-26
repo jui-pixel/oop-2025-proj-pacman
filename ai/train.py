@@ -46,11 +46,12 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         buffer_size=100000,
         batch_size=128,
         lr=1e-4,
-        epsilon=0.3 if resume else 0.9,  # 如果是從頭開始訓練，使用較高的初始 epsilon
+        epsilon=0.9,
     )
 
     if resume and os.path.exists(model_path):
         agent.load(model_path, memory_path)
+        agent.epsilon = 0.3
         print(f"Loaded model from {model_path} and memory from {memory_path}")
     else:
         print("Starting fresh training")
