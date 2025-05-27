@@ -37,6 +37,7 @@ class PacManEnv:
         self.last_position = None
         self.stuck_counter = 0
         self.current_action = None  # 跟踪當前動作，確保移動完成後重置
+        self.old_position = None  # 跟踪上一步位置，避免重複計算
 
     def reset(self):
         """
@@ -52,6 +53,7 @@ class PacManEnv:
         self.last_position = (self.pacman.x, self.pacman.y)
         self.stuck_counter = 0
         self.current_action = None  # 重置當前動作
+        self.old_position = None
         return self._get_state()
 
     def _get_state(self):
@@ -154,15 +156,15 @@ class PacManEnv:
         
         self._update_entities(action)
 
-        reward = 0.0
+        reward = -0.001
         # 獎勵移動，懲罰停滯
-        if old_position and (self.pacman.x, self.pacman.y) != old_position:
+        if self.old_position and (self.pacman.x, self.pacman.y) != self.old_position:
             reward += 0.0
         else:
             reward -= 0.0
             if self._check_stuck():
                 reward -= 0.01
-        old_position = (self.pacman.x, self.pacman.y)
+        self.old_position = (self.pacman.x, self.pacman.y)
         
         if self.pacman.eat_pellet(self.power_pellets) > 0:
             reward += 20
