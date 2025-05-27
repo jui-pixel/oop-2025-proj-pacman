@@ -156,13 +156,13 @@ class PacManEnv:
 
         reward = 0.0
         # 獎勵移動，懲罰停滯
-        # if old_position and (self.pacman.x, self.pacman.y) != old_position:
-        #     reward += 0.001
-        # else:
-        #     reward -= 0.001
-        #     if self._check_stuck():
-        #         reward -= 0.01
-        # old_position = (self.pacman.x, self.pacman.y)
+        if old_position and (self.pacman.x, self.pacman.y) != old_position:
+            reward += 0.0
+        else:
+            reward -= 0.0
+            if self._check_stuck():
+                reward -= 0.01
+        old_position = (self.pacman.x, self.pacman.y)
         
         if self.pacman.eat_pellet(self.power_pellets) > 0:
             reward += 20
@@ -172,13 +172,15 @@ class PacManEnv:
         if self.pacman.eat_score_pellet(self.score_pellets) > 0:
             reward += 2
 
-        # min_ghost_dist = float('inf')
-        # for ghost in self.ghosts:
-        #     if not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
-        #         dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
-        #         min_ghost_dist = min(min_ghost_dist, dist)
-        # if min_ghost_dist > 5:
-        #     reward += 0.005
+        min_ghost_dist = float('inf')
+        for ghost in self.ghosts:
+            if not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
+                dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
+                min_ghost_dist = min(min_ghost_dist, dist)
+        if min_ghost_dist > 5:
+            reward += 0.005
+        elif min_ghost_dist < 3:
+            reward -= 0.05
 
         if self._check_collision():
             reward -= 10
