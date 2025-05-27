@@ -29,7 +29,7 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
         try:
             action = action_queue.get(timeout=1)  # 從主進程獲取動作
             next_state, reward, done, _ = env.step(action)
-            print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
+            # print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
             if env.current_action is None:  # 僅在移動完成時記錄
                 reward_queue.put((env_id, state, last_action, reward, next_state, done))
             state = next_state
@@ -39,6 +39,7 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
         except Empty:
             continue
     done_queue.put((env_id, total_reward))
+    # print(f"Env {env_id}: Sent done, total reward {total_reward}")
 
 def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer_final.pkl", episodes=2000, num_envs=4):
     """
@@ -96,32 +97,20 @@ def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path=
         active_envs = len(processes)
         env_rewards = {}
         while active_envs > 0:
+            # 先檢查 done_queue
+            while True:
+                try:
+                    env_id, total_reward = done_queue.get_nowait()
+                    env_rewards[env_id] = total_reward
+                    active_envs -= 1
+                except Empty:
+                    break
+            # 再檢查 state_queue
             try:
-                # 處理狀態並選擇動作
                 env_id, state = state_queue.get(timeout=1)
                 action = agent.get_action(state)
                 action_queue.put(action)
-
-                # 處理經驗並訓練
-                while True:
-                    try:
-                        env_id, state, action, reward, next_state, done = reward_queue.get_nowait()
-                        if action is not None:
-                            agent.remember(state, action, reward, next_state, done)
-                            loss = agent.train()
-                            if loss > 0:
-                                writer.add_scalar('Loss', loss, episode * max_steps)
-                    except Empty:
-                        break
-
-                # 處理完成環境
-                while True:
-                    try:
-                        env_id, total_reward = done_queue.get_nowait()
-                        env_rewards[env_id] = total_reward
-                        active_envs -= 1
-                    except Empty:
-                        break
+                ...
             except Empty:
                 continue
 
