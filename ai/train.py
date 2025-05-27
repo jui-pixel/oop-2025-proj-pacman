@@ -18,7 +18,7 @@ import json
 import pygame
 import argparse
 
-def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=1000, visualize=False, render_frequency=10):
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=2000, visualize=False, render_frequency=10):
     """
     訓練 Dueling DQN 代理，執行指定數量的訓練回合並保存模型。
     僅在 Pac-Man 完成移動後進行訓練。
@@ -113,5 +113,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     visualize = args.visualize.lower() == 'true'
-    for _ in range(10):
-        train(resume=True, visualize=visualize, render_frequency=10)
+    train(resume=True, visualize=visualize, render_frequency=10)
