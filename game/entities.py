@@ -502,7 +502,7 @@ class Ghost(Entity):
             if self.edible_timer <= 0:
                 self.edible = False
                 self.edible_timer = 0
-                print(f"{self.name} is no longer edible.")
+                # print(f"{self.name} is no longer edible.")
         
         if self.respawn_timer > 0:
             self.respawn_timer -= 1

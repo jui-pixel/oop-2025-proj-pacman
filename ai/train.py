@@ -27,15 +27,16 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
     while not done and step < max_steps:
         state_queue.put((env_id, state))  # 將狀態發送到主進程
         try:
-            action = action_queue.get(timeout=1)  # 從主進程獲取動作
-            next_state, reward, done, _ = env.step(action)
-            # print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
-            if env.current_action is None:  # 僅在移動完成時記錄
-                reward_queue.put((env_id, state, last_action, reward, next_state, done))
-            state = next_state
-            total_reward += reward
-            last_action = action
-            step += 1
+            if env.pacman.move_towards_target():
+                action = action_queue.get(timeout=1)  # 從主進程獲取動作
+                next_state, reward, done, _ = env.step(action)
+                # print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
+                if env.current_action is None:  # 僅在移動完成時記錄
+                    reward_queue.put((env_id, state, last_action, reward, next_state, done))
+                state = next_state
+                total_reward += reward
+                last_action = action
+                step += 1
         except Empty:
             continue
     done_queue.put((env_id, total_reward))
@@ -76,7 +77,6 @@ def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path=
 
     writer = SummaryWriter()
     episode_rewards = []
-    max_steps = 10000
 
     # 初始化多進程隊列
     state_queue = mp.Queue()
