@@ -27,7 +27,7 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
     while not done and step < max_steps:
         state_queue.put((env_id, state))  # 將狀態發送到主進程
         try:
-            if env.pacman.move_towards_target():
+            if env.pacman.move_towards_target(env.maze):
                 action = action_queue.get(timeout=1)  # 從主進程獲取動作
                 next_state, reward, done, _ = env.step(action)
                 # print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
