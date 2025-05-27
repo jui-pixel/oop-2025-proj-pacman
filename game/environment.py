@@ -184,7 +184,7 @@ class PacManEnv:
             reward -= 10
 
         if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
-            reward += 10000
+            reward += 1000
             self.done = True
 
         return self._get_state(), reward, self.done, {}
