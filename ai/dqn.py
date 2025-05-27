@@ -43,7 +43,7 @@ class DuelingDQN(nn.Module):
         self.value_stream = nn.Sequential(
             nn.Linear(conv_out_size, 512),  # 展平後映射到 512 維
             nn.ReLU(),  # 激活函數
-            nn.Dropout(0.2),  # Dropout 降低過擬合風險
+            nn.Dropout(0.1),  # Dropout 降低過擬合風險
             nn.Linear(512, 1)  # 輸出單一價值 V(s)
         )
 
@@ -51,7 +51,7 @@ class DuelingDQN(nn.Module):
         self.advantage_stream = nn.Sequential(
             nn.Linear(conv_out_size, 512),  # 展平後映射到 512 維
             nn.ReLU(),  # 激活函數
-            nn.Dropout(0.2),  # Dropout 降低過擬合風險
+            nn.Dropout(0.1),  # Dropout 降低過擬合風險
             nn.Linear(512, output_dim)  # 輸出每個動作的優勢 A(s, a)
         )
 
