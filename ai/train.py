@@ -39,7 +39,7 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
             continue
     done_queue.put((env_id, total_reward))
 
-def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer_final.pkl", episodes=2000, num_envs=10):
+def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer_final.pkl", episodes=2000, num_envs=4):
     """
     並行訓練 Dueling DQN 代理，使用多個環境同時收集經驗。
 
@@ -151,8 +151,7 @@ def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path=
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="並行訓練 Pac-Man Dueling DQN 代理")
-    parser.add_argument('-v', '--visualize', type=str, default='False', help="是否啟用 Pygame 可視化 ('True' 或 'False')")
     parser.add_argument('-n', '--num_envs', type=int, default=4, help="並行環境數量")
     args = parser.parse_args()
 
-    train_parallel(resume=True, visualize=args.visualize.lower() == 'true', num_envs=args.num_envs)
+    train_parallel(resume=True, num_envs=args.num_envs)
