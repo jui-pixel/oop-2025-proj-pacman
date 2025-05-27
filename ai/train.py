@@ -29,6 +29,7 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
         try:
             action = action_queue.get(timeout=1)  # 從主進程獲取動作
             next_state, reward, done, _ = env.step(action)
+            print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
             if env.current_action is None:  # 僅在移動完成時記錄
                 reward_queue.put((env_id, state, last_action, reward, next_state, done))
             state = next_state
@@ -59,10 +60,10 @@ def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path=
         state_dim=state_dim,
         action_dim=action_dim,
         device=device,
-        buffer_size=50000,  # 減小記憶緩衝區
-        batch_size=256,     # 增大批次大小
-        lr=5e-4,           # 提高學習率
-        epsilon=0.5        # 降低初始探索率
+        buffer_size=50000, 
+        batch_size=128,
+        lr=5e-4, 
+        epsilon=0.5 
     )
 
     if resume and os.path.exists(model_path):
