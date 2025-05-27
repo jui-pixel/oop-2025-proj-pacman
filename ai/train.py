@@ -42,7 +42,7 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
     done_queue.put((env_id, total_reward))
     # print(f"Env {env_id}: Sent done, total reward {total_reward}")
 
-def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer_final.pkl", episodes=2000, num_envs=4):
+def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer_final.pkl", episodes=20000, num_envs=4):
     """
     並行訓練 Dueling DQN 代理，使用多個環境同時收集經驗。
 
