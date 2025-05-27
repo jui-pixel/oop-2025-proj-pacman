@@ -30,7 +30,8 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
             if env.pacman.move_towards_target(env.maze):
                 action = action_queue.get(timeout=1)  # 從主進程獲取動作
                 next_state, reward, done, _ = env.step(action)
-                # print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
+                if step % 100 == 0:  # 每10步記錄一次
+                    print(f"Env {env_id}: Step {step}, Action: {action}, Reward: {reward}, Done: {done}")
                 if env.current_action is None:  # 僅在移動完成時記錄
                     reward_queue.put((env_id, state, last_action, reward, next_state, done))
                 state = next_state
