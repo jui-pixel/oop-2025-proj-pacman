@@ -2,10 +2,11 @@
 """
 定義 Pac-Man 遊戲的核心邏輯，包括初始化、更新狀態和碰撞檢測。
 """
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from .entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
 from .maze_generator import Map
 from config import EDIBLE_DURATION, GHOST_SCORES, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, FPS, CELL_SIZE
+from collections import deque
 
 class Game:
     def __init__(self):

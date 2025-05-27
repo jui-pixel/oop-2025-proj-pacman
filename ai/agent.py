@@ -35,7 +35,7 @@ class DQNAgent:
         self.device = device
         self.batch_size = batch_size
         self.gamma = 0.995  # 折扣因子
-        self.n_step = 3  # n-step 學習步長
+        self.n_step = 10  # n-step 學習步長
         self.tau = 0.005  # 軟更新因子
 
         # 初始化 Dueling DQN 模型
