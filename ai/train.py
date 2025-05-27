@@ -18,7 +18,7 @@ import json
 import pygame
 import argparse
 
-def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer.pkl", episodes=1000, visualize=False, render_frequency=10):
+def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer_final.pkl", episodes=1000, visualize=False, render_frequency=10):
     """
     訓練 Dueling DQN 代理，執行指定數量的訓練回合並保存模型。
     僅在 Pac-Man 完成移動後進行訓練。
@@ -98,6 +98,9 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         writer.add_scalar('Reward', total_reward, episode)
         print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
         agent.update_epsilon()  # 隨著訓練進行，逐漸減少探索率
+        if (episode+1) % 50 == 0:
+            agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
+        
 
     agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
     with open("episode_rewards.json", "w") as f:
