@@ -15,34 +15,39 @@ from queue import Empty
 
 def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, width, height, seed):
     """子進程運行單個環境，執行動作並返回經驗"""
-    env = PacManEnv(width=width, height=height, seed=seed + env_id)  # 每個環境不同種子
-    env.render_enabled = False  # 禁用可視化
-    state = env.reset()
-    done = False
-    total_reward = 0
-    step = 0
-    max_steps = 10000
-    last_action = None
+    try:
+        env = PacManEnv(width=width, height=height, seed=seed + env_id)  # 每個環境不同種子
+        env.render_enabled = False  # 禁用可視化
+        state = env.reset()
+        done = False
+        total_reward = 0
+        step = 0
+        max_steps = 10000
+        last_action = None
 
-    while not done and step < max_steps:
-        state_queue.put((env_id, state))  # 將狀態發送到主進程
-        try:
-            if env.pacman.move_towards_target(env.maze):
-                action = action_queue.get(timeout=1)  # 從主進程獲取動作
-                next_state, reward, done, _ = env.step(action)
-                # print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
-                if env.current_action is None:  # 僅在移動完成時記錄
-                    reward_queue.put((env_id, state, last_action, reward, next_state, done))
-                state = next_state
-                total_reward += reward
-                last_action = action
-                step += 1
-        except Empty:
-            continue
-    done_queue.put((env_id, total_reward))
-    # print(f"Env {env_id}: Sent done, total reward {total_reward}")
-
-def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer_final.pkl", episodes=20000, num_envs=4):
+        while not done and step < max_steps:
+            state_queue.put((env_id, state))  # 將狀態發送到主進程
+            try:
+                if env.pacman.move_towards_target(env.maze):
+                    action = action_queue.get(timeout=1)  # 從主進程獲取動作
+                    next_state, reward, done, _ = env.step(action)
+                    # print(f"Env {env_id}: Step {step}, action {action}, reward {reward}, done {done}")
+                    if env.current_action is None:  # 僅在移動完成時記錄
+                        reward_queue.put((env_id, state, last_action, reward, next_state, done))
+                    state = next_state
+                    total_reward += reward
+                    last_action = action
+                    step += 1
+            except Empty:
+                continue
+        done_queue.put((env_id, total_reward))
+        # print(f"Env {env_id}: Sent done, total reward {total_reward}")
+    finally:
+        pygame.quit()
+    
+    
+    
+def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_buffer_final.pkl", episodes=2000, num_envs=4):
     """
     並行訓練 Dueling DQN 代理，使用多個環境同時收集經驗。
 
@@ -79,10 +84,10 @@ def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path=
     episode_rewards = []
 
     # 初始化多進程隊列
-    state_queue = mp.Queue()
-    action_queue = mp.Queue()
-    reward_queue = mp.Queue()
-    done_queue = mp.Queue()
+    state_queue = mp.Queue(maxsize=1000)
+    action_queue = mp.Queue(maxsize=1000)
+    reward_queue = mp.Queue(maxsize=1000)
+    done_queue = mp.Queue(maxsize=1000)
 
     for episode in range(0, episodes, num_envs):
         # 啟動多個環境進程
@@ -128,6 +133,18 @@ def train_parallel(resume=False, model_path="pacman_dqn_final.pth", memory_path=
         elif episode % 100 == 0:
             agent.save(f"pacman_dqn_ep{episode}.pth", None)  # 僅保存模型
         
+        for p in processes:
+            if p.is_alive():
+                p.terminate()
+            p.join()
+        for q in [state_queue, action_queue, reward_queue, done_queue]:
+            while True:
+                try:
+                    q.get_nowait()
+                except Empty:
+                    break
+            q.close()  # 關閉隊列，釋放資源
+            q.join_thread() # 等待隊列清空
         
 
     # 最終保存
