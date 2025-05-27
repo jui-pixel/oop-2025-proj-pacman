@@ -21,7 +21,7 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
     done = False
     total_reward = 0
     step = 0
-    max_steps = 10000
+    max_steps = 1000
     last_action = None
     
     while not done and step < max_steps:
@@ -39,9 +39,9 @@ def worker_process(env_id, state_queue, action_queue, reward_queue, done_queue, 
                 step += 1
         except Empty:
             continue
-        done_queue.put((env_id, total_reward))
-        # print(f"Env {env_id}: Sent done, total reward {total_reward}")
-        pygame.quit()
+    done_queue.put((env_id, total_reward))
+    print(f"Env {env_id}: Sent done, total reward {total_reward}")
+    pygame.quit()
     
     
     

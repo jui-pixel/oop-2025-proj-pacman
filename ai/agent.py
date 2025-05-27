@@ -254,7 +254,6 @@ class DQNAgent:
         self.soft_update_target()
         self.beta = min(1.0, self.beta + self.beta_increment)
         self.steps += 1
-        del states, actions, rewards, next_states, dones
         return loss.item()
 
     def save(self, path, memory_path=None):
