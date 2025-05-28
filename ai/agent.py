@@ -50,7 +50,7 @@ class DQNAgent:
 
         self.epsilon = epsilon
         self.epsilon_min = 0.1
-        self.epsilon_decay = 0.995
+        self.epsilon_decay = 0.9995
         self.alpha = 0.6  # 優先級經驗回放的 alpha 參數
         self.beta = 0.4  # 重要性採樣的 beta 參數
         self.beta_increment = 1e-3
