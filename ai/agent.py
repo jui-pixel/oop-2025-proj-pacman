@@ -17,7 +17,7 @@ from ai.dqn import DuelingDQN
 import pickle
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, lr=1e-4, epsilon=0.9):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, lr=1e-4, epsilon=1.0):
         """
         初始化 DQN 代理，設置 Dueling DQN 模型、記憶緩衝區和訓練參數。
 
@@ -49,7 +49,7 @@ class DQNAgent:
         self.priorities = deque(maxlen=buffer_size)
 
         self.epsilon = epsilon
-        self.epsilon_min = 0.01
+        self.epsilon_min = 0.1
         self.epsilon_decay = 0.995
         self.alpha = 0.6  # 優先級經驗回放的 alpha 參數
         self.beta = 0.4  # 重要性採樣的 beta 參數

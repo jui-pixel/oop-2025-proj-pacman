@@ -25,14 +25,14 @@ class DuelingDQN(nn.Module):
 
         # 定義卷積層序列，提取特徵，保留原有的批次正規化
         self.feature = nn.Sequential(
-            nn.Conv2d(input_dim[2], 32, kernel_size=3, stride=1, padding=1),  # 第一層：輸入通道（6）-> 32
-            nn.BatchNorm2d(32),  # 批次正規化，穩定特徵分佈
+            nn.Conv2d(input_dim[2], 16, kernel_size=3, stride=1, padding=1),  # 第一層：輸入通道（6）-> 16
+            nn.BatchNorm2d(16),  # 批次正規化，穩定特徵分佈
             nn.ReLU(),  # ReLU 激活函數
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),  # 第二層：32 -> 64
-            nn.BatchNorm2d(64),  # 批次正規化
+            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),  # 第二層：16 -> 32
+            nn.BatchNorm2d(32),  # 批次正規化
             nn.ReLU(),  # 激活
-            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),  # 第三層：64 -> 128
-            nn.BatchNorm2d(128),  # 批次正規化
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),  # 第三層：32 -> 64
+            nn.BatchNorm2d(64),  # 批次正規化
             nn.ReLU()  # 激活
         )
 
@@ -41,18 +41,18 @@ class DuelingDQN(nn.Module):
 
         # 定義價值流（Value Stream），估計狀態的總體價值
         self.value_stream = nn.Sequential(
-            nn.Linear(conv_out_size, 512),  # 展平後映射到 512 維
+            nn.Linear(conv_out_size, 256),  # 展平後映射到 256 維
             nn.ReLU(),  # 激活函數
             nn.Dropout(0.1),  # Dropout 降低過擬合風險
-            nn.Linear(512, 1)  # 輸出單一價值 V(s)
+            nn.Linear(256, 1)  # 輸出單一價值 V(s)
         )
 
         # 定義優勢流（Advantage Stream），估計每個動作的優勢
         self.advantage_stream = nn.Sequential(
-            nn.Linear(conv_out_size, 512),  # 展平後映射到 512 維
+            nn.Linear(conv_out_size, 256),  # 展平後映射到 256 維
             nn.ReLU(),  # 激活函數
             nn.Dropout(0.1),  # Dropout 降低過擬合風險
-            nn.Linear(512, output_dim)  # 輸出每個動作的優勢 A(s, a)
+            nn.Linear(256, output_dim)  # 輸出每個動作的優勢 A(s, a)
         )
 
     def _get_conv_out(self, shape):

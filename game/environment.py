@@ -156,7 +156,7 @@ class PacManEnv:
         
         self._update_entities(action)
 
-        reward = -0.0001
+        reward = -0.1
         # # 獎勵移動，懲罰停滯
         # if self.old_position and (self.pacman.x, self.pacman.y) != self.old_position:
         #     reward += 0.0
@@ -185,7 +185,7 @@ class PacManEnv:
         #     reward -= 0.05
 
         if self._check_collision():
-            reward -= 10
+            reward -= 200
 
         if len(self.power_pellets) == 0 and len(self.score_pellets) == 0:
             reward += 1000
