@@ -293,6 +293,9 @@ class DQNAgent:
             with open(memory_path, 'rb') as f:
                 memory = pickle.load(f)
                 self.memory = deque(memory, maxlen=self.memory.maxlen)
+                # 確保 priorities 與 memory 長度一致
+                if len(self.priorities) != len(self.memory):
+                    self.priorities = deque([1.0] * len(self.memory), maxlen=self.memory.maxlen)
     
     def update_epsilon(self):
         """

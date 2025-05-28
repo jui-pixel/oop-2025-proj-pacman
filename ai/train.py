@@ -99,16 +99,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         print(f"Episode {episode+1}/{episodes}, Total Reward: {total_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
         agent.update_epsilon()  # 隨著訓練進行，逐漸減少探索率
         if (episode + 1) % 10 == 0:
-            agent.save(model_path, memory_path)
-            if os.path.exists("episode_rewards.json"):
-                with open("episode_rewards.json", "r") as f:
-                    try:
-                        old_rewards = json.load(f)
-                        if isinstance(old_rewards, list):
-                            episode_rewards.extend(old_rewards)
-                    except json.JSONDecodeError:
-                        print("Warning: episode_rewards.json is corrupted, starting fresh.")
-            
+            agent.save(model_path, memory_path)      
 
     agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
     if os.path.exists("episode_rewards.json"):
