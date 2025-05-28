@@ -74,7 +74,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         last_action = None
 
         while not done and step < max_steps:
-            if env.pacman.move_towards_target:
+            if env.pacman.move_towards_target: # 移動完成才進行下次訓練
                 action = agent.get_action(state)
                 next_state, reward, done, _ = env.step(action)
 
