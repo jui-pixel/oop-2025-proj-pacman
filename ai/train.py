@@ -55,7 +55,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     else:
         print("Starting fresh training")
 
-    max_steps = 10000
+    max_steps = 1000
     writer = SummaryWriter()
     episode_rewards = []
     seed = MAZE_SEED
