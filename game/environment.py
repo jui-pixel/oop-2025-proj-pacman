@@ -8,7 +8,7 @@
 import numpy as np
 from game.entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
 from game.maze_generator import Map
-from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, EDIBLE_DURATION, GHOST_SCORES, FPS, CELL_SIZE, BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW
+from config import CELL_SIZE, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, EDIBLE_DURATION, GHOST_SCORES, FPS, CELL_SIZE, BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW
 import pygame
 
 class PacManEnv:
@@ -24,6 +24,9 @@ class PacManEnv:
         self.maze = Map(w=width, h=height, seed=seed)
         self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
+        self.pacman.speed = CELL_SIZE
+        for ghost in self.ghosts:
+            ghost.speed = CELL_SIZE / 4
         self.respawn_points = [(x, y) for y in range(self.maze.h) for x in range(self.maze.w)
                               if self.maze.get_tile(x, y) == 'S']
         self.ghost_score_index = 0

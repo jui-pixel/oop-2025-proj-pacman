@@ -85,8 +85,7 @@ class PacMan(Entity):
         super().__init__(x, y, 'P')
         self.score = 0
         self.alive = True
-        self.speed = 2.5  # 基礎移動速度
-        self.boost_speed = 3.5  # 緊急加速速度
+        self.speed = 3.0  # 基礎移動速度
         self.last_direction = None  # 記錄上一次移動方向
         self.alternating_vertical_count = 0  # 記錄連續上下交替移動次數
         self.stuck_count = 0  # 連續卡住計數器
@@ -475,7 +474,7 @@ class Ghost(Entity):
         self.edible_timer = 0
         self.respawn_timer = 0
         self.returning_to_spawn = False
-        self.return_speed = 4.0
+        self.return_speed = 2.5
         self.death_count = 0
         self.waiting = False
         self.wait_timer = 0
