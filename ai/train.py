@@ -110,7 +110,9 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
                     episode_rewards.extend(old_rewards)
             except json.JSONDecodeError:
                 print("Warning: episode_rewards.json is corrupted, starting fresh.")
-
+                
+    with open("episode_rewards.json", "w") as f:
+        json.dump(episode_rewards, f)
     writer.close()
     if visualize:
         pygame.quit()
