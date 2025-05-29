@@ -160,7 +160,7 @@ class PacManEnv:
         
         self._update_entities(action)
 
-        reward = -0.1
+        reward = 0.0
         # # 獎勵移動，懲罰停滯
         # if self.old_position and (self.pacman.x, self.pacman.y) != self.old_position:
         #     reward += 0.0
