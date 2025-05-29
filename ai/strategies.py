@@ -50,7 +50,7 @@ class PlayerControl(ControlStrategy):
                 self.dx, self.dy = 1, 0
 
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts, moving: bool) -> bool:
-        if not moving and pacman.move_towards_target(maze):
+        if not moving and pacman.move_towards_target():
             if self.dx != 0 or self.dy != 0:
                 if pacman.set_new_target(self.dx, self.dy, maze):
                     moving = True
@@ -58,7 +58,7 @@ class PlayerControl(ControlStrategy):
 
 class RuleBasedAIControl(ControlStrategy):
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts, moving: bool) -> bool:
-        if not moving and pacman.move_towards_target(maze):
+        if not moving and pacman.move_towards_target():
             moving = pacman.rule_based_ai_move(maze, power_pellets, score_pellets, ghosts)
         return moving
 
@@ -76,7 +76,7 @@ class DQNAIControl(ControlStrategy):
             raise
 
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts, moving: bool) -> bool:
-        if not moving and pacman.move_towards_target(maze):
+        if not moving and pacman.move_towards_target():
             state = np.zeros((maze.h, maze.w, 6), dtype=np.float32)
             state[pacman.x, pacman.y, 0] = 1
             for pellet in power_pellets:
@@ -130,7 +130,7 @@ class ControlManager:
 
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts) -> bool:
         self.moving = self.current_strategy.move(pacman, maze, power_pellets, score_pellets, ghosts, self.moving)
-        if self.moving and pacman.move_towards_target(maze):
+        if self.moving and pacman.move_towards_target():
             self.moving = False
         return self.moving
 

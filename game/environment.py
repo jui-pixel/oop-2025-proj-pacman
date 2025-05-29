@@ -92,19 +92,19 @@ class PacManEnv:
             action (int): 動作索引，僅在移動完成後應用。
         """
         # 僅當無當前動作或移動完成時，應用新動作
-        if self.current_action is None and self.pacman.move_towards_target(self.maze):
+        if self.current_action is None and self.pacman.move_towards_target():
             if action is not None:
                 dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
                 if self.pacman.set_new_target(dx, dy, self.maze):
                     self.current_action = action  # 設置當前動作
 
         # 執行 Pac-Man 移動
-        if self.current_action is not None and self.pacman.move_towards_target(self.maze):
+        if self.current_action is not None and self.pacman.move_towards_target():
             self.current_action = None  # 移動完成，重置動作
 
         # 更新鬼魂狀態
         for ghost in self.ghosts:
-            if ghost.move_towards_target(self.maze):
+            if ghost.move_towards_target():
                 if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) in self.respawn_points:
                     ghost.set_waiting(FPS)
                 elif ghost.returning_to_spawn:

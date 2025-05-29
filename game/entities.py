@@ -26,7 +26,7 @@ class Entity:
         self.current_y = y * CELL_SIZE + CELL_SIZE // 2
         self.speed = 2.0  # 移動速度（像素/幀）
 
-    def move_towards_target(self, maze) -> bool:
+    def move_towards_target(self) -> bool:
         """
         逐像素移動到目標格子，防止速度溢出。
         
