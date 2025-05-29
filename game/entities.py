@@ -394,16 +394,17 @@ class PacMan(Entity):
         else:
             # 追逐可食用鬼魂
             edible_ghosts = [ghost for ghost in ghosts if ghost.edible and ghost.edible_timer > 0]
-            if edible_ghosts:
+            if edible_ghosts :
                 closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
-                goal = (closest_edible.x, closest_edible.y)
-                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="edible")
-                if direction:
-                    dx, dy = direction
-                    if self.set_new_target(dx, dy, maze):
-                        self.last_direction = (dx, dy)
-                        self.stuck_count = 0
-                        return True
+                if ((closest_edible.x - current_x)**2 + (closest_edible.y - current_y)**2) < 15:
+                    goal = (closest_edible.x, closest_edible.y)
+                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="edible")
+                    if direction:
+                        dx, dy = direction
+                        if self.set_new_target(dx, dy, maze):
+                            self.last_direction = (dx, dy)
+                            self.stuck_count = 0
+                            return True
             
             # 收集分數球
             if score_pellets:
@@ -417,7 +418,17 @@ class PacMan(Entity):
                         self.last_direction = (dx, dy)
                         self.stuck_count = 0
                         return True
-            
+            else:
+                if edible_ghosts :
+                    closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
+                    goal = (closest_edible.x, closest_edible.y)
+                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="edible")
+                    if direction:
+                        dx, dy = direction
+                        if self.set_new_target(dx, dy, maze):
+                            self.last_direction = (dx, dy)
+                            self.stuck_count = 0
+                            return True
             
 
         # 步驟 8: 選擇最安全方向或脫困
@@ -612,7 +623,7 @@ class Ghost(Entity):
         self.edible = False
         self.edible_timer = 0
         self.alpha = 255
-        self.respawn_timer = int(5 * fps)
+        self.respawn_timer = int(9000 / fps)
 
     def set_waiting(self, fps: int):
         """
@@ -624,7 +635,7 @@ class Ghost(Entity):
         self.returning_to_spawn = False
         self.waiting = True
         wait_time = 10.0 / max(1, self.death_count)
-        self.wait_timer = int(wait_time * fps)
+        self.wait_timer = int(wait_time * 900/fps)
 
     def reset_position(self, maze, respawn_points):
         """
