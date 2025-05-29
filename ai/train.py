@@ -119,5 +119,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     visualize = args.visualize.lower() == 'true'
-    for _ in range(100):
-        train(resume=True, visualize=visualize, episodes=100, render_frequency=1)
+    for _ in range(10):
+        train(resume=True, visualize=visualize, episodes=1000, render_frequency=1)

@@ -168,6 +168,8 @@ class PacManEnv:
             reward += 1000
             self.done = True
 
+        reward /= 100.0  # 縮放獎勵
+        
         return self._get_state(), reward, self.done, {}
 
     def render(self):
