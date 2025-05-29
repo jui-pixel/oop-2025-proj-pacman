@@ -70,6 +70,7 @@ class DQNAIControl(ControlStrategy):
         self.agent = DQNAgent((maze_height, maze_width, 6), 4, self.device, 10000, 128, 1e-4, 0.01)
         try:
             self.agent.load("pacman_dqn_final.pth")
+            self.agent.epsilon = 0.0
         except FileNotFoundError:
             print("Model file 'pacman_dqn_final.pth' not found. Please train the model first.")
             raise
