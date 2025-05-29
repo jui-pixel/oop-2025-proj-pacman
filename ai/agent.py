@@ -134,13 +134,13 @@ class DQNAgent:
             base_weights = [1.0] * self.action_dim
             if self.last_action is not None:
                 if self.last_action == 0:
-                    weights = [2.7, 0.3, 1.0, 1.0]
+                    weights = [2.7, 0.3, 1.5, 1.5]
                 elif self.last_action == 1:
-                    weights = [0.3, 2.7, 1.0, 1.0]
+                    weights = [0.3, 2.7, 1.5, 1.5]
                 elif self.last_action == 2:
-                    weights = [1.0, 1.0, 2.7, 0.3]
+                    weights = [1.5, 1.5, 2.7, 0.3]
                 elif self.last_action == 3:
-                    weights = [1.0, 1.0, 0.3, 2.7]
+                    weights = [1.5, 1.5, 0.3, 2.7]
             else:
                 weights = base_weights
 
