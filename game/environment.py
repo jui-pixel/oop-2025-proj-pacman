@@ -132,21 +132,6 @@ class PacManEnv:
                     return True
         return False
 
-    def _check_stuck(self):
-        """
-        檢查 Pac-Man 是否停滯。
-
-        Returns:
-            bool: 是否停滯。
-        """
-        current_position = (self.pacman.x, self.pacman.y)
-        if self.last_position == current_position:
-            self.stuck_counter += 1
-        else:
-            self.stuck_counter = 0
-        self.last_position = current_position
-        return self.stuck_counter >= 1
-
     def step(self, action):
         """
         執行一步動作，更新環境狀態並計算獎勵。
@@ -161,14 +146,6 @@ class PacManEnv:
         self._update_entities(action)
 
         reward = 0.0
-        # # 獎勵移動，懲罰停滯
-        # if self.old_position and (self.pacman.x, self.pacman.y) != self.old_position:
-        #     reward += 0.0
-        # else:
-        #     reward -= 0.0
-        #     if self._check_stuck():
-        #         reward -= 0.01
-        # self.old_position = (self.pacman.x, self.pacman.y)
         
         if self.pacman.eat_pellet(self.power_pellets) > 0:
             reward += 20
@@ -183,10 +160,6 @@ class PacManEnv:
             if not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                 dist = abs(self.pacman.x - ghost.x) + abs(self.pacman.y - ghost.y)
                 min_ghost_dist = min(min_ghost_dist, dist)
-        # if min_ghost_dist > 5:
-        #     reward += 0.005
-        # elif min_ghost_dist < 3:
-        #     reward -= 0.05
 
         if self._check_collision():
             reward -= 200

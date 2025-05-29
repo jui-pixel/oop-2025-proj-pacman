@@ -45,7 +45,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         device=device,
         buffer_size=100000,
         batch_size=128,
-        lr=5e-4,
+        lr=5e-5,
         epsilon=1.0,
     )
 
@@ -71,24 +71,19 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         total_reward = 0
         done = False
         step = 0
-        last_action = None
 
         while not done and step < max_steps:
             if env.pacman.move_towards_target(): # 移動完成才進行下次訓練
                 action = agent.get_action(state)
                 next_state, reward, done, _ = env.step(action)
 
-                # 僅在移動完成時記錄經驗和訓練
-                if env.current_action is None:  # 表示移動已完成
-                    if last_action is not None:  # 確保有上一次動作
-                        agent.remember(state, last_action, reward, next_state, done)
-                        loss = agent.train()
-                        if loss > 0:
-                            writer.add_scalar('Loss', loss, episode * max_steps + step)
+                agent.remember(state, action, reward, next_state, done)
+                loss = agent.train()
+                if loss > 0:
+                    writer.add_scalar('Loss', loss, episode * max_steps + step)
 
                 state = next_state
                 total_reward += reward
-                last_action = action  # 更新最後動作
                 step += 1
 
                 if visualize and step % render_frequency == 0:

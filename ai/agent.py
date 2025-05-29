@@ -35,7 +35,7 @@ class DQNAgent:
         self.device = device
         self.batch_size = batch_size
         self.gamma = 0.995  # 折扣因子
-        self.n_step = 5  # n-step 學習步長
+        self.n_step = 3  # n-step 學習步長
         self.tau = 0.005  # 軟更新因子
 
         # 初始化 Dueling DQN 模型
@@ -49,11 +49,11 @@ class DQNAgent:
         self.priorities = deque(maxlen=buffer_size)
 
         self.epsilon = epsilon
-        self.epsilon_min = 0.1
+        self.epsilon_min = 0.05
         self.epsilon_decay = 0.9995
-        self.alpha = 0.6  # 優先級經驗回放的 alpha 參數
+        self.alpha = 0.5  # 優先級經驗回放的 alpha 參數
         self.beta = 0.4  # 重要性採樣的 beta 參數
-        self.beta_increment = 1e-3
+        self.beta_increment = 5e-4
         self.steps = 0
 
         # 保留原有的動作控制和停滯檢查變數
@@ -87,28 +87,6 @@ class DQNAgent:
             return state[new_x, new_y, 5] != 1.0
         return False
 
-    def _check_stuck(self, state):
-        """
-        檢查 Pac-Man 是否停滯。
-
-        Args:
-            state (numpy.ndarray): 當前狀態。
-
-        Returns:
-            bool: 是否停滯。
-        """
-        pacman_x, pacman_y = np.where(state[:, :, 0] == 1.0)
-        if len(pacman_x) == 0:
-            return False
-        current_position = (pacman_x[0], pacman_y[0])
-
-        if self.last_position is not None and current_position == self.last_position:
-            self.stuck_counter += 1
-        else:
-            self.stuck_counter = 0
-        self.last_position = current_position
-        return self.stuck_counter >= 2
-
     def get_action(self, state):
         """
         使用 ε-貪婪策略選擇動作，結合動作冷卻和停滯檢查。
@@ -128,9 +106,7 @@ class DQNAgent:
             self.action_cooldown = self.cooldown_steps
             return random.randrange(self.action_dim)
 
-        is_stuck = self._check_stuck(state)
-
-        if random.random() < self.epsilon or is_stuck:
+        if random.random() < self.epsilon:
             base_weights = [1.0] * self.action_dim
             if self.last_action is not None:
                 if self.last_action == 0:
@@ -248,7 +224,7 @@ class DQNAgent:
 
         self.optimizer.zero_grad()
         loss.backward()
-        nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+        nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
         self.optimizer.step()
 
         self.soft_update_target()
