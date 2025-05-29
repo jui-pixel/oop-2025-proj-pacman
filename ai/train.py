@@ -43,9 +43,9 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
         state_dim=state_dim,
         action_dim=action_dim,
         device=device,
-        buffer_size=10000,
-        batch_size=32,
-        lr=5e-3,
+        buffer_size=100000,
+        batch_size=128,
+        lr=5e-4,
         epsilon=1.0,
     )
 
