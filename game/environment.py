@@ -26,7 +26,8 @@ class PacManEnv:
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
         self.pacman.speed = CELL_SIZE
         for ghost in self.ghosts:
-            ghost.speed = CELL_SIZE / 4
+            ghost.speed = CELL_SIZE / 3
+            ghost.return_speed = CELL_SIZE / 1.2
         self.respawn_points = [(x, y) for y in range(self.maze.h) for x in range(self.maze.w)
                               if self.maze.get_tile(x, y) == 'S']
         self.ghost_score_index = 0
