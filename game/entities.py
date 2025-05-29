@@ -85,7 +85,7 @@ class PacMan(Entity):
         super().__init__(x, y, 'P')
         self.score = 0
         self.alive = True
-        self.speed = 3.0  # 基礎移動速度
+        self.speed = 4.0  # 基礎移動速度
         self.last_direction = None  # 記錄上一次移動方向
         self.alternating_vertical_count = 0  # 記錄連續上下交替移動次數
         self.stuck_count = 0  # 連續卡住計數器
@@ -282,7 +282,7 @@ class PacMan(Entity):
                     nearest_danger = ghost
 
         # 步驟 3: 檢查是否進入殘局模式
-        is_endgame = len(score_pellets) <= 5
+        is_endgame = len(score_pellets) <= 10
 
         # 步驟 4: 計算當前移動方向
         direction = None
@@ -356,7 +356,6 @@ class PacMan(Entity):
                     if direction:
                         dx, dy = direction
                         if self.set_new_target(dx, dy, maze):
-                            self.speed = self.boost_speed
                             self.last_direction = (dx, dy)
                             self.stuck_count = 0
                             return True
@@ -373,7 +372,6 @@ class PacMan(Entity):
 
         # 步驟 7: 優先級策略
         if min_danger_dist < 6 or alive_ghosts >= 3:
-            self.speed = self.boost_speed
             if power_pellets:
                 power_options = [(p, (p.x - current_x) ** 2 + (p.y - current_y) ** 2) for p in power_pellets]
                 closest_power = min(power_options, key=lambda x: x[1])[0]
@@ -448,7 +446,6 @@ class PacMan(Entity):
                 random_direction = random.choice(safe_directions)
                 dx, dy = random_direction
                 if self.set_new_target(dx, dy, maze):
-                    self.speed = self.boost_speed
                     self.last_direction = (dx, dy)
                     self.stuck_count = 0
                     return True
@@ -609,6 +606,7 @@ class Ghost(Entity):
         Args:
             fps (int): 每秒幀數。
         """
+        self.speed = self.return_speed
         self.death_count += 1
         self.returning_to_spawn = True
         self.edible = False
