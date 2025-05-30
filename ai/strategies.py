@@ -123,8 +123,8 @@ class ControlManager:
         print(f"Switched to {mode}")
 
     def handle_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-            self.switch_mode()
+        # if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+        #     self.switch_mode()
         if self.current_strategy == self.player_control:
             self.player_control.handle_event(event)
 
