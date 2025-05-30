@@ -8,12 +8,9 @@ from typing import Tuple, List, Optional
 from collections import deque
 import random
 from config import *
+
 class Ghost(Entity):
-    def __init__(self, x: int, y: int, symbol: str):
-        super().__init__(x, y, symbol)
-    
-class BasicGhost(Ghost):
-    def __init__(self, x: int, y: int, name: str = "BasicGhost", color: Tuple[int, int, int] = RED):
+    def __init__(self, x: int, y: int, name: str = "Ghost", color: Tuple[int, int, int] = RED):
         """
         初始化基礎鬼魂，設置位置、名稱和顏色。
 
@@ -39,7 +36,7 @@ class BasicGhost(Ghost):
         self.last_x = None
         self.last_y = None
 
-    def move(self, pacman, maze, fps: int, ghosts: List['BasicGhost'] = None):
+    def move(self, pacman, maze, fps: int, ghosts: List['Ghost'] = None):
         """
         根據鬼魂狀態執行移動邏輯。
 
@@ -143,7 +140,7 @@ class BasicGhost(Ghost):
                 return True
         return False
 
-    def chase_pacman(self, pacman, maze, ghosts: List['BasicGhost'] = None):
+    def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
         基礎追逐邏輯，使用 BFS 追逐 Pac-Man，若無路徑則嘗試附近目標。
 
@@ -295,7 +292,7 @@ class BasicGhost(Ghost):
             self.current_y = self.y * CELL_SIZE + CELL_SIZE // 2
 
 # 子類定義
-class Ghost1(BasicGhost):
+class Ghost1(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost1"):
         """
         初始化 Ghost1，使用紅色。
@@ -307,7 +304,7 @@ class Ghost1(BasicGhost):
         """
         super().__init__(x, y, name, color=RED)
 
-    def chase_pacman(self, pacman, maze, ghosts: List['BasicGhost'] = None):
+    def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
         使用 BFS 直接追逐 Pac-Man，若無路徑則嘗試附近目標。
 
@@ -319,7 +316,7 @@ class Ghost1(BasicGhost):
         if self.move_to_target(pacman.x, pacman.y, maze):
             return
 
-class Ghost2(BasicGhost):
+class Ghost2(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost2"):
         """
         初始化 Ghost2，使用粉紅色。
@@ -331,7 +328,7 @@ class Ghost2(BasicGhost):
         """
         super().__init__(x, y, name, color=PINK)
 
-    def chase_pacman(self, pacman, maze, ghosts: List['BasicGhost'] = None):
+    def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
         預測 Pac-Man 移動方向，瞄準其前方 4 格的位置。
 
@@ -353,7 +350,7 @@ class Ghost2(BasicGhost):
         if self.move_to_target(target_x, target_y, maze):
             return
 
-class Ghost3(BasicGhost):
+class Ghost3(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost3"):
         """
         初始化 Ghost3，使用青色。
@@ -365,7 +362,7 @@ class Ghost3(BasicGhost):
         """
         super().__init__(x, y, name, color=CYAN)
 
-    def chase_pacman(self, pacman, maze, ghosts: List['BasicGhost'] = None):
+    def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
         與 Ghost1 協同，瞄準 Pac-Man 前方 2 格與 Ghost1 的對稱點。
 
@@ -394,7 +391,7 @@ class Ghost3(BasicGhost):
         if self.move_to_target(target_x, target_y, maze):
             return
 
-class Ghost4(BasicGhost):
+class Ghost4(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost4"):
         """
         初始化 Ghost4，使用淺藍色。
@@ -406,7 +403,7 @@ class Ghost4(BasicGhost):
         """
         super().__init__(x, y, name, color=LIGHT_BLUE)
 
-    def chase_pacman(self, pacman, maze, ghosts: List['BasicGhost'] = None):
+    def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
         當與 Pac-Man 距離小於 8 格時隨機移動，否則追逐 Pac-Man。
 
