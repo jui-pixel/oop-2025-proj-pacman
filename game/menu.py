@@ -108,16 +108,32 @@ def show_settings(screen, font, screen_width, screen_height):
         pygame.display.flip()
 
 def save_score(name, score, seed, play_time):
-    """儲存分數數據到 scores.json。"""
+    """
+    儲存分數數據到 scores.json。
+    如果 name 相同，則保留分數最高的紀錄。
+    """
     records = []
     try:
         with open("scores.json", "r") as f:
             records = json.load(f)
     except FileNotFoundError:
         pass
-    records.append({"name": name, "score": score, "seed": seed, "time": play_time})
+
+    new_record = {"name": name.strip(), "score": score, "seed": seed, "time": play_time} 
+    best_scores = {}
+    for record in records:
+        cleaned_existing_name = record["name"].strip()
+        best_scores[cleaned_existing_name] = record
+
+    cleaned_new_name = new_record["name"]
+    if cleaned_new_name in best_scores:
+        if new_record["score"] > best_scores[cleaned_new_name]["score"]:
+            best_scores[cleaned_new_name] = new_record
+    else:
+        best_scores[cleaned_new_name] = new_record
+    updated_records = list(best_scores.values())
     with open("scores.json", "w") as f:
-        json.dump(records, f)
+        json.dump(updated_records, f)
 
 def get_player_name(screen, font, screen_width, screen_height, default_name="Player"):
     """獲取玩家名稱輸入。"""

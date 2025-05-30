@@ -23,12 +23,12 @@ class Ghost(Entity):
         super().__init__(x, y, 'G')
         self.name = name
         self.color = color
+        self.default_speed = 2.0
         self.speed = 2.0
         self.edible = False
         self.edible_timer = 0
-        self.respawn_timer = 0
         self.returning_to_spawn = False
-        self.return_speed = 2.5
+        self.return_speed = 5.5
         self.death_count = 0
         self.waiting = False
         self.wait_timer = 0
@@ -50,7 +50,7 @@ class Ghost(Entity):
             self.wait_timer -= 1
             if self.wait_timer <= 0:
                 self.waiting = False
-                self.speed = 2.0
+                self.speed = self.default_speed
             return
 
         if self.edible:
@@ -58,13 +58,6 @@ class Ghost(Entity):
             if self.edible_timer <= 0:
                 self.edible = False
                 self.edible_timer = 0
-
-        if self.respawn_timer > 0:
-            self.respawn_timer -= 1
-            if self.respawn_timer <= 0 and self.returning_to_spawn:
-                self.reset_position(maze, [(x, y) for y in range(maze.h)
-                                          for x in range(maze.w) if maze.get_tile(x, y) == 'S'])
-            return
 
         if self.returning_to_spawn:
             self.return_to_spawn(maze)
@@ -237,10 +230,9 @@ class Ghost(Entity):
         Args:
             duration (int): 可吃持續時間（幀數）。
         """
-        if not (self.wait_timer > 0 or self.returning_to_spawn or self.respawn_timer > 0 or self.waiting):
+        if not (self.returning_to_spawn or self.waiting):
             self.edible = True
             self.edible_timer = duration
-            self.respawn_timer = 0
 
     def set_returning_to_spawn(self, fps: int):
         """
@@ -255,7 +247,6 @@ class Ghost(Entity):
         self.edible = False
         self.edible_timer = 0
         self.alpha = 255
-        self.respawn_timer = int(9000 / fps)
 
     def set_waiting(self, fps: int):
         """
@@ -280,7 +271,6 @@ class Ghost(Entity):
         self.edible = False
         self.returning_to_spawn = False
         self.waiting = False
-        self.respawn_timer = 0
         self.edible_timer = 0
         self.speed = 2.0
         self.alpha = 255
