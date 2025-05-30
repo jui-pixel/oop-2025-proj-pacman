@@ -4,23 +4,25 @@
 使用隨機牆壁擴展和路徑縮窄演算法，確保迷宮連通且具有挑戰性。
 """
 import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import random
-
+from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
 class Map:
-    def __init__(self, width, height, seed=None): # 將 w 改為 width, h 改為 height
+    def __init__(self, width, height, seed=None):
         """
         初始化迷宮，設置尺寸和隨機種子。
         
         Args:
-            width (int): 迷宮寬度。
-            height (int): 迷宮高度。
+            w (int): 迷宮寬度。
+            h (int): 迷宮高度。
             seed (int): 隨機種子，確保可重現的迷宮。
         """
         if seed is not None:
             random.seed(seed)
             self.seed = seed
-        self.width = width # 統一為 width
-        self.height = height # 統一為 height
+        self.width = width
+        self.height = height
         self.tiles = ['.' for _ in range(self.width * self.height)]  # 初始化為路徑
         self.directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 上下左右方向
         self._initialize_map()
@@ -189,7 +191,7 @@ class Map:
                     continue
                 nx, ny = x + dx, y + dy
                 if self.xy_valid(nx, ny):
-                    if self.get_tile(nx, ny) not in ['.', 'T']:
+                    if self.if_dead_end(nx, ny) or self.get_tile(nx, ny) == 'X':
                         return False
         return True
 
@@ -213,23 +215,14 @@ class Map:
         return (self.xy_valid(x, y) and self._check_surrounding_paths(x, y) and 
                 self.get_tile(x, y) == '.')
 
-    def convert_nearby_T_to_wall(self, x, y):
-        """
-        將 (x, y) 附近的 'T' 圖塊轉換為牆壁 'X'。
-        """
-        if self.get_tile(x, y) == 'T':
-            _, connected_tiles = self._flood_fill(x, y, 'T')
-            for cx, cy in connected_tiles:
-                self.set_tile(cx, cy, 'X')
-
-    def convert_all_T_to_wall(self):
+    def convert_all_T_and_A_to_wall(self):
         """將所有 'T' 圖塊轉換為牆壁 'X'。"""
         for y in range(self.height):
             for x in range(self.width):
-                if self.get_tile(x, y) == 'T':
+                if self.get_tile(x, y) in ['T', 'A']:
                     self.set_tile(x, y, 'X')
 
-    def extend_walls(self, extend_prob=0.9):
+    def extend_walls(self, extend_prob=0.99):
         """
         以指定概率在現有牆壁的上下左右生成新牆壁，確保不產生死路。
         
@@ -242,29 +235,38 @@ class Map:
         while attempts < max_attempts:
             attempts += 1
             wall_positions = [(x, y) for y in range(1, self.height - 1) 
-                              for x in range(1, half_width + 1) if self.valid_wall_spawnpoint(x, y)]
+                             for x in range(1, half_width + 1) if self.valid_wall_spawnpoint(x, y)]
             if not wall_positions:
                 break
             
             x, y = random.choice(wall_positions)
-            self.set_tile(x, y, 'T')
+            self.set_tile(x, y, 'X')
             if random.random() > extend_prob:
                 continue
             direction = random.choice(self.directions)
             new_x, new_y = x + direction[0], y + direction[1]
-            
-            while self._check_dead_end_in_neighborhood(new_x, new_y):
+            tries = 1
+            connected_size = 1
+            while True:
                 self.set_tile(new_x, new_y, 'T')
-                connected_size = self._get_connected_wall_size(new_x, new_y)
-                if connected_size > 4:
-                    break
-                if random.random() < extend_prob:
+                if self._check_dead_end_in_neighborhood(new_x, new_y):
+                    connected_size += 1
+                    if connected_size > 3:
+                        break
+                    if random.random() < (extend_prob / (1 + (tries)/10)):
+                        direction = random.choice(self.directions)
+                        new_x, new_y = new_x + direction[0], new_y + direction[1]
+                        tries += 1
+                    else:
+                        break
+                elif tries <= 10:
+                    self.set_tile(new_x, new_y, '.')
                     direction = random.choice(self.directions)
-                    new_x, new_y = new_x + direction[0], new_y + direction[1]
+                    new_x, new_y = x + direction[0], y + direction[1]
+                    tries += 1
                 else:
+                    self.set_tile(new_x, new_y, '.')
                     break
-            
-            self.convert_nearby_T_to_wall(x, y)
 
     def if_dead_end(self, x, y):
         """
@@ -352,12 +354,6 @@ class Map:
                 if not placed:
                     continue
 
-        # 將所有臨時標記 'A' 轉為實際牆壁 'X'
-        for y in range(self.height):
-            for x in range(self.width):
-                if self.get_tile(x, y) == 'A':
-                    self.set_tile(x, y, 'X')
-
         return count
 
     def place_power_pellets(self):
@@ -369,8 +365,8 @@ class Map:
         """
         if self.seed is not None:
             random.seed(self.seed + 1000)
-        
-        # 收集可放置能量球的格子，排除重生點及其周圍
+
+        # Collect available empty cells, excluding spawn point and its immediate surroundings
         empty_cells = []
         exclude_cells = set()
         for y in range(self.height):
@@ -381,49 +377,59 @@ class Map:
                         nx, ny = x + dx, y + dy
                         if self.xy_valid(nx, ny):
                             exclude_cells.add((nx, ny))
-        
+
+        all_candidate_cells = []
         for y in range(self.height):
             for x in range(self.width):
                 if self.get_tile(x, y) == '.' and (x, y) not in exclude_cells:
-                    empty_cells.append((x, y))
-        
-        empty_count = len(empty_cells)
-        # 調整能量球數量，確保至少 8 個，且不超過空地數量的 10%
-        num_pellets = min(8, max(int(empty_count * 0.1), 20))
-        
-        # 使用 4x4 網格均勻分佈能量球
-        grid_size_x = max(1, self.width // 4)
-        grid_size_y = max(1, self.height // 4)
-        pellet_positions = []
-        pellets_per_grid = max(1, num_pellets // 16)  # 每個網格至少放置 1 個
-        
-        for gy in range(4):
-            for gx in range(4):
-                x_start = gx * grid_size_x
-                x_end = min((gx + 1) * grid_size_x, self.width)
-                y_start = gy * grid_size_y
-                y_end = min((gy + 1) * grid_size_y, self.height)
-                grid_cells = [(x, y) for x in range(x_start, x_end) for y in range(y_start, y_end)
-                              if (x, y) in empty_cells]
-                if grid_cells:
-                    num_to_place = min(len(grid_cells), pellets_per_grid)
-                    selected_cells = random.sample(grid_cells, num_to_place)
-                    pellet_positions.extend(selected_cells)
-                    empty_cells = [c for c in empty_cells if c not in selected_cells]
-        
-        # 處理剩餘能量球，隨機分佈
-        remaining = num_pellets - len(pellet_positions)
-        if remaining > 0 and empty_cells:
-            additional_cells = random.sample(empty_cells, min(remaining, len(empty_cells)))
-            pellet_positions.extend(additional_cells)
-        
-        # 放置能量球
+                    all_candidate_cells.append((x, y))
+
+        empty_count = len(all_candidate_cells)
+
+        # Dynamic pellet count calculation: at least 8, up to 20, scaling with empty cells
+        num_pellets = max(8, int(empty_count * 0.1))
+        num_pellets = min(num_pellets, 20)
+
+        pellet_positions = set() # Use a set to avoid duplicates
+
+        # If there are enough candidate cells, try to distribute them evenly first
+        if empty_count >= num_pellets:
+            # Divide the maze into a 4x4 grid and try to place one pellet per sub-grid
+            grid_cells_map = {}
+            grid_size_x = max(1, self.width // 4)
+            grid_size_y = max(1, self.height // 4)
+
+            for cell in all_candidate_cells:
+                x, y = cell
+                gx = min(x // grid_size_x, 3) # Ensure gx is within 0-3
+                gy = min(y // grid_size_y, 3) # Ensure gy is within 0-3
+                grid_key = (gx, gy)
+                if grid_key not in grid_cells_map:
+                    grid_cells_map[grid_key] = []
+                grid_cells_map[grid_key].append(cell)
+
+            # Attempt to place one pellet per grid segment first
+            for grid_key in random.sample(list(grid_cells_map.keys()), min(len(grid_cells_map), num_pellets)):
+                if grid_cells_map[grid_key]:
+                    pellet_positions.add(random.choice(grid_cells_map[grid_key]))
+
+            # If not enough pellets placed, or if some sub-grids had no valid cells,
+            # select remaining pellets from all available candidate cells
+            remaining_needed = num_pellets - len(pellet_positions)
+            if remaining_needed > 0:
+                available_for_random = [cell for cell in all_candidate_cells if cell not in pellet_positions]
+                if available_for_random:
+                    pellet_positions.update(random.sample(available_for_random, min(remaining_needed, len(available_for_random))))
+        elif empty_count > 0: # Not enough empty cells for the target num_pellets, place as many as possible
+            pellet_positions.update(random.sample(all_candidate_cells, empty_count))
+
+        # Place the power pellets on the maze
         for x, y in pellet_positions:
             self.set_tile(x, y, 'E')
-        
+
         if self.seed is not None:
-            random.seed(self.seed)  # 恢復原始隨機種子
-        
+            random.seed(self.seed)  # Restore original random seed
+
         return len(pellet_positions)
 
     def generate_maze(self):
@@ -432,20 +438,18 @@ class Map:
         左半部分生成後鏡像到右半部分，確保對稱性。
         """
         self.extend_walls()
-        self.convert_all_T_to_wall()
         self.add_central_room()
         while self.narrow_paths():
             pass
+        self.convert_all_T_and_A_to_wall()
         self.place_power_pellets()
         half_width = self.width // 2
         for y in range(self.height):
             for x in range(1, half_width):
                 self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))
 if __name__ == "__main__":
-    width = 19
-    height = 19
-    seed = 1
-    
+    width, height, seed = MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
+
     if width < 7 or height < 7:
         print("錯誤：迷宮最小尺寸為 7x7 以容納中央房間")
         sys.exit(1)
@@ -454,4 +458,3 @@ if __name__ == "__main__":
     maze.generate_maze()
     print(f"生成的Pac-Man迷宮（種子碼：{seed if seed is not None else '無'}）")
     print(f"尺寸：{width}x{height}")
-    print(maze)
