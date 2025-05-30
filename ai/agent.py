@@ -1,3 +1,4 @@
+# ai/agent.py
 """
 定義 DQN 代理，負責管理記憶緩衝區、動作選擇和模型訓練。
 支援 Dueling DQN、優先級經驗回放 (PER)、n-step 學習、軟更新和 Double DQN。
@@ -16,265 +17,295 @@ from collections import deque
 from ai.dqn import DuelingDQN
 import pickle
 
+# --- PER 輔助類 ---
+class SumTree:
+    """
+    SumTree 是一個二叉樹結構，用於高效地儲存優先級並進行採樣。
+    """
+    def __init__(self, capacity):
+        self.capacity = capacity  # 緩衝區容量
+        # tree 陣列儲存優先級和總和，大小為 2*capacity - 1
+        # 葉節點從 capacity-1 開始，到 2*capacity - 2
+        self.tree = np.zeros(2 * capacity - 1)
+        # data 陣列儲存實際經驗，大小為 capacity
+        self.data = np.array([None] * capacity, dtype=object) # 使用 dtype=object 儲存元組
+        self.data_pointer = 0 # 指向下一個可用於儲存經驗的位置
+
+    def add(self, priority, data):
+        """
+        添加新數據和其優先級到 SumTree 中。
+        """
+        tree_idx = self.data_pointer + self.capacity - 1 # 計算葉節點在 tree 陣列中的索引
+        self.data[self.data_pointer] = data # 儲存實際經驗
+        self.update(tree_idx, priority) # 更新葉節點和其父節點的總和
+
+        self.data_pointer += 1
+        if self.data_pointer >= self.capacity: # 如果達到容量，從頭開始覆蓋
+            self.data_pointer = 0
+
+    def update(self, tree_idx, priority):
+        """
+        更新樹中某個節點的優先級。
+        """
+        change = priority - self.tree[tree_idx] # 計算優先級的變化量
+        self.tree[tree_idx] = priority # 更新葉節點的優先級
+        while tree_idx != 0: # 向上傳播更新，直到根節點
+            tree_idx = (tree_idx - 1) // 2
+            self.tree[tree_idx] += change
+
+    def get_leaf(self, v):
+        """
+        從根節點向下查找，根據隨機值 v 選擇一個葉節點。
+        """
+        parent_idx = 0
+        while True:
+            left_child_idx = 2 * parent_idx + 1
+            right_child_idx = left_child_idx + 1
+            if left_child_idx >= len(self.tree): # 如果是葉節點
+                leaf_idx = parent_idx
+                break
+            else:
+                if v <= self.tree[left_child_idx]: # 如果 v 小於等於左子節點的總和，則進入左子節點
+                    parent_idx = left_child_idx
+                else: # 否則，v 減去左子節點的總和，進入右子節點
+                    v -= self.tree[left_child_idx]
+                    parent_idx = right_child_idx
+        data_idx = leaf_idx - self.capacity + 1 # 計算實際經驗在 data 陣列中的索引
+        return leaf_idx, self.tree[leaf_idx], self.data[data_idx]
+
+    @property
+    def total_priority(self):
+        """
+        返回樹的總優先級（根節點的值）。
+        """
+        return self.tree[0]
+
+# --- DQNAgent 類 ---
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, lr=1e-4, epsilon=1.0):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, lr=1e-4, epsilon=1.0,
+                 gamma=0.99, n_step=1, # 確保 gamma 和 n_step 在這裡定義
+                 alpha=0.6, beta=0.4, beta_annealing_steps=200000, # 調整 beta_annealing_steps
+                 priority_epsilon=1e-5, target_update_freq=100): # PER 相關參數和目標網路更新頻率
         """
         初始化 DQN 代理，設置 Dueling DQN 模型、記憶緩衝區和訓練參數。
-
-        Args:
-            state_dim (Tuple[int, int, int]): 狀態維度 (高度, 寬度, 通道數)，例如 (31, 28, 6)。
-            action_dim (int): 動作數量，例如 4（上、下、左、右）。
-            device (str): 計算設備，"cuda" 或 "cpu"，預設為 "cpu"。
-            buffer_size (int): 記憶緩衝區的最大容量，預設為 100000。
-            batch_size (int): 每次訓練的批次大小，預設為 128。
-            lr (float): 學習率，預設為 1e-4。
-            epsilon (float): 初始探索率，預設為 0.9。
+        新增 PER 相關參數：alpha, beta, beta_annealing_steps, priority_epsilon。
         """
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.device = device
-        self.batch_size = batch_size
-        self.gamma = 0.995  # 折扣因子
-        self.n_step = 3  # n-step 學習步長
-        self.tau = 0.005  # 軟更新因子
+        self.device = torch.device(device)
 
-        # 初始化 Dueling DQN 模型
-        self.model = DuelingDQN(state_dim, action_dim).to(device)
-        self.target_model = DuelingDQN(state_dim, action_dim).to(device)
-        self.target_model.load_state_dict(self.model.state_dict())
+        self.model = DuelingDQN(state_dim, action_dim).to(self.device)
+        self.target_model = DuelingDQN(state_dim, action_dim).to(self.device)
+        self.target_model.load_state_dict(self.model.state_dict()) # 初始時目標網路和行為網路相同
+        self.target_model.eval() # 目標網路設為評估模式
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        self.memory = deque(maxlen=buffer_size)
-        self.n_step_buffer = deque(maxlen=self.n_step)
-        self.priorities = deque(maxlen=buffer_size)
 
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
         self.epsilon = epsilon
-        self.epsilon_min = 0.05
-        self.epsilon_decay = 0.9995
-        self.alpha = 0.5  # 優先級經驗回放的 alpha 參數
-        self.beta = 0.4  # 重要性採樣的 beta 參數
-        self.beta_increment = 5e-4
-        self.steps = 0
+        self.steps = 0 # 總訓練步數
+        self.gamma = gamma # 折扣因子
+        self.n_step = n_step # n-step 回報 (目前代理內部實現為單步TD，未來可擴展)
 
-        # 保留原有的動作控制和停滯檢查變數
-        self.last_action = None
-        self.last_position = None
-        self.stuck_counter = 0
-        self.action_cooldown = 0
-        self.cooldown_steps = 0
-        self.recent_rewards = deque(maxlen=100)
+        # PER 相關參數
+        self.alpha = alpha # 優先級指數
+        self.beta = beta # 重要性採樣指數
+        self.beta_annealing_steps = beta_annealing_steps # beta 退火步數
+        self.priority_epsilon = priority_epsilon # 避免零優先級
 
-    def _is_valid_action(self, state, action):
+        # 使用 SumTree 作為記憶緩衝區
+        self.memory = SumTree(buffer_size)
+        
+        self.target_update_freq = target_update_freq # 目標網路更新頻率
+
+    def update_epsilon(self, min_epsilon=0.01, decay_rate=0.9999):
         """
-        檢查動作是否有效（是否會撞牆）。
-
-        Args:
-            state (numpy.ndarray): 當前狀態，形狀為 (height, width, channels)。
-            action (int): 動作索引（0: 上, 1: 下, 2: 左, 3: 右）。
-
-        Returns:
-            bool: 動作是否有效。
+        隨著訓練進行，逐漸減少探索率 epsilon。
         """
-        pacman_x, pacman_y = np.where(state[:, :, 0] == 1.0)
-        if len(pacman_x) == 0:
-            return True
-        pacman_x, pacman_y = pacman_x[0], pacman_y[0]
+        self.epsilon = max(min_epsilon, self.epsilon * decay_rate)
 
-        dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
-        new_x, new_y = pacman_x + dx, pacman_y + dy
-
-        if 0 <= new_x < state.shape[0] and 0 <= new_y < state.shape[1]:
-            return state[new_x, new_y, 5] != 1.0
-        return False
-
-    def get_action(self, state):
+    def update_beta(self):
         """
-        使用 ε-貪婪策略選擇動作，結合動作冷卻和停滯檢查。
-
-        Args:
-            state (numpy.ndarray): 當前狀態。
-
-        Returns:
-            int: 選擇的動作索引。
+        更新 IS 權重的 beta 值，從初始值退火到 1。
         """
-        if self.action_cooldown > 0:
-            self.action_cooldown -= 1
-            return self.last_action if self.last_action is not None else random.randrange(self.action_dim)
+        self.beta = min(1.0, self.beta + (1.0 - self.beta) / self.beta_annealing_steps)
 
-        valid_actions = [a for a in range(self.action_dim) if self._is_valid_action(state, a)]
-        if not valid_actions:
-            self.action_cooldown = self.cooldown_steps
-            return random.randrange(self.action_dim)
 
+    def choose_action(self, state):
+        """
+        基於 epsilon-greedy 策略選擇動作。
+        """
         if random.random() < self.epsilon:
-            base_weights = [1.0] * self.action_dim
-            if self.last_action is not None:
-                if self.last_action == 0:
-                    weights = [2.7, 0.0, 1.5, 1.5]
-                elif self.last_action == 1:
-                    weights = [0.0, 2.7, 1.5, 1.5]
-                elif self.last_action == 2:
-                    weights = [1.5, 1.5, 2.7, 0.0]
-                elif self.last_action == 3:
-                    weights = [1.5, 1.5, 0.0, 2.7]
-            else:
-                weights = base_weights
-
-            action_weights = [weights[a] for a in valid_actions]
-            if sum(action_weights) == 0:
-                action_weights = [1.0] * len(valid_actions)
-            else:
-                action_weights = [w / sum(action_weights) for w in action_weights]
-
-            action = random.choices(valid_actions, weights=action_weights, k=1)[0]
+            return random.randrange(self.action_dim)
         else:
-            state_tensor = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
+            state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            self.model.eval() # 設置為評估模式
             with torch.no_grad():
-                q_values = self.model(state_tensor)
-            q_values_np = q_values.cpu().numpy()[0]
-            q_values_valid = [(q_values_np[a], a) for a in valid_actions]
-            if not q_values_valid:
-                action = random.choice(valid_actions)
-            else:
-                action = max(q_values_valid, key=lambda x: x[0])[1]
+                q_values = self.model(state)
+            self.model.train() # 恢復訓練模式
+            return q_values.argmax(1).item()
 
-        self.last_action = action
-        self.action_cooldown = self.cooldown_steps
-        return action
-
-    def _get_n_step_info(self):
+    def store_transition(self, state, action, reward, next_state, done):
         """
-        計算 n-step 回報和對應的狀態轉換。
-
-        Returns:
-            Tuple: (state, action, reward, next_state, done)。
+        將經驗存儲到回放緩衝區，並計算初始優先級。
         """
-        reward, next_state, done = self.n_step_buffer[-1][-3:]
-        for transition in reversed(list(self.n_step_buffer)[:-1]):
-            r, n_s, d = transition[2], transition[3], transition[4]
-            reward = r + self.gamma * reward * (1 - d)
-            next_state, done = (n_s, d) if d else (next_state, done)
-        state, action = self.n_step_buffer[0][:2]
-        return state, action, reward, next_state, done
+        # PER 的初始優先級通常設為當前緩衝區中最大的優先級，
+        # 或者一個預設的最大值，以確保新經驗有機會被採樣。
+        # 這裡設置為總優先級的 alpha 次方（即新經驗通常有較高優先級）
+        max_priority = self.memory.total_priority ** self.alpha if self.memory.total_priority > 0 else 1.0
+        self.memory.add(max_priority, (state, action, reward, next_state, done))
 
-    def remember(self, state, action, reward, next_state, done):
-        """
-        儲存經驗，支援 n-step 學習。
 
-        Args:
-            state (numpy.ndarray): 當前狀態。
-            action (int): 執行的動作。
-            reward (float): 獲得的獎勵。
-            next_state (numpy.ndarray): 下一個狀態。
-            done (bool): 是否結束。
+    def sample(self):
         """
-        self.n_step_buffer.append((state, action, reward, next_state, done))
-        if len(self.n_step_buffer) < self.n_step:
+        從 SumTree 中採樣一個批次的經驗和它們的 IS 權重。
+        """
+        batch_memory = []
+        priorities = []
+        indices = []
+
+        total_p = self.memory.total_priority
+        segment = total_p / self.batch_size # 將總優先級分成 batch_size 個區段
+
+        self.update_beta() # 每採樣一次更新 beta
+
+        for i in range(self.batch_size):
+            a = segment * i
+            b = segment * (i + 1)
+            v = random.uniform(a, b) # 在每個 segment 內隨機採樣一個值
+
+            idx, priority, data = self.memory.get_leaf(v)
+            batch_memory.append(data)
+            priorities.append(priority)
+            indices.append(idx)
+
+        # 將數據轉換為適當的張量格式
+        # 使用 np.array() 確保數據類型正確
+        states, actions, rewards, next_states, dones = zip(*batch_memory)
+        states = torch.FloatTensor(np.array(states)).to(self.device)
+        actions = torch.LongTensor(np.array(actions)).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(np.array(rewards)).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(np.array(next_states)).to(self.device)
+        dones = torch.FloatTensor(np.array(dones)).unsqueeze(1).to(self.device)
+
+        # 計算重要性採樣權重
+        # N 為緩衝區中實際經驗數量，SumTree 的 data_pointer 或 capacity
+        N = self.memory.data_pointer if self.memory.data_pointer > 0 else self.memory.capacity # 如果緩衝區未滿，使用實際數量
+
+        # 計算重要性採樣權重
+        # is_weights = ( (N * P(i)) ^ (-beta) ) / max(is_weights)
+        # P(i) = priority / total_priority
+        min_prob = np.min(np.array(priorities) / total_p) # 最小採樣概率
+        max_weight = (min_prob * N)**(-self.beta) # 最大權重，用於歸一化
+
+        is_weights = torch.FloatTensor(
+            (np.array(priorities) / total_p * N)**(-self.beta)
+        ).unsqueeze(1).to(self.device)
+        
+        is_weights = is_weights / is_weights.max() # 歸一化，防止權重過大
+
+        return (states, actions, rewards, next_states, dones), indices, is_weights
+
+
+    def learn(self):
+        """
+        從記憶緩衝區中採樣並訓練 Dueling DQN 模型。
+        這裡實現了 Double DQN 和 PER 的優先級更新。
+        """
+        # 確保有足夠的經驗進行訓練
+        # self.memory.data_pointer 表示當前 SumTree 中實際儲存的經驗數量
+        if self.memory.data_pointer < self.batch_size:
             return
-        transition = self._get_n_step_info()
-        max_priority = max(self.priorities) if self.priorities else 1.0
-        self.memory.append(transition)
-        self.priorities.append(max_priority)
 
-    def soft_update_target(self):
-        """
-        軟更新目標模型參數。
-        """
-        for target_param, param in zip(self.target_model.parameters(), self.model.parameters()):
-            target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
+        (states, actions, rewards, next_states, dones), indices, is_weights = self.sample()
 
-    def train(self):
-        """
-        從記憶緩衝區採樣並訓練模型，使用優先級經驗回放、Double DQN 和 n-step 學習。
+        # 計算當前 Q 值: Q(s,a;theta)
+        q_values = self.model(states).gather(1, actions)
 
-        Returns:
-            float: 當前批次的損失值。
-        """
-        if len(self.memory) < self.batch_size:
-            return 0.0
+        # 計算目標 Q 值: Double DQN
+        # 使用行為網路選擇下一個狀態的最佳動作 a*
+        next_actions = self.model(next_states).argmax(1).unsqueeze(1)
+        # 使用目標網路評估這個最佳動作的 Q 值 Q(s',a*;theta_target)
+        next_q_values = self.target_model(next_states).gather(1, next_actions).detach()
 
-        priorities = np.array(self.priorities) ** self.alpha
-        probs = priorities / priorities.sum()
-        indices = np.random.choice(len(self.memory), self.batch_size, p=probs)
-        weights = (len(self.memory) * probs[indices]) ** (-self.beta)
-        weights /= weights.max()
-        weights = torch.FloatTensor(weights).to(self.device)
+        # 計算目標 Q 值 for Bellman equation (單步 TD)
+        target_q_values = rewards + (self.gamma * next_q_values * (1 - dones))
 
-        batch = [self.memory[i] for i in indices]
-        states, actions, rewards, next_states, dones = zip(*batch)
+        # 計算 TD 誤差，用於更新優先級
+        # 確保 td_errors 是 numpy 陣列，方便後續 SumTree 操作
+        td_errors = torch.abs(q_values - target_q_values).detach().cpu().numpy().flatten()
 
-        states = torch.FloatTensor(np.array(states)).permute(0, 3, 1, 2).to(self.device)
-        next_states = torch.FloatTensor(np.array(next_states)).permute(0, 3, 1, 2).to(self.device)
-        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
-
-        q_values = self.model(states).gather(1, actions).squeeze(1)
-
-        with torch.no_grad():
-            next_actions = self.model(next_states).argmax(1, keepdim=True)
-            next_q_values = self.target_model(next_states).gather(1, next_actions).squeeze(1)
-            targets = rewards + (1 - dones) * (self.gamma ** self.n_step) * next_q_values
-
-        td_errors = (q_values - targets).abs().detach().cpu().numpy()
+        # 更新採樣經驗的優先級
         for i, idx in enumerate(indices):
-            self.priorities[idx] = td_errors[i] + 1e-5
+            self.memory.update(idx, td_errors[i] ** self.alpha + self.priority_epsilon) # 應用 alpha 冪次
 
-        loss = (F.mse_loss(q_values, targets, reduction='none') * weights).mean()
+        # 計算損失
+        # PER: 損失函數 = IS_weights * MSE(Q, Q_target)
+        # reduction='none' 使得 F.mse_loss 返回每個樣本的損失，然後再應用 IS 權重
+        loss = (is_weights * F.mse_loss(q_values, target_q_values, reduction='none')).mean()
 
+
+        # 反向傳播和優化
         self.optimizer.zero_grad()
         loss.backward()
-        nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
+        # 梯度裁剪（可選，但推薦用於穩定訓練）
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
         self.optimizer.step()
 
-        self.soft_update_target()
-        self.beta = min(1.0, self.beta + self.beta_increment)
         self.steps += 1
+        
+        # 定期軟更新目標網路
+        if self.steps % self.target_update_freq == 0:
+            self.soft_update_target()
+            
         return loss.item()
+
+    def soft_update_target(self, tau=0.005):
+        """
+        軟更新目標網路的權重。
+        tau (float): 更新率。
+        """
+        for target_param, model_param in zip(self.target_model.parameters(), self.model.parameters()):
+            target_param.data.copy_(tau * model_param.data + (1.0 - tau) * target_param.data)
 
     def save(self, path, memory_path=None):
         """
         保存模型權重和記憶緩衝區。
-
-        Args:
-            path (str): 模型檔案路徑。
-            memory_path (str, optional): 記憶緩衝區檔案路徑。
         """
         checkpoint = {
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'epsilon': self.epsilon,
-            'steps': self.steps
+            'steps': self.steps,
+            'beta': self.beta # 保存 beta
         }
         torch.save(checkpoint, path)
         if memory_path:
+            # 對於 SumTree，需要保存 tree 和 data
             with open(memory_path, 'wb') as f:
-                pickle.dump(list(self.memory), f)
+                # 使用 copy() 確保保存的是數據的副本，而不是視圖
+                # data_pointer 也需要保存
+                pickle.dump({'tree': self.memory.tree.copy(), 
+                             'data': self.memory.data.copy(), 
+                             'data_pointer': self.memory.data_pointer}, f)
 
     def load(self, path, memory_path=None):
         """
         載入模型權重和記憶緩衝區。
-
-        Args:
-            path (str): 模型檔案路徑。
-            memory_path (str, optional): 記憶緩衝區檔案路徑。
         """
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=self.device) # 確保在正確的設備上載入
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.epsilon = checkpoint['epsilon']
         self.steps = checkpoint['steps']
-        self.soft_update_target()
+        self.beta = checkpoint.get('beta', self.beta) # 載入 beta，如果不存在則使用默認值
+        self.soft_update_target() # 載入後同步目標網路
+
         if memory_path and os.path.exists(memory_path):
             with open(memory_path, 'rb') as f:
-                memory = pickle.load(f)
-                self.memory = deque(memory, maxlen=self.memory.maxlen)
-                # 確保 priorities 與 memory 長度一致
-                if len(self.priorities) != len(self.memory):
-                    self.priorities = deque([1.0] * len(self.memory), maxlen=self.memory.maxlen)
-    
-    def update_epsilon(self):
-        """
-        更新 ε-貪婪策略中的探索率。
-        """
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+                memory_data = pickle.load(f)
+                # 載入 SumTree 的狀態
+                self.memory.tree = memory_data['tree']
+                self.memory.data = memory_data['data']
+                self.memory.data_pointer = memory_data['data_pointer']
