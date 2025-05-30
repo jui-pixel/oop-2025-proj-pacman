@@ -94,7 +94,7 @@ class DQNAIControl(ControlStrategy):
                     state[ghost.x, ghost.y, 4] = 1
             for y in range(maze.height):
                 for x in range(maze.width):
-                    if maze.get_tile(x, y) in ['#', 'X', 'D']:
+                    if maze.get_tile(x, y) in ['#', 'X', 'D', 'S']:
                         state[x, y, 5] = 1.0
 
             action = self.agent.get_action(state)

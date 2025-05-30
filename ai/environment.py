@@ -79,13 +79,13 @@ class PacManEnv:
         for pellet in self.score_pellets:
             state[pellet.x, pellet.y, 2] = 1.0
         for ghost in self.ghosts:
-            if ghost.edible and ghost.respawn_timer > 0:
+            if ghost.edible:
                 state[ghost.x, ghost.y, 3] = 1.0
             else:
                 state[ghost.x, ghost.y, 4] = 1.0
         for y in range(self.maze.height):
             for x in range(self.maze.width):
-                if self.maze.get_tile(x, y) in ['#', 'X', 'D']:
+                if self.maze.get_tile(x, y) in ['#', 'X', 'S', 'D']:
                     state[x, y, 5] = 1.0
         return state
 
