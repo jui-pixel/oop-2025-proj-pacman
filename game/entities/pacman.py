@@ -24,10 +24,10 @@ class PacMan(Entity):
         self.score = 0
         self.alive = True
         self.speed = 4.0  # 基礎移動速度
-        self.last_direction = None
-        self.alternating_vertical_count = 0
-        self.stuck_count = 0
-        self.max_stuck_frames = 10
+        self.last_direction = None  # 記錄上一次移動方向
+        self.alternating_vertical_count = 0  # 記錄連續上下交替移動次數
+        self.stuck_count = 0  # 連續卡住計數器
+        self.max_stuck_frames = 10  # 最大卡住幀數
 
     def eat_pellet(self, pellets: List['PowerPellet']) -> int:
         """
@@ -66,22 +66,24 @@ class PacMan(Entity):
     def find_path(self, start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score"):
         """
         使用 A* 算法找到從 start 到 goal 的最短路徑，考慮迷宮障礙和鬼魂威脅。
+        當路徑無效時，退回到隨機安全方向。
         
         Args:
             start (tuple): 起點 (x, y)。
             goal (tuple): 目標 (x, y)，在逃跑模式下可為 None。
-            maze: 迷宮物件。
+            maze (Map): 迷宮物件。
             ghosts (List[Ghost]): 鬼魂列表。
             power_pellets (List[PowerPellet]): 能量球列表。
-            mode (str): "approach" 或 "flee"。
-            target_type (str): 目標類型 ("score", "power", "edible")。
-        
+            mode (str): "approach"（接近目標）或 "flee"（逃離危險）。
+            target_type (str): 目標類型，"score"（分數球）、"power"（能量球）、"edible"（可食用鬼魂）。
+
         Returns:
             tuple: 第一步的方向 (dx, dy)，如果無路徑則返回隨機安全方向。
         """
         def heuristic(a, b):
             return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
 
+        # 預測鬼魂下一個位置
         predicted_danger = set()
         for ghost in ghosts:
             if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
@@ -91,6 +93,7 @@ class PacMan(Entity):
                 if maze.xy_valid(next_x, next_y):
                     predicted_danger.add((next_x, next_y))
 
+        # 逃跑模式下選擇安全區域
         if mode == "flee" and goal is None:
             danger_ghosts = [ghost for ghost in ghosts if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible]
             if not danger_ghosts:
@@ -114,6 +117,19 @@ class PacMan(Entity):
         g_score = {start: 0}
         f_score = {start: heuristic(start, goal)}
 
+        closed_set = set()
+
+        # 定義威脅區域
+        danger_obstacles = set()
+        for ghost in ghosts:
+            if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
+                threat_radius = 1 + int(min(2, max(0, 6 - ((start[0] - ghost.x) ** 2 + (start[1] - ghost.y) ** 2) ** 0.5)))
+                for dx in range(-threat_radius, threat_radius + 1):
+                    for dy in range(-threat_radius, threat_radius + 1):
+                        x, y = ghost.x + dx, ghost.y + dy
+                        if maze.xy_valid(x, y):
+                            danger_obstacles.add((x, y))
+
         while open_set:
             _, current = heappop(open_set)
 
@@ -125,8 +141,11 @@ class PacMan(Entity):
                 path.reverse()
                 if path:
                     next_pos = path[0]
-                    return (next_pos[0] - start[0], next_pos[1] - start[1])
+                    dx, dy = next_pos[0] - start[0], next_pos[1] - start[1]
+                    return (dx, dy)
                 return None
+
+            closed_set.add(current)
 
             for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 neighbor = (current[0] + dx, current[1] + dy)
@@ -152,23 +171,30 @@ class PacMan(Entity):
 
                 tentative_g_score = g_score[current] + 1 + power_penalty
 
+                if neighbor in closed_set and tentative_g_score >= g_score.get(neighbor, float('inf')):
+                    continue
+
                 if tentative_g_score < g_score.get(neighbor, float('inf')):
                     came_from[neighbor] = current
                     g_score[neighbor] = tentative_g_score
                     f_score[neighbor] = g_score[neighbor] + heuristic(neighbor, goal)
                     heappush(open_set, (f_score[neighbor], neighbor))
 
-        safe_directions = [(dx, dy) for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]
-                          if maze.xy_valid(start[0] + dx, start[1] + dy)
+        # 路徑無效時，退回到隨機安全方向
+        safe_directions = [(dx, dy) for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)] 
+                          if maze.xy_valid(start[0] + dx, start[1] + dy) 
                           and maze.get_tile(start[0] + dx, start[1] + dy) not in ['#', 'X']]
         return random.choice(safe_directions) if safe_directions else None
 
     def rule_based_ai_move(self, maze, power_pellets: List['PowerPellet'], score_pellets: List['ScorePellet'], ghosts: List['Ghost']) -> bool:
         """
-        智能規則基礎的 AI 移動邏輯。
+        智能規則基礎的 AI 移動邏輯，使用 A* 路徑規劃，優先收集分數球，避開活著且不可食用鬼魂的動態威脅區域，
+        除非在殘局階段、附近有鬼（距離 < 6）或有 3 隻以上有威脅的鬼，否則不主動吃能量球。
+        若連續上下交替移動超過 4 次，切換到最近的分數球。
+        包含脫困機制以避免卡住。
         
         Args:
-            maze: 迷宮物件。
+            maze (Map): 迷宮物件。
             power_pellets (List[PowerPellet]): 能量球列表。
             score_pellets (List[ScorePellet]): 分數球列表。
             ghosts (List[Ghost]): 鬼魂列表。
@@ -176,37 +202,75 @@ class PacMan(Entity):
         Returns:
             bool: 是否成功設置新目標。
         """
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 下、上、右、左
         current_x, current_y = self.x, self.y
         start = (current_x, current_y)
 
+        # 步驟 1: 檢查活著的不可食用鬼魂數量
         alive_ghosts = sum(1 for ghost in ghosts if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible)
-        min_danger_dist = min(((current_x - ghost.x) ** 2 + (current_y - ghost.y) ** 2) ** 0.5
-                             for ghost in ghosts if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible) if alive_ghosts else float('inf')
+
+        # 步驟 2: 評估威脅 - 檢查最近的危險鬼魂
+        min_danger_dist = float('inf')
+        nearest_danger = None
+        for ghost in ghosts:
+            if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
+                dist = ((current_x - ghost.x) ** 2 + (current_y - ghost.y) ** 2) ** 0.5
+                if dist < min_danger_dist:
+                    min_danger_dist = dist
+                    nearest_danger = ghost
+
+        # 步驟 3: 檢查是否進入殘局模式
         is_endgame = len(score_pellets) <= 10
 
+        # 步驟 4: 計算當前移動方向
+        direction = None
         if self.last_direction:
+            current_dx, current_dy = 0, 0
             for dx, dy in directions:
                 new_x, new_y = current_x + dx, current_y + dy
                 if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) not in ['#', 'X']:
                     if self.set_new_target(dx, dy, maze):
-                        if abs(dy) > 0 and self.last_direction and (self.last_direction[1] * dy < 0):
-                            self.alternating_vertical_count += 1
-                            if self.alternating_vertical_count > 4 and score_pellets:
-                                closest_score = min(score_pellets, key=lambda s: (s.x - current_x) ** 2 + (s.y - current_y) ** 2)
+                        current_dx, current_dy = dx, dy
+                        direction = (dx, dy)
+                        break
+            if direction:
+                # 檢測連續上下交替移動
+                if abs(current_dy) > 0:
+                    if self.last_direction and (self.last_direction[1] * current_dy < 0):
+                        self.alternating_vertical_count += 1
+                        if self.alternating_vertical_count > 4:
+                            if score_pellets:
+                                score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
+                                closest_score = min(score_options, key=lambda x: x[1])[0]
                                 goal = (closest_score.x, closest_score.y)
-                                direction = self.find_path(start, goal, maze, ghosts, power_pellets, "approach", "score")
-                                if direction and self.set_new_target(direction[0], direction[1], maze):
-                                    self.last_direction = direction
-                                    self.alternating_vertical_count = 0
-                                    self.stuck_count = 0
-                                    return True
-                        else:
-                            self.alternating_vertical_count = 0
-                        self.last_direction = (dx, dy)
-                        self.stuck_count = 0
-                        return True
+                                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score")
+                                if direction:
+                                    dx, dy = direction
+                                    if self.set_new_target(dx, dy, maze):
+                                        self.last_direction = (dx, dy)
+                                        self.alternating_vertical_count = 0
+                                        self.stuck_count = 0
+                                        return True
+                    else:
+                        self.alternating_vertical_count = 0
+                else:
+                    self.alternating_vertical_count = 0
 
+        # 步驟 5: 模擬幾步路徑選擇
+        def simulate_move(dx, dy, steps=3):
+            x, y = current_x, current_y
+            for _ in range(steps):
+                x, y = x + dx, y + dy
+                if not maze.xy_valid(x, y) or maze.get_tile(x, y) in ['#', 'X']:
+                    return float('inf')
+                for ghost in ghosts:
+                    if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
+                        dist = ((x - ghost.x) ** 2 + (y - ghost.y) ** 2) ** 0.5
+                        if dist < 2:
+                            return float('inf')
+            return ((x - current_x) ** 2 + (y - current_y) ** 2) ** 0.5
+
+        # 步驟 6: 殘局模式處理
         if is_endgame and score_pellets:
             remaining_scores = [(s, (s.x, s.y)) for s in score_pellets]
             current_pos = start
@@ -216,80 +280,123 @@ class PacMan(Entity):
                 best_path.append(closest[1])
                 current_pos = closest[1]
                 remaining_scores.remove(closest)
-            if best_path and (min_danger_dist < 6 or alive_ghosts >= 3) and power_pellets:
-                closest_power = min(power_pellets, key=lambda p: (p.x - current_x) ** 2 + (p.y - current_y) ** 2)
-                if ((closest_power.x - current_x) ** 2 + (closest_power.y - current_y) ** 2) ** 0.5 < sum(((p[0] - current_x) ** 2 + (p[1] - current_y) ** 2) ** 0.5 for p in best_path) / len(best_path):
+
+            # 殘局中根據威脅動態決定是否吃能量球
+            use_power_pellet = False
+            if power_pellets and (min_danger_dist < 6 or alive_ghosts >= 3):
+                power_options = [(p, (p.x - current_x) ** 2 + (p.y - current_y) ** 2) for p in power_pellets]
+                closest_power = min(power_options, key=lambda x: x[1])[0]
+                power_dist = ((closest_power.x - current_x) ** 2 + (closest_power.y - current_y) ** 2) ** 0.5
+                if power_dist < sum(((p[0] - current_x) ** 2 + (p[1] - current_y) ** 2) ** 0.5 for p in best_path) / len(best_path):
+                    use_power_pellet = True
                     goal = (closest_power.x, closest_power.y)
-                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, "approach", "power")
-                    if direction and self.set_new_target(direction[0], direction[1], maze):
-                        self.last_direction = direction
+                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="power")
+                    if direction:
+                        dx, dy = direction
+                        if self.set_new_target(dx, dy, maze):
+                            self.last_direction = (dx, dy)
+                            self.stuck_count = 0
+                            return True
+
+            if not use_power_pellet and best_path:
+                goal = best_path[0]
+                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score")
+                if direction:
+                    dx, dy = direction
+                    if self.set_new_target(dx, dy, maze):
+                        self.last_direction = (dx, dy)
                         self.stuck_count = 0
                         return True
-            if best_path:
-                goal = best_path[0]
-                direction = self.find_path(start, goal, maze, ghosts, power_pellets, "approach", "score")
-                if direction and self.set_new_target(direction[0], direction[1], maze):
-                    self.last_direction = direction
-                    self.stuck_count = 0
-                    return True
 
+        # 步驟 7: 優先級策略
         if min_danger_dist < 6 or alive_ghosts >= 3:
             if power_pellets:
-                closest_power = min(power_pellets, key=lambda p: (p.x - current_x) ** 2 + (p.y - current_y) ** 2)
+                power_options = [(p, (p.x - current_x) ** 2 + (p.y - current_y) ** 2) for p in power_pellets]
+                closest_power = min(power_options, key=lambda x: x[1])[0]
                 goal = (closest_power.x, closest_power.y)
-                direction = self.find_path(start, goal, maze, ghosts, power_pellets, "approach", "power")
-                if direction and self.set_new_target(direction[0], direction[1], maze):
-                    self.last_direction = direction
-                    self.stuck_count = 0
-                    return True
-                direction = self.find_path(start, None, maze, ghosts, power_pellets, "flee", "none")
-                if direction and self.set_new_target(direction[0], direction[1], maze):
-                    self.last_direction = direction
-                    self.stuck_count = 0
-                    return True
-        else:
-            edible_ghosts = [ghost for ghost in ghosts if ghost.edible and ghost.edible_timer > 0]
-            if edible_ghosts:
-                closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
-                if ((closest_edible.x - current_x) ** 2 + (closest_edible.y - current_y) ** 2) < 15:
-                    goal = (closest_edible.x, closest_edible.y)
-                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, "approach", "edible")
-                    if direction and self.set_new_target(direction[0], direction[1], maze):
-                        self.last_direction = direction
+                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="power")
+                if direction:
+                    dx, dy = direction
+                    if self.set_new_target(dx, dy, maze):
+                        self.last_direction = (dx, dy)
                         self.stuck_count = 0
                         return True
-            if score_pellets:
-                closest_score = min(score_pellets, key=lambda s: (s.x - current_x) ** 2 + (s.y - current_y) ** 2)
-                goal = (closest_score.x, closest_score.y)
-                direction = self.find_path(start, goal, maze, ghosts, power_pellets, "approach", "score")
-                if direction and self.set_new_target(direction[0], direction[1], maze):
-                    self.last_direction = direction
-                    self.stuck_count = 0
-                    return True
-            elif edible_ghosts:
+            else:
+                direction = self.find_path(start, None, maze, ghosts, power_pellets, mode="flee", target_type="none")
+                if direction:
+                    dx, dy = direction
+                    if self.set_new_target(dx, dy, maze):
+                        self.last_direction = (dx, dy)
+                        self.stuck_count = 0
+                        return True
+        else:
+            # 追逐可食用鬼魂
+            edible_ghosts = [ghost for ghost in ghosts if ghost.edible and ghost.edible_timer > 0]
+            if edible_ghosts :
                 closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
-                goal = (closest_edible.x, closest_edible.y)
-                direction = self.find_path(start, goal, maze, ghosts, power_pellets, "approach", "edible")
-                if direction and self.set_new_target(direction[0], direction[1], maze):
-                    self.last_direction = direction
-                    self.stuck_count = 0
-                    return True
+                if ((closest_edible.x - current_x)**2 + (closest_edible.y - current_y)**2) < 15:
+                    goal = (closest_edible.x, closest_edible.y)
+                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="edible")
+                    if direction:
+                        dx, dy = direction
+                        if self.set_new_target(dx, dy, maze):
+                            self.last_direction = (dx, dy)
+                            self.stuck_count = 0
+                            return True
+            
+            # 收集分數球
+            if score_pellets:
+                score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
+                closest_score = min(score_options, key=lambda x: x[1])[0]
+                goal = (closest_score.x, closest_score.y)
+                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score")
+                if direction:
+                    dx, dy = direction
+                    if self.set_new_target(dx, dy, maze):
+                        self.last_direction = (dx, dy)
+                        self.stuck_count = 0
+                        return True
+            else:
+                if edible_ghosts :
+                    closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
+                    goal = (closest_edible.x, closest_edible.y)
+                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="edible")
+                    if direction:
+                        dx, dy = direction
+                        if self.set_new_target(dx, dy, maze):
+                            self.last_direction = (dx, dy)
+                            self.stuck_count = 0
+                            return True
+            
 
-        safe_directions = [d for d in directions if maze.xy_valid(current_x + d[0], current_y + d[1])
+        # 步驟 8: 選擇最安全方向或脫困
+        safe_directions = [d for d in directions if maze.xy_valid(current_x + d[0], current_y + d[1]) 
                          and maze.get_tile(current_x + d[0], current_y + d[1]) not in ['#', 'X']]
         if not safe_directions:
             return False
 
-        best_direction = min(safe_directions, key=lambda d: ((current_x + d[0] - current_x) ** 2 + (current_y + d[1] - current_y) ** 2) ** 0.5)
-        if self.set_new_target(best_direction[0], best_direction[1], maze):
-            self.last_direction = best_direction
-            self.stuck_count = 0
-            return True
-        self.stuck_count += 1
-        if self.stuck_count > self.max_stuck_frames:
-            random_direction = random.choice(safe_directions)
-            if self.set_new_target(random_direction[0], random_direction[1], maze):
-                self.last_direction = random_direction
+        best_score = float('inf')
+        best_direction = None
+        for dx, dy in safe_directions:
+            score = simulate_move(dx, dy)
+            if score < best_score:
+                best_score = score
+                best_direction = (dx, dy)
+
+        if best_direction:
+            dx, dy = best_direction
+            if self.set_new_target(dx, dy, maze):
+                self.last_direction = (dx, dy)
                 self.stuck_count = 0
                 return True
+        else:
+            self.stuck_count += 1
+            if self.stuck_count > self.max_stuck_frames:
+                random_direction = random.choice(safe_directions)
+                dx, dy = random_direction
+                if self.set_new_target(dx, dy, maze):
+                    self.last_direction = (dx, dy)
+                    self.stuck_count = 0
+                    return True
+
         return False

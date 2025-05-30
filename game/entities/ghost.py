@@ -162,8 +162,8 @@ class BasicGhost(Ghost):
             maze: 迷宮物件。
         """
         self.speed = self.return_speed
-        spawn_points = [(x, y) for y in range(maze.h)
-                        for x in range(maze.w) if maze.get_tile(x, y) == 'S']
+        spawn_points = [(x, y) for y in range(maze.height)
+                        for x in range(maze.width) if maze.get_tile(x, y) == 'S']
         if not spawn_points:
             self.move_random(maze)
             return
