@@ -88,7 +88,7 @@ class DQNAIControl(ControlStrategy):
             for pellet in score_pellets:
                 state[pellet.x, pellet.y, 2] = 1
             for ghost in ghosts:
-                if ghost.edible and ghost.respawn_timer > 0:
+                if ghost.edible:
                     state[ghost.x, ghost.y, 3] = 1
                 else:
                     state[ghost.x, ghost.y, 4] = 1
