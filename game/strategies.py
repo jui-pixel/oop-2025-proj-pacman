@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from typing import List
 import pygame
 try:
-    from .agent import DQNAgent
+    from ..ai.agent import DQNAgent
     import torch
     import numpy as np
     PYTORCH_AVAILABLE = True  # 標記 PyTorch 可用

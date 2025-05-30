@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import torch
-from game.environment import PacManEnv
+from ai.environment import PacManEnv
 from ai.agent import DQNAgent
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
 from torch.utils.tensorboard import SummaryWriter

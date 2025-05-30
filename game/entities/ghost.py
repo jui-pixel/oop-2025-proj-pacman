@@ -3,13 +3,16 @@
 定義基礎鬼魂類別，提供通用行為（如 BFS 路徑尋找、隨機移動等）。
 子類可覆寫 chase_pacman 方法實現特定追逐策略。
 """
-from entity_base import Entity
+from .entity_base import Entity
 from typing import Tuple, List, Optional
 from collections import deque
 import random
 from config import *
-
-class BasicGhost(Entity):
+class Ghost(Entity):
+    def __init__(self, x: int, y: int, symbol: str):
+        super().__init__(x, y, symbol)
+    
+class BasicGhost(Ghost):
     def __init__(self, x: int, y: int, name: str = "BasicGhost", color: Tuple[int, int, int] = RED):
         """
         初始化基礎鬼魂，設置位置、名稱和顏色。
@@ -119,8 +122,8 @@ class BasicGhost(Entity):
         Returns:
             bool: 是否成功設置目標。
         """
-        target_x = max(0, min(maze.w - 1, target_x))
-        target_y = max(0, min(maze.h - 1, target_y))
+        target_x = max(0, min(maze.width - 1, target_x))
+        target_y = max(0, min(maze.height - 1, target_y))
         direction = self.bfs_path(self.x, self.y, target_x, target_y, maze)
         if direction and self.set_new_target(direction[0], direction[1], maze):
             self.last_x, self.last_y = self.x, self.y

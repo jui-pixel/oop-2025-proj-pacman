@@ -2,13 +2,13 @@
 """
 定義 Pac-Man 實體，包括移動邏輯、得分機制和 AI 路徑規劃。
 """
-from entity_base import Entity
+from .entity_base import Entity
 from heapq import heappush, heappop
 from typing import Tuple, List
 import random
 from config import *
-from pellets import PowerPellet, ScorePellet
-from ghosts import Ghost
+from .pellets import PowerPellet, ScorePellet
+from .ghost import Ghost
 
 
 class PacMan(Entity):

@@ -2,7 +2,7 @@
 """
 定義遊戲中的能量球和分數球。
 """
-from entity_base import Entity
+from .entity_base import Entity
 
 class PowerPellet(Entity):
     def __init__(self, x: int, y: int, value: int = 10):
