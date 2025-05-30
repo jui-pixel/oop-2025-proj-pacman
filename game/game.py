@@ -13,7 +13,7 @@ class Game:
         """
         初始化遊戲，設置迷宮、Pac-Man、鬼魂和其他實體。
         """
-        self.maze = Map(w=MAZE_WIDTH, h=MAZE_HEIGHT, seed=MAZE_SEED)
+        self.maze = Map(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED)
         self.maze.generate_maze()  # 生成隨機迷宮
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = self._initialize_entities()
         self.respawn_points = [(x, y) for y in range(self.maze.h) for x in range(self.maze.w) 
