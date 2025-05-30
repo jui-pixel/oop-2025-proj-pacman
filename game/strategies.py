@@ -2,12 +2,16 @@
 定義 Pac-Man 的控制策略，包括玩家控制、規則基礎 AI 和 DQN AI。
 提供動態切換控制模式的功能，支援鍵盤輸入和自動化 AI 控制。
 """
+import pygame
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from abc import ABC, abstractmethod
 from typing import List
 import pygame
 try:
-    from ..ai.agent import DQNAgent
+    from ai.agent import DQNAgent
     import torch
     import numpy as np
     PYTORCH_AVAILABLE = True  # 標記 PyTorch 可用
@@ -77,7 +81,7 @@ class DQNAIControl(ControlStrategy):
 
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts, moving: bool) -> bool:
         if not moving and pacman.move_towards_target():
-            state = np.zeros((maze.h, maze.w, 6), dtype=np.float32)
+            state = np.zeros((maze.height, maze.width, 6), dtype=np.float32)
             state[pacman.x, pacman.y, 0] = 1
             for pellet in power_pellets:
                 state[pellet.x, pellet.y, 1] = 1
@@ -88,8 +92,8 @@ class DQNAIControl(ControlStrategy):
                     state[ghost.x, ghost.y, 3] = 1
                 else:
                     state[ghost.x, ghost.y, 4] = 1
-            for y in range(maze.h):
-                for x in range(maze.w):
+            for y in range(maze.height):
+                for x in range(maze.width):
                     if maze.get_tile(x, y) in ['#', 'X', 'D']:
                         state[x, y, 5] = 1.0
 
