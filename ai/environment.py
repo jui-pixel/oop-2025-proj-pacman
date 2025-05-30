@@ -1,4 +1,4 @@
-# game/environment.py
+# ai/environment.py
 """
 定義 Pac-Man 遊戲的強化學習環境，遵循 OpenAI Gym 規範。
 負責初始化遊戲迷宮、管理狀態轉換、計算獎勵並提供狀態觀察。
@@ -6,9 +6,12 @@
 """
 
 import numpy as np
-from game.entities import PacMan, Ghost, PowerPellet, ScorePellet, initialize_entities
-from game.maze_generator import Map
-from config import CELL_SIZE, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, EDIBLE_DURATION, GHOST_SCORES, FPS, CELL_SIZE, BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW
+from ..game.entities.pacman import PacMan
+from ..game.entities.entity_initializer import initialize_entities
+from ..game.entities.ghost import Ghost1, Ghost2, Ghost3, Ghost4
+from ..game.entities.pellets import PowerPellet, ScorePellet
+from ..game.maze_generator import Map
+from config import *
 import pygame
 
 class PacManEnv:
@@ -21,14 +24,14 @@ class PacManEnv:
             height (int): 迷宮高度，預設從 config 導入。
             seed (int): 隨機種子，預設從 config 導入。
         """
-        self.maze = Map(w=width, h=height, seed=seed)
+        self.maze = Map(width=width, height=height, seed=seed)
         self.maze.generate_maze()
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = initialize_entities(self.maze)
         self.pacman.speed = CELL_SIZE
         for ghost in self.ghosts:
             ghost.speed = CELL_SIZE / 3
             ghost.return_speed = CELL_SIZE / 1.2
-        self.respawn_points = [(x, y) for y in range(self.maze.h) for x in range(self.maze.w)
+        self.respawn_points = [(x, y) for y in range(self.maze.height) for x in range(self.maze.width)
                               if self.maze.get_tile(x, y) == 'S']
         self.ghost_score_index = 0
         self.done = False
@@ -67,7 +70,7 @@ class PacManEnv:
         Returns:
             numpy.ndarray: 當前狀態，形狀為 (height, width, 6)。
         """
-        state = np.zeros((self.maze.h, self.maze.w, 6), dtype=np.float32)
+        state = np.zeros((self.maze.height, self.maze.width, 6), dtype=np.float32)
         state[self.pacman.x, self.pacman.y, 0] = 1.0
         for pellet in self.power_pellets:
             state[pellet.x, pellet.y, 1] = 1.0
@@ -78,8 +81,8 @@ class PacManEnv:
                 state[ghost.x, ghost.y, 3] = 1.0
             else:
                 state[ghost.x, ghost.y, 4] = 1.0
-        for y in range(self.maze.h):
-            for x in range(self.maze.w):
+        for y in range(self.maze.height):
+            for x in range(self.maze.width):
                 if self.maze.get_tile(x, y) in ['#', 'X', 'D']:
                     state[x, y, 5] = 1.0
         return state
@@ -181,7 +184,7 @@ class PacManEnv:
 
         if self.screen is None:
             pygame.init()
-            self.screen = pygame.display.set_mode((self.maze.w * self.cell_size, self.maze.h * self.cell_size))
+            self.screen = pygame.display.set_mode((self.maze.width * self.cell_size, self.maze.height * self.cell_size))
             pygame.display.set_caption("Pac-Man DQN Training")
             self.clock = pygame.time.Clock()
 
@@ -192,8 +195,8 @@ class PacManEnv:
 
         self.screen.fill(BLACK)
 
-        for y in range(self.maze.h):
-            for x in range(self.maze.w):
+        for y in range(self.maze.height):
+            for x in range(self.maze.width):
                 tile = self.maze.get_tile(x, y)
                 rect = pygame.Rect(x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size)
                 if tile == '#':
