@@ -33,7 +33,7 @@ def train(resume=False, model_path="pacman_dqn_final.pth", memory_path="replay_b
     """
     env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED)
     env.render_enabled = visualize
-    state_dim = (env.maze.h, env.maze.w, 6)
+    state_dim = (env.maze.height, env.maze.width, 6)
     action_dim = len(env.action_space)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

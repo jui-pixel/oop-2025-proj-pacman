@@ -4,13 +4,15 @@
 負責初始化遊戲迷宮、管理狀態轉換、計算獎勵並提供狀態觀察。
 此環境模擬 Pac-Man 遊戲，支援 Dueling DQN 代理的訓練。
 """
-
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..\..')))
 import numpy as np
-from ..game.entities.pacman import PacMan
-from ..game.entities.entity_initializer import initialize_entities
-from ..game.entities.ghost import Ghost1, Ghost2, Ghost3, Ghost4
-from ..game.entities.pellets import PowerPellet, ScorePellet
-from ..game.maze_generator import Map
+from game.entities.pacman import PacMan
+from game.entities.entity_initializer import initialize_entities
+from game.entities.ghost import Ghost1, Ghost2, Ghost3, Ghost4
+from game.entities.pellets import PowerPellet, ScorePellet
+from game.maze_generator import Map
 from config import *
 import pygame
 
