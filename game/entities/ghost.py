@@ -229,6 +229,7 @@ class Ghost1(Ghost):
         初始化 Ghost1，使用紅色。
         """
         super().__init__(x, y, name, color=RED)
+        self.speed = 2.0  # 提高速度以增加挑戰性
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
@@ -259,6 +260,7 @@ class Ghost2(Ghost):
         初始化 Ghost2，使用粉紅色。
         """
         super().__init__(x, y, name, color=PINK)
+        self.speed = 2.25  # 提高速度以增加挑戰性
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
@@ -298,6 +300,7 @@ class Ghost3(Ghost):
         初始化 Ghost3，使用青色。
         """
         super().__init__(x, y, name, color=CYAN)
+        self.speed = 2.5  # 提高速度以增加挑戰性
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
@@ -354,6 +357,7 @@ class Ghost4(Ghost):
         初始化 Ghost4，使用淺藍色。
         """
         super().__init__(x, y, name, color=LIGHT_BLUE)
+        self.speed = 2.75  # 提高速度以增加挑戰性
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
