@@ -181,7 +181,7 @@ class DQNAgent:
         with open(memory_path, 'wb') as f:
             pickle.dump(self.memory, f)
 
-    def load(self, model_path, memory_path):
+    def load(self, model_path, memory_path = None):
         """
         Load the model and replay buffer.
 
