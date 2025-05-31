@@ -4,6 +4,7 @@
 子類可覆寫 chase_pacman 方法實現特定追逐策略。
 """
 from .entity_base import Entity
+from ..maze_generator import Map
 from typing import Tuple, List, Optional
 from collections import deque
 import random
@@ -260,26 +261,21 @@ class Ghost(Entity):
         wait_time = 10.0 / max(1, self.death_count)
         self.wait_timer = int(wait_time * 900 / fps)
 
-    def reset_position(self, maze, respawn_points):
+    def reset(self, maze : Map):
         """
-        重置鬼魂位置到隨機重生點。
-
-        Args:
-            maze: 迷宮物件。
-            respawn_points (List[Tuple]): 重生點座標列表。
+        重置鬼魂狀態。
         """
-        self.edible = False
         self.returning_to_spawn = False
-        self.waiting = False
+        self.edible = False
         self.edible_timer = 0
-        self.speed = 2.0
-        self.alpha = 255
-        if respawn_points:
-            spawn_point = random.choice(respawn_points)
-            self.x, self.y = spawn_point
-            self.target_x, self.target_y = spawn_point
-            self.current_x = self.x * CELL_SIZE + CELL_SIZE // 2
-            self.current_y = self.y * CELL_SIZE + CELL_SIZE // 2
+        self.waiting = False
+        self.wait_timer = 0
+        self.last_x, self.last_y = None, None
+        spawn_points = [(x, y) for y in range(maze.height)
+                        for x in range(maze.width) if maze.get_tile(x, y) == 'S']
+        if spawn_points:
+            self.x, self.y = random.choice(spawn_points)
+        
 
 # 子類定義
 class Ghost1(Ghost):
