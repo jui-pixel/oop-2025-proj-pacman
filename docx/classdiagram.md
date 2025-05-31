@@ -1,5 +1,7 @@
 ```mermaid
 classDiagram
+
+    %% Game Module Classes (game/)
     class Entity {
         +int x
         +int y
@@ -9,7 +11,7 @@ classDiagram
         +float current_x
         +float current_y
         +float speed
-        +move_towards_target(maze) bool
+        +move_towards_target() bool
         +set_new_target(dx, dy, maze) bool
     }
 
@@ -17,8 +19,13 @@ classDiagram
         +int score
         +bool alive
         +float speed
+        +Tuple~int~ last_direction
+        +int alternating_vertical_count
+        +int stuck_count
+        +int max_stuck_frames
         +eat_pellet(pellets) int
         +eat_score_pellet(score_pellets) int
+        +find_path(start, goal, maze, ghosts, power_pellets, mode, target_type) Tuple
         +rule_based_ai_move(maze, power_pellets, score_pellets, ghosts) bool
     }
     PacMan --|> Entity
@@ -26,58 +33,55 @@ classDiagram
     class Ghost {
         +str name
         +Tuple~int~ color
+        +float default_speed
         +float speed
         +bool edible
         +int edible_timer
-        +int respawn_timer
         +bool returning_to_spawn
         +float return_speed
         +int death_count
         +bool waiting
         +int wait_timer
         +int alpha
-        +move(pacman, maze, fps)
-        +return_to_spawn(maze, fps)
+        +int last_x
+        +int last_y
+        +move(pacman, maze, fps, ghosts)
+        +bfs_path(start_x, start_y, target_x, target_y, maze) Optional[Tuple]
+        +move_to_target(target_x, target_y, maze) bool
+        +return_to_spawn(maze)
         +escape_from_pacman(pacman, maze)
         +move_random(maze)
-        +chase_pacman(pacman, maze)
+        +chase_pacman(pacman, maze, ghosts)
         +set_edible(duration)
         +set_returning_to_spawn(fps)
         +set_waiting(fps)
-        +reset_position(maze, respawn_points)
+        +reset(maze)
     }
     Ghost --|> Entity
-
-    class BasicGhost {
-        +bfs_path(start_x, start_y, target_x, target_y, maze) Optional[Tuple]
-        +chase_pacman(pacman, maze, ghosts)
-        +set_new_target(dx, dy, maze) bool
-    }
-    BasicGhost --|> Ghost
 
     class Ghost1 {
         +__init__(x, y, name="Ghost1")
         +chase_pacman(pacman, maze, ghosts)
     }
-    Ghost1 --|> BasicGhost
+    Ghost1 --|> Ghost
 
     class Ghost2 {
         +__init__(x, y, name="Ghost2")
-        +chase_pacman(pacman, maze)
+        +chase_pacman(pacman, maze, ghosts)
     }
-    Ghost2 --|> BasicGhost
+    Ghost2 --|> Ghost
 
     class Ghost3 {
         +__init__(x, y, name="Ghost3")
-        +chase_pacman(pacman, maze)
+        +chase_pacman(pacman, maze, ghosts)
     }
-    Ghost3 --|> BasicGhost
+    Ghost3 --|> Ghost
 
     class Ghost4 {
         +__init__(x, y, name="Ghost4")
-        +chase_pacman(pacman, maze)
+        +chase_pacman(pacman, maze, ghosts)
     }
-    Ghost4 --|> BasicGhost
+    Ghost4 --|> Ghost
 
     class PowerPellet {
         +int value
@@ -90,18 +94,22 @@ classDiagram
     ScorePellet --|> Entity
 
     class Map {
-        +int w
-        +int h
+        +int width
+        +int height
         +List~str~ tiles
-        +__init__(w, h, seed, tile_str)
-        +setMap(w, h, tile_str)
-        +__str__()
-        +xy_to_i(x, y)
-        +i_to_xy(i)
-        +xy_valid(x, y)
-        +get_tile(x, y)
+        +int seed
+        +__init__(width, height, seed)
+        +__str__() str
+        +xy_to_i(x, y) int
+        +i_to_xy(i) Tuple
+        +xy_valid(x, y) bool
+        +get_tile(x, y) str
         +set_tile(x, y, value)
         +generate_maze()
+        +add_central_room()
+        +extend_walls(extend_prob)
+        +narrow_paths() int
+        +place_power_pellets() int
     }
 
     class Game {
@@ -113,37 +121,19 @@ classDiagram
         +List~Tuple~ respawn_points
         +int ghost_score_index
         +bool running
+        +str player_name
+        +int start_time
         +update(fps, move_pacman)
         +_check_collision(fps)
+        +end_game()
+        +get_final_score() int
+        +did_player_win() bool
     }
-    Game --> PacMan
-    Game --> Map
-    Game --> Ghost1
-    Game --> Ghost2
-    Game --> Ghost3
-    Game --> Ghost4
-    Game --> PowerPellet
-    Game --> ScorePellet
-
-    class PacManEnv {
-        +Map maze
-        +PacMan pacman
-        +List~Ghost~ ghosts
-        +List~PowerPellet~ power_pellets
-        +List~ScorePellet~ score_pellets
-        +bool done
-        +List~int~ action_space
-        +Tuple~int~ observation_space
-        +reset()
-        +step(action)
-        +_get_state()
-        +render()
-    }
-    PacManEnv --> Map
-    PacManEnv --> PacMan
-    PacManEnv --> Ghost
-    PacManEnv --> PowerPellet
-    PacManEnv --> ScorePellet
+    Game *--> Map
+    Game *--> PacMan
+    Game *--> Ghost
+    Game *--> PowerPellet
+    Game *--> ScorePellet
 
     class ControlStrategy {
         <<abstract>>
@@ -166,6 +156,7 @@ classDiagram
     class DQNAIControl {
         +DQNAgent agent
         +torch.device device
+        +__init__(maze_width, maze_height)
         +move(pacman, maze, power_pellets, score_pellets, ghosts, moving) bool
     }
     DQNAIControl --|> ControlStrategy
@@ -181,9 +172,26 @@ classDiagram
         +move(pacman, maze, power_pellets, score_pellets, ghosts) bool
         +get_mode_name() str
     }
-    ControlManager --> PlayerControl
-    ControlManager --> RuleBasedAIControl
-    ControlManager --> DQNAIControl
+    ControlManager *--> PlayerControl
+    ControlManager *--> RuleBasedAIControl
+    ControlManager *--> DQNAIControl
+
+    %% AI Module Classes (ai/)
+    class PacManEnv {
+        +Game game
+        +bool visualize
+        +bool done
+        +int frame_count
+        +int lives
+        +Discrete action_space
+        +Box observation_space
+        +reset() Tuple
+        +step(action) Tuple
+        +_get_state() ndarray
+        +render()
+        +close()
+    }
+    PacManEnv *--> Game
 
     class DQN {
         +Tuple~int~ input_dim
@@ -215,5 +223,5 @@ classDiagram
         +save(path, memory_path)
         +load(path, memory_path)
     }
-    DQNAgent --> DQN
+    DQNAgent *--> DQN
 ```
