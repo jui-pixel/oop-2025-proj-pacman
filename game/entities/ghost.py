@@ -362,18 +362,43 @@ class Ghost4(Ghost):
         distance = ((self.x - pacman.x) ** 2 + (self.y - pacman.y) ** 2) ** 0.5
         threshold = 8
         if distance < threshold:
-            # 尋找附近路口（多於一個可移動方向的格子）
+            # 尋找附近路口（多於一個可移動方向的格子）並移動到離 Pac-Man 最近的路口
+            nearby_points = [
+                (self.x + dx, self.y + dy)
+                for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+                if maze.xy_valid(self.x + dx, self.y + dy) and
+                maze.get_tile(self.x + dx, self.y + dy) in ['.', 'D', 'E', 'S']
+            ]
+            if nearby_points:
+                # 選擇路口：有多於一個可移動方向的格子
+                junctions = [
+                    (x, y) for x, y in nearby_points
+                    if sum(maze.xy_valid(x + dx, y + dy) and maze.get_tile(x + dx, y + dy) in ['.', 'D', 'E', 'S']
+                           for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]) > 1
+                ]
+                if junctions:
+                    # 選擇離 Pac-Man 最近的路口
+                    target = min(junctions, key=lambda p: ((p[0] - pacman.x) ** 2 + (p[1] - pacman.y) ** 2) ** 0.5)
+                    if self.move_to_target(target[0], target[1], maze):
+                        return
+            # 若無路口，隨機移動
             self.move_random(maze)
             return
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-        best_direction = None
-        min_distance = float('inf')
-        for dx, dy in directions:
-            new_x, new_y = self.x + dx, self.y + dy
-            if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'D', 'E', 'S']:
-                distance = ((new_x - pacman.x) ** 2 + (new_y - pacman.y) ** 2) ** 0.5
-                if distance < min_distance:
-                    min_distance = distance
-                    best_direction = (dx, dy)
-        if best_direction and self.set_new_target(best_direction[0], best_direction[1], maze):
+
+        # 當距離大於等於 8 格時，使用 BFS 追逐 Pac-Man
+        # 預測 Pac-Man 的下一位置
+        dx, dy = 0, 0
+        if pacman.target_x != pacman.x or pacman.target_y != pacman.y:
+            dx = pacman.target_x - pacman.x
+            dy = pacman.target_y - pacman.y
+        target_x = pacman.x + dx  # 預測 Pac-Man 前進一格
+        target_y = pacman.y + dy
+        target_x = max(0, min(maze.width - 1, target_x))
+        target_y = max(0, min(maze.height - 1, target_y))
+        if self.move_to_target(target_x, target_y, maze):
             return
+        # 若無路徑，嘗試直接追逐 Pac-Man 的當前位置
+        if self.move_to_target(pacman.x, pacman.y, maze):
+            return
+        # 最後隨機移動
+        self.move_random(maze)
