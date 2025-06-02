@@ -13,16 +13,19 @@ from .ghost import Ghost
 class PacMan(Entity):
     def __init__(self, x: int, y: int):
         """
-        初始化 Pac-Man，設置初始分數和生存狀態。
+        初始化 Pac-Man，設置初始分數、生命值和生存狀態。
         """
         super().__init__(x, y, 'P')
         self.score = 0
+        self.lives = 3  # 初始化 3 條命
         self.alive = True
         self.speed = 4.0  # 基礎移動速度
         self.last_direction = None  # 記錄上一次移動方向
         self.alternating_vertical_count = 0  # 記錄連續上下交替移動次數
         self.stuck_count = 0  # 連續卡住計數器
         self.max_stuck_frames = 10  # 最大卡住幀數
+        self.initial_x = x  # 儲存初始位置
+        self.initial_y = y
 
     def eat_pellet(self, pellets: List['PowerPellet']) -> int:
         """
@@ -46,6 +49,21 @@ class PacMan(Entity):
                 return score_pellet.value
         return 0
     
+    def lose_life(self, maze) -> None:
+        """
+        扣除一條命並重置 Pac-Man 位置到初始位置。
+        """
+        self.lives -= 1
+        # self.x = self.initial_x
+        # self.y = self.initial_y
+        # self.current_x = self.x * CELL_SIZE + CELL_SIZE // 2
+        # self.current_y = self.y * CELL_SIZE + CELL_SIZE // 2
+        # self.target_x = self.x
+        # self.target_y = self.y
+        # self.last_direction = None
+        # self.alternating_vertical_count = 0
+        # self.stuck_count = 0
+
     def find_path(self, start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score"):
         """
         使用 A* 算法找到從 start 到 goal 的最短路徑，考慮迷宮障礙和鬼魂威脅。
@@ -200,7 +218,7 @@ class PacMan(Entity):
                     min_danger_dist = dist
                     nearest_danger = ghost
 
-        # 步驟 3: 檢查是否進入殘局模式
+        # 步驟 3: 檢查是否進入殞局模式
         is_endgame = len(score_pellets) <= 10
 
         # 步驟 4: 計算當前移動方向並檢測連續上下交替移動
@@ -273,7 +291,7 @@ class PacMan(Entity):
                         self.stuck_count = 0
                         return True
 
-        # 步驟 7: 殘局模式處理
+        # 步驟 7: 殞局模式處理
         if is_endgame and score_pellets:
             remaining_scores = [(s, (s.x, s.y)) for s in score_pellets]
             current_pos = start

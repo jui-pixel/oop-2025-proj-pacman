@@ -77,7 +77,7 @@ class Game:
 
     def _check_collision(self, fps: int) -> None:
         """
-        檢查 Pac-Man 與鬼魂的碰撞，根據鬼魂狀態更新分數或結束遊戲。
+        檢查 Pac-Man 與鬼魂的碰撞，根據鬼魂狀態更新分數或扣除生命。
 
         Args:
             fps (int): 每秒幀數，用於計時。
@@ -91,9 +91,15 @@ class Game:
                     self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)
                     ghost.set_returning_to_spawn(fps)  # 鬼魂返回重生點
                 elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
-                    print(f"Game Over! Score: {self.pacman.score}")
-                    self.running = False  # 遊戲結束
-                break
+                    self.pacman.lose_life(self.maze)
+                    for g in self.ghosts:  # 所有鬼魂返回重生點
+                        g.set_returning_to_spawn(fps)
+                    if self.pacman.lives <= 0:
+                        print(f"Game Over! Score: {self.pacman.score}")
+                        self.running = False  # 遊戲結束
+                    else:
+                        print(f"Life lost! Remaining lives: {self.pacman.lives}")
+                    break
 
     def is_running(self) -> bool:
         """
@@ -102,7 +108,7 @@ class Game:
         Returns:
             bool: 遊戲運行狀態。
         """
-        return self.running
+        return self.running and self.pacman.lives > 0
 
     def end_game(self) -> None:
         """
@@ -155,6 +161,15 @@ class Game:
             List[Ghost]: 鬼魂列表。
         """
         return self.ghosts
+
+    def get_lives(self) -> int:
+        """
+        獲取玩家剩餘生命數。
+
+        Returns:
+            int: 剩餘生命數。
+        """
+        return self.pacman.lives
 
     def get_final_score(self) -> int:
         """

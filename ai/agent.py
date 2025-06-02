@@ -1,4 +1,3 @@
-# ai/agent.py
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -6,36 +5,24 @@ import torch.nn.functional as F
 import random
 import numpy as np
 import pickle
+import os
 from ai.dqn import DuelingDQN
 from ai.sumtree import SumTree
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, lr=1e-4, 
-                 epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_steps=100000, epsilon_warmup_steps=1000,
-                 gamma=0.99, n_step=1, alpha=0.6, beta=0.4, beta_annealing_steps=200000, 
-                 priority_epsilon=1e-5, target_update_freq=100):
-        """
-        Initialize the DQN agent with enhanced epsilon-random exploration.
-
-        Args:
-            state_dim (Tuple[int, int, int]): State dimension (C, H, W), e.g., (6, 31, 28).
-            action_dim (int): Number of actions (4).
-            epsilon_start (float): Initial epsilon value.
-            epsilon_end (float): Minimum epsilon value.
-            epsilon_decay_steps (int): Steps to decay epsilon linearly.
-            epsilon_warmup_steps (int): Steps for epsilon warmup.
-            ... (other args unchanged)
-        """
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=50000, batch_size=64, lr=2.5e-4,
+                 epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_steps=50000,
+                 gamma=0.99, n_step=1, alpha=0.6, beta=0.4, beta_annealing_steps=100000,
+                 priority_epsilon=1e-5, target_update_freq=200):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = torch.device(device)
         self.buffer_size = buffer_size
         self.batch_size = batch_size
+        self.epsilon = epsilon_start
         self.epsilon_start = epsilon_start
         self.epsilon_end = epsilon_end
         self.epsilon_decay_steps = epsilon_decay_steps
-        self.epsilon_warmup_steps = epsilon_warmup_steps
-        self.epsilon = 0.1  # Start low, warmup to epsilon_start
         self.gamma = gamma
         self.n_step = n_step
         self.alpha = alpha
@@ -54,29 +41,13 @@ class DQNAgent:
         self.memory = SumTree(buffer_size)
 
     def update_epsilon(self):
-        """
-        Update epsilon with warmup and linear decay.
-        """
-        if self.steps < self.epsilon_warmup_steps:
-            # Linear warmup from 0.1 to epsilon_start
-            self.epsilon = 0.1 + (self.epsilon_start - 0.1) * (self.steps / self.epsilon_warmup_steps)
-        else:
-            # Linear decay from epsilon_start to epsilon_end
-            decay_progress = min((self.steps - self.epsilon_warmup_steps) / self.epsilon_decay_steps, 1.0)
-            self.epsilon = self.epsilon_start - (self.epsilon_start - self.epsilon_end) * decay_progress
+        decay_progress = min(self.steps / self.epsilon_decay_steps, 1.0)
+        self.epsilon = self.epsilon_start - (self.epsilon_start - self.epsilon_end) * decay_progress
 
     def choose_action(self, state):
-        """
-        Select an action using epsilon-greedy policy.
-
-        Args:
-            state (np.ndarray): State of shape (C, H, W).
-        Returns:
-            int: Action index.
-        """
         if random.random() < self.epsilon:
             return random.randrange(self.action_dim)
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)  # (1, C, H, W)
+        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         self.model.eval()
         with torch.no_grad():
             q_values = self.model(state)
@@ -84,26 +55,10 @@ class DQNAgent:
         return q_values.argmax(1).item()
 
     def store_transition(self, state, action, reward, next_state, done):
-        """
-        Store a transition in the replay buffer.
-
-        Args:
-            state (np.ndarray): State of shape (C, H, W).
-            action (int): Action taken.
-            reward (float): Reward received.
-            next_state (np.ndarray): Next state of shape (C, H, W).
-            done (bool): Whether the episode is done.
-        """
         max_priority = self.memory.total_priority ** self.alpha if self.memory.total_priority > 0 else 1.0
         self.memory.add(max_priority, (state, action, reward, next_state, done))
 
     def sample(self):
-        """
-        Sample a batch of transitions using Prioritized Experience Replay.
-
-        Returns:
-            Tuple: (states, actions, rewards, next_states, dones, indices, weights)
-        """
         batch = []
         indices = []
         priorities = []
@@ -118,7 +73,7 @@ class DQNAgent:
             indices.append(idx)
             priorities.append(priority)
 
-        sampling_probabilities = priorities / self.memory.total_priority
+        sampling_probabilities = np.array(priorities) / self.memory.total_priority
         weights = (self.memory.capacity * sampling_probabilities) ** (-self.beta)
         weights /= weights.max()
 
@@ -132,22 +87,17 @@ class DQNAgent:
         return states, actions, rewards, next_states, dones, indices, weights
 
     def learn(self):
-        """
-        Perform a learning step by sampling a batch and updating the model.
-
-        Returns:
-            float: Loss value, or None if buffer is not full.
-        """
         if self.memory.data_pointer < self.batch_size:
             return None
 
         states, actions, rewards, next_states, dones, indices, weights = self.sample()
         self.steps += 1
-        self.update_epsilon()  # Update epsilon per step
+        self.update_epsilon()
 
         q_values = self.model(states).gather(1, actions)
 
         with torch.no_grad():
+            # Double DQN: select actions using model, evaluate using target_model
             next_actions = self.model(next_states).argmax(1, keepdim=True)
             next_q_values = self.target_model(next_states).gather(1, next_actions)
             target_q_values = rewards + (1 - dones) * (self.gamma ** self.n_step) * next_q_values
@@ -155,7 +105,7 @@ class DQNAgent:
         loss = (weights * F.mse_loss(q_values, target_q_values, reduction='none')).mean()
 
         td_errors = torch.abs(q_values - target_q_values).detach().cpu().numpy()
-        for idx, error in zip(indices, td_errors):
+        for idx, error in zip(indices, td_errors.flatten()):
             priority = (error + self.priority_epsilon) ** self.alpha
             self.memory.update(idx, priority)
 
@@ -170,26 +120,13 @@ class DQNAgent:
         return loss.item()
 
     def save(self, model_path, memory_path):
-        """
-        Save the model and replay buffer.
-
-        Args:
-            model_path (str): Path to save the model.
-            memory_path (str): Path to save the replay buffer.
-        """
         torch.save(self.model.state_dict(), model_path)
         with open(memory_path, 'wb') as f:
             pickle.dump(self.memory, f)
 
-    def load(self, model_path, memory_path = None):
-        """
-        Load the model and replay buffer.
-
-        Args:
-            model_path (str): Path to load the model.
-            memory_path (str): Path to load the replay buffer.
-        """
+    def load(self, model_path, memory_path=None):
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.target_model.load_state_dict(self.model.state_dict())
-        with open(memory_path, 'rb') as f:
-            self.memory = pickle.load(f)
+        if memory_path and os.path.exists(memory_path):
+            with open(memory_path, 'rb') as f:
+                self.memory = pickle.load(f)

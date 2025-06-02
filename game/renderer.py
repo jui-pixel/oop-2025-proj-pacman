@@ -87,7 +87,7 @@ class Renderer:
         for ghost in game.get_ghosts():
             if ghost.returning_to_spawn:
                 base_color = DARK_GRAY
-                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))  # 閃爍效果
+                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.5))  # 閃爍效果
             elif ghost.edible and ghost.edible_timer > 0:
                 base_color = LIGHT_BLUE
                 ghost.alpha = 255
@@ -101,8 +101,10 @@ class Renderer:
                                (0, 0, CELL_SIZE // 2, CELL_SIZE // 2))
             self.screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
 
-        # 渲染分數和控制模式
+        # 渲染分數、控制模式和生命值
         score_text = self.font.render(f"Score: {pacman.score}", True, WHITE)
         self.screen.blit(score_text, (10, 10))
+        lives_text = self.font.render(f"Lives: {game.get_lives()}", True, WHITE)
+        self.screen.blit(lives_text, (10, 50))
         mode_text = self.font.render(control_mode, True, WHITE)
         self.screen.blit(mode_text, (self.screen_width - 150, 10))

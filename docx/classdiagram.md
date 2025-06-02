@@ -179,16 +179,14 @@ classDiagram
     %% AI Module Classes (ai/)
     class PacManEnv {
         +Game game
-        +bool visualize
-        +bool done
-        +int frame_count
         +int lives
+        +bool game_over
+        +int frame_count
         +Discrete action_space
         +Box observation_space
-        +reset() Tuple
+        +reset() ndarray
         +step(action) Tuple
         +_get_state() ndarray
-        +render()
         +close()
     }
     PacManEnv *--> Game
@@ -205,21 +203,23 @@ classDiagram
         +Tuple~int~ state_dim
         +int action_dim
         +torch.device device
-        +deque memory
+        +SumTree memory
         +int batch_size
         +float gamma
         +float epsilon
-        +float epsilon_min
-        +float epsilon_decay
+        +float epsilon_start
+        +float epsilon_end
+        +float epsilon_decay_steps
         +DQN model
         +DQN target_model
         +optim.Adam optimizer
         +int steps
         +int target_update_freq
-        +update_target_model()
-        +get_action(state) int
-        +train() float
-        +remember(state, action, reward, next_state, done)
+        +update_epsilon()
+        +choose_action(state) int
+        +store_transition(state, action, reward, next_state, done)
+        +sample() Tuple
+        +learn() float
         +save(path, memory_path)
         +load(path, memory_path)
     }
