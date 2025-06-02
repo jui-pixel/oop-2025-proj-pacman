@@ -3,7 +3,7 @@
 定義遊戲中實體的基類，提供基本移動和目標設置功能。
 """
 from typing import Tuple
-from config import CELL_SIZE
+from config import CELL_SIZE, TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR, ENTITY_DEFAULT_SPEED
 
 class Entity:
     def __init__(self, x: int, y: int, symbol: str):
@@ -22,7 +22,7 @@ class Entity:
         self.target_y = y
         self.current_x = x * CELL_SIZE + CELL_SIZE // 2  # 像素座標
         self.current_y = y * CELL_SIZE + CELL_SIZE // 2
-        self.speed = 2.0  # 移動速度（像素/幀）
+        self.speed = ENTITY_DEFAULT_SPEED  # 移動速度（像素/幀）
 
     def move_towards_target(self) -> bool:
         """
@@ -63,7 +63,7 @@ class Entity:
             bool: 是否成功設置目標。
         """
         new_x, new_y = self.x + dx, self.y + dy
-        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'E', 'S', 'D']:
+        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in [TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR]:
             self.target_x, self.target_y = new_x, new_y
             return True
         return False

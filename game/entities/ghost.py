@@ -1,4 +1,4 @@
-# game/entities/basic_ghost.py
+# game/entities/ghost.py
 """
 定義基礎鬼魂類別，提供通用行為（如 BFS 路徑尋找、隨機移動等）。
 子類可覆寫 chase_pacman 方法實現特定追逐策略。
@@ -8,7 +8,7 @@ from ..maze_generator import Map
 from typing import Tuple, List, Optional
 from collections import deque
 import random
-from config import *
+from config import RED, PINK, CYAN, LIGHT_BLUE, TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN, GHOST_DEFAULT_SPEED, GHOST_RETURN_SPEED, GHOST_WAIT_TIME, GHOST1_SPEED, GHOST2_SPEED, GHOST3_SPEED, GHOST4_SPEED
 
 class Ghost(Entity):
     def __init__(self, x: int, y: int, name: str = "Ghost", color: Tuple[int, int, int] = RED):
@@ -18,12 +18,12 @@ class Ghost(Entity):
         super().__init__(x, y, 'G')
         self.name = name
         self.color = color
-        self.default_speed = 2.5
-        self.speed = 2.5
+        self.default_speed = GHOST_DEFAULT_SPEED
+        self.speed = GHOST_DEFAULT_SPEED
         self.edible = False
         self.edible_timer = 0
         self.returning_to_spawn = False
-        self.return_speed = 5.5
+        self.return_speed = GHOST_RETURN_SPEED
         self.death_count = 0
         self.waiting = False
         self.wait_timer = 0
@@ -71,7 +71,7 @@ class Ghost(Entity):
             for dx, dy in directions:
                 new_x, new_y = x + dx, y + dy
                 if (maze.xy_valid(new_x, new_y) and
-                    maze.get_tile(new_x, new_y) in ['.', 'D', 'E', 'S'] and
+                    maze.get_tile(new_x, new_y) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN] and
                     (new_x, new_y) not in visited):
                     visited.add((new_x, new_y))
                     new_path = path + [(dx, dy)]
@@ -94,7 +94,7 @@ class Ghost(Entity):
             (self.x + dx * 3, self.y + dy * 3)
             for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]
             if maze.xy_valid(self.x + dx * 3, self.y + dy * 3) and
-            maze.get_tile(self.x + dx * 3, self.y + dy * 3) in ['.', 'D', 'E', 'S']
+            maze.get_tile(self.x + dx * 3, self.y + dy * 3) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
         ]
         if nearby_targets:
             target_x, target_y = random.choice(nearby_targets)
@@ -116,7 +116,7 @@ class Ghost(Entity):
         """
         self.speed = self.return_speed
         spawn_points = [(x, y) for y in range(maze.height)
-                        for x in range(maze.width) if maze.get_tile(x, y) == 'S']
+                        for x in range(maze.width) if maze.get_tile(x, y) == TILE_GHOST_SPAWN]
         if not spawn_points:
             self.move_random(maze)
             return
@@ -138,7 +138,7 @@ class Ghost(Entity):
 
         for dx, dy in directions:
             new_x, new_y = self.x + dx, self.y + dy
-            if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'E', 'S', 'D']:
+            if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in [TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR]:
                 distance = ((new_x - pacman.x) ** 2 + (new_y - pacman.y) ** 2) ** 0.5
                 if distance > max_distance:
                     max_distance = distance
@@ -166,7 +166,7 @@ class Ghost(Entity):
         if (self.last_x is not None and new_x == self.last_x and new_y == self.last_y and
             random.random() < 0.8):
             return False
-        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in ['.', 'D', 'E', 'S']:
+        if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]:
             self.target_x, self.target_y = new_x, new_y
             return True
         return False
@@ -196,19 +196,19 @@ class Ghost(Entity):
         """
         self.returning_to_spawn = False
         self.waiting = True
-        wait_time = 10.0 / max(1, self.death_count)
+        wait_time = GHOST_WAIT_TIME / max(1, self.death_count)
         self.wait_timer = int(wait_time * 900 / fps)
 
     def reset(self, maze: Map):
         """
         重置鬼魂狀態。
         """
-        self.default_speed = 2.5
-        self.speed = 2.5
+        self.default_speed = GHOST_DEFAULT_SPEED
+        self.speed = GHOST_DEFAULT_SPEED
         self.edible = False
         self.edible_timer = 0
         self.returning_to_spawn = False
-        self.return_speed = 5.5
+        self.return_speed = GHOST_RETURN_SPEED
         self.death_count = 0
         self.waiting = False
         self.wait_timer = 0
@@ -216,7 +216,7 @@ class Ghost(Entity):
         self.last_x = None
         self.last_y = None
         spawn_points = [(x, y) for y in range(maze.height)
-                        for x in range(maze.width) if maze.get_tile(x, y) == 'S']
+                        for x in range(maze.width) if maze.get_tile(x, y) == TILE_GHOST_SPAWN]
         if spawn_points:
             self.x, self.y = random.choice(spawn_points)
         self.target_x = self.x
@@ -229,7 +229,7 @@ class Ghost1(Ghost):
         初始化 Ghost1，使用紅色。
         """
         super().__init__(x, y, name, color=RED)
-        self.speed = 2.0  # 提高速度以增加挑戰性
+        self.speed = GHOST1_SPEED  # 提高速度以增加挑戰性
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
@@ -260,7 +260,7 @@ class Ghost2(Ghost):
         初始化 Ghost2，使用粉紅色。
         """
         super().__init__(x, y, name, color=PINK)
-        self.speed = 2.25  # 提高速度以增加挑戰性
+        self.speed = GHOST2_SPEED  # 提高速度以增加挑戰性
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
@@ -300,7 +300,7 @@ class Ghost3(Ghost):
         初始化 Ghost3，使用青色。
         """
         super().__init__(x, y, name, color=CYAN)
-        self.speed = 2.5  # 提高速度以增加挑戰性
+        self.speed = GHOST3_SPEED  # 提高速度以增加挑戰性
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
@@ -335,12 +335,12 @@ class Ghost3(Ghost):
                 (self.x + dx, self.y + dy)
                 for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]
                 if maze.xy_valid(self.x + dx, self.y + dy) and
-                maze.get_tile(self.x + dx, self.y + dy) in ['.', 'D', 'E', 'S']
+                maze.get_tile(self.x + dx, self.y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
             ]
             if nearby_points:
                 valid_points = [
                     (x, y) for x, y in nearby_points
-                    if sum(maze.xy_valid(x + dx, y + dy) and maze.get_tile(x + dx, y + dy) in ['.', 'D', 'E', 'S']
+                    if sum(maze.xy_valid(x + dx, y + dy) and maze.get_tile(x + dx, y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
                            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]) > 1
                 ]
                 if valid_points:
@@ -357,7 +357,7 @@ class Ghost4(Ghost):
         初始化 Ghost4，使用淺藍色。
         """
         super().__init__(x, y, name, color=LIGHT_BLUE)
-        self.speed = 2.75  # 提高速度以增加挑戰性
+        self.speed = GHOST4_SPEED  # 提高速度以增加挑戰性
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
@@ -371,13 +371,13 @@ class Ghost4(Ghost):
                 (self.x + dx, self.y + dy)
                 for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
                 if maze.xy_valid(self.x + dx, self.y + dy) and
-                maze.get_tile(self.x + dx, self.y + dy) in ['.', 'D', 'E', 'S']
+                maze.get_tile(self.x + dx, self.y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
             ]
             if nearby_points:
                 # 選擇路口：有多於一個可移動方向的格子
                 junctions = [
                     (x, y) for x, y in nearby_points
-                    if sum(maze.xy_valid(x + dx, y + dy) and maze.get_tile(x + dx, y + dy) in ['.', 'D', 'E', 'S']
+                    if sum(maze.xy_valid(x + dx, y + dy) and maze.get_tile(x + dx, y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
                            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]) > 1
                 ]
                 if junctions:

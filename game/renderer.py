@@ -10,7 +10,7 @@ from .entities.ghost import Ghost
 from typing import List, Tuple
 
 from .maze_generator import Map
-from config import BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW, WHITE, LIGHT_BLUE, CELL_SIZE
+from config import BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW, WHITE, LIGHT_BLUE, CELL_SIZE, TILE_BOUNDARY, TILE_WALL, TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR
 from .game import Game
 
 class Renderer:
@@ -46,17 +46,17 @@ class Renderer:
             for x in range(maze.width):
                 tile = maze.get_tile(x, y)
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-                if tile == '#':
+                if tile == TILE_BOUNDARY:
                     pygame.draw.rect(self.screen, DARK_GRAY, rect)  # 繪製邊界
-                elif tile == 'X':
+                elif tile == TILE_WALL:
                     pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁
-                elif tile == '.':
+                elif tile == TILE_PATH:
                     pygame.draw.rect(self.screen, GRAY, rect)  # 繪製路徑
-                elif tile == 'E':
+                elif tile == TILE_POWER_PELLET:
                     pygame.draw.rect(self.screen, GREEN, rect)  # 繪製能量球位置
-                elif tile == 'S':
+                elif tile == TILE_GHOST_SPAWN:
                     pygame.draw.rect(self.screen, PINK, rect)  # 繪製鬼魂重生點
-                elif tile == 'D':
+                elif tile == TILE_DOOR:
                     pygame.draw.rect(self.screen, RED, rect)  # 繪製門
 
         # 渲染能量球

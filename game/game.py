@@ -8,7 +8,7 @@ from .entities.ghost import *
 from .entities.entity_initializer import initialize_entities
 from .entities.pellets import PowerPellet, ScorePellet
 from .maze_generator import Map
-from config import EDIBLE_DURATION, GHOST_SCORES, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, FPS, CELL_SIZE
+from config import EDIBLE_DURATION, GHOST_SCORES, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, FPS, CELL_SIZE, TILE_GHOST_SPAWN
 from collections import deque
 import pygame
 
@@ -24,7 +24,7 @@ class Game:
         self.maze.generate_maze()  # 生成隨機迷宮
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = self._initialize_entities()
         self.respawn_points = [(x, y) for y in range(self.maze.height) for x in range(self.maze.width) 
-                               if self.maze.get_tile(x, y) == 'S']  # 鬼魂重生點
+                               if self.maze.get_tile(x, y) == TILE_GHOST_SPAWN]  # 鬼魂重生點
         self.ghost_score_index = 0  # 鬼魂分數索引
         self.running = True  # 遊戲運行狀態
         self.player_name = player_name
@@ -61,7 +61,7 @@ class Game:
         # 移動所有鬼魂
         for ghost in self.ghosts:
             if ghost.move_towards_target():
-                if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == 'S':
+                if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == TILE_GHOST_SPAWN:
                     ghost.set_waiting(fps)  # 鬼魂到達重生點後等待
                 elif ghost.returning_to_spawn:
                     ghost.return_to_spawn(self.maze)

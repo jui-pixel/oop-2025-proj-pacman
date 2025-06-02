@@ -6,7 +6,7 @@ from .entity_base import Entity
 from heapq import heappush, heappop
 from typing import Tuple, List
 import random
-from config import *
+from config import CELL_SIZE, TILE_BOUNDARY, TILE_WALL, TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR, PACMAN_BASE_SPEED, PACMAN_AI_SPEED, MAX_STUCK_FRAMES
 from .pellets import PowerPellet, ScorePellet
 from .ghost import Ghost
 
@@ -19,11 +19,11 @@ class PacMan(Entity):
         self.score = 0
         self.lives = 3  # 初始化 3 條命
         self.alive = True
-        self.speed = 4.0  # 基礎移動速度
+        self.speed = PACMAN_BASE_SPEED  # 基礎移動速度
         self.last_direction = None  # 記錄上一次移動方向
         self.alternating_vertical_count = 0  # 記錄連續上下交替移動次數
         self.stuck_count = 0  # 連續卡住計數器
-        self.max_stuck_frames = 10  # 最大卡住幀數
+        self.max_stuck_frames = MAX_STUCK_FRAMES  # 最大卡住幀數
         self.initial_x = x  # 儲存初始位置
         self.initial_y = y
 
@@ -94,7 +94,7 @@ class PacMan(Entity):
             search_radius = min(maze.width, maze.height) // 2
             for y in range(max(0, center_y - search_radius), min(maze.height, center_y + search_radius + 1)):
                 for x in range(max(0, center_x - search_radius), min(maze.width, center_x + search_radius + 1)):
-                    if maze.get_tile(x, y) not in ['#', 'X'] and (x, y) not in predicted_danger:
+                    if maze.get_tile(x, y) not in [TILE_BOUNDARY, TILE_WALL] and (x, y) not in predicted_danger:
                         min_ghost_dist = min(((x - ghost.x) ** 2 + (y - ghost.y) ** 2) ** 0.5 for ghost in danger_ghosts)
                         if min_ghost_dist > max_dist:
                             max_dist = min_ghost_dist
@@ -139,7 +139,7 @@ class PacMan(Entity):
 
             for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 neighbor = (current[0] + dx, current[1] + dy)
-                if not maze.xy_valid(neighbor[0], neighbor[1]) or maze.get_tile(neighbor[0], neighbor[1]) in ['#', 'X', 'D', 'S']:
+                if not maze.xy_valid(neighbor[0], neighbor[1]) or maze.get_tile(neighbor[0], neighbor[1]) in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]:
                     continue
 
                 danger_cost = 0
@@ -179,7 +179,7 @@ class PacMan(Entity):
         # 路徑無效時，退回到隨機安全方向
         safe_directions = [(dx, dy) for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)] 
                           if maze.xy_valid(start[0] + dx, start[1] + dy) 
-                          and maze.get_tile(start[0] + dx, start[1] + dy) not in ['#', 'X', 'D', 'S']]
+                          and maze.get_tile(start[0] + dx, start[1] + dy) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
         return random.choice(safe_directions) if safe_directions else None
 
     def rule_based_ai_move(self, maze, power_pellets: List['PowerPellet'], score_pellets: List['ScorePellet'], ghosts: List['Ghost']) -> bool:
@@ -200,7 +200,7 @@ class PacMan(Entity):
         Returns:
             bool: 是否成功設置新目標.
         """
-        self.speed = 5.0  # 提高速度以適應 AI 移動
+        self.speed = PACMAN_AI_SPEED  # 提高速度以適應 AI 移動
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 下、上、右、左
         current_x, current_y = self.x, self.y
         start = (current_x, current_y)
@@ -227,7 +227,7 @@ class PacMan(Entity):
             current_dx, current_dy = 0, 0
             for dx, dy in directions:
                 new_x, new_y = current_x + dx, current_y + dy
-                if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) not in ['#', 'X', 'D', 'S']:
+                if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]:
                     if self.set_new_target(dx, dy, maze):
                         current_dx, current_dy = dx, dy
                         direction = (dx, dy)
@@ -259,7 +259,7 @@ class PacMan(Entity):
             x, y = current_x, current_y
             for _ in range(steps):
                 x, y = x + dx, y + dy
-                if not maze.xy_valid(x, y) or maze.get_tile(x, y) in ['#', 'X', 'D', 'S']:
+                if not maze.xy_valid(x, y) or maze.get_tile(x, y) in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]:
                     return float('inf')
                 for ghost in ghosts:
                     if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
@@ -408,7 +408,7 @@ class PacMan(Entity):
 
         # 步驟 9: 選擇最安全方向或脫困
         safe_directions = [d for d in directions if maze.xy_valid(current_x + d[0], current_y + d[1]) 
-                         and maze.get_tile(current_x + d[0], current_y + d[1]) not in ['#', 'X', 'D', 'S']]
+                         and maze.get_tile(current_x + d[0], current_y + d[1]) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
         if not safe_directions:
             return False
 

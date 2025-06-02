@@ -19,6 +19,8 @@ except ImportError:
     PYTORCH_AVAILABLE = False  # 無 PyTorch 時回退到規則 AI
     print("PyTorch not found. AI mode will use rule-based AI instead.")
 
+from config import TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN
+
 class ControlStrategy(ABC):
     @abstractmethod
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts, moving: bool) -> bool:
@@ -94,7 +96,7 @@ class DQNAIControl(ControlStrategy):
                     state[ghost.x, ghost.y, 4] = 1
             for y in range(maze.height):
                 for x in range(maze.width):
-                    if maze.get_tile(x, y) in ['#', 'X', 'D', 'S']:
+                    if maze.get_tile(x, y) in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]:
                         state[x, y, 5] = 1.0
 
             action = self.agent.get_action(state)
@@ -127,8 +129,6 @@ class ControlManager:
         print(f"Switched to {mode}")
 
     def handle_event(self, event):
-        # if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-        #     self.switch_mode()
         if self.current_strategy == self.player_control:
             self.player_control.handle_event(event)
 
