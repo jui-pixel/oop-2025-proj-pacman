@@ -98,8 +98,8 @@ class PacManEnv(Game):
             raise ValueError(f"Invalid action: {action}")
 
         old_score = self.current_score
-        old_pellets_count = len(self.power_pellets) + len(self.score_pellets)
-        old_x, old_y = self.pacman.x, self.pacman.y
+        # old_pellets_count = len(self.power_pellets) + len(self.score_pellets)
+        # old_x, old_y = self.pacman.x, self.pacman.y
 
         def move_pacman():
             if self.pacman.move_towards_target():
