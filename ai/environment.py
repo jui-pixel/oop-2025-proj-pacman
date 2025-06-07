@@ -29,6 +29,7 @@ class PacManEnv(Game):
         self.eaten_pellets = 0
         self.game_over = False
         self.current_score = 0
+        self.old_score = 0
         self.frame_count = 0
         self.state_channels = 6
         self.state_shape = (self.state_channels, self.height, self.width)
@@ -83,6 +84,7 @@ class PacManEnv(Game):
         self.eaten_pellets = 0
         self.game_over = False
         self.current_score = 0
+        self.old_score = 0
         self.frame_count = 0
         state = self._get_state()
         return np.array(state, dtype=np.float32), {}
@@ -151,9 +153,10 @@ class PacManEnv(Game):
                     if self.pacman.lives <= 0:
                         self.running = False  # 遊戲結束
                         self.game_over = True 
-                        print(f"Game Over! Score: {self.pacman.score}")
+                        # print(f"Game Over! Score: {self.pacman.score}")
                     else:
-                        print(f"Life lost! Remaining lives: {self.pacman.lives}")
+                        # print(f"Life lost! Remaining lives: {self.pacman.lives}")
+                        break
                     break
                 
     def step(self, action):
@@ -170,7 +173,6 @@ class PacManEnv(Game):
         if not 0 <= action < 4:
             raise ValueError(f"Invalid action: {action}")
 
-        old_score = self.current_score
         moved = False
         wall_collision = False
         
@@ -192,9 +194,10 @@ class PacManEnv(Game):
         except Exception as e:
             print(f"Game update failed: {str(e)}")
             raise RuntimeError(f"Game update failed: {str(e)}")
-
-        self.current_score = self.pacman.score
-        reward = self.current_score - old_score
+        self.old_score = self.current_score
+        if moved:
+            self.current_score = self.pacman.score  
+        reward = self.current_score - self.old_score
         if wall_collision:
             reward -= 5
         truncated = False
