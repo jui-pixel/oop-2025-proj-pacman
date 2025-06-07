@@ -105,5 +105,5 @@ if __name__ == "__main__":
     parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes')
     parser.add_argument('--early_stop_reward', type=float, default=2000, help='Reward threshold for early stopping')
     args = parser.parse_args()
-
-    train(resume=args.resume, episodes=args.episodes, early_stop_reward=args.early_stop_reward)
+    for _ in range(100):
+        train(resume=args.resume, episodes=args.episodes, early_stop_reward=args.early_stop_reward)
