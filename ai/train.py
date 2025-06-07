@@ -49,20 +49,20 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         done = False
         state, _ = env.reset()
         while not done:
-            if pacman.move_towards_target():
-                action = agent.choose_action(state)
-                next_state, reward, terminated, truncated, info = env.step(action)
-                done = terminated or truncated
+            
+            action = agent.choose_action(state)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
 
-                agent.store_transition(state, action, reward, next_state, done)
-                total_reward += reward
-                step_count += 1
+            agent.store_transition(state, action, reward, next_state, done)
+            total_reward += reward
+            step_count += 1
 
-                loss = agent.learn()
-                if loss is not None:
-                    writer.add_scalar('Loss', loss, agent.steps)
+            loss = agent.learn()
+            if loss is not None:
+                writer.add_scalar('Loss', loss, agent.steps)
 
-                state = next_state
+            state = next_state
 
         # Record results
         episode_rewards.append(total_reward)
