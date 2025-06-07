@@ -10,36 +10,36 @@ from agent import DQNAgent
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
 
 def make_env(seed=MAZE_SEED):
-    """創建單個 PacManEnv 環境。"""
+    """Create a single PacManEnv environment."""
     def _env():
         return PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=seed)
     return _env
 
 def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.pkl", 
-          episodes=1000, num_envs=4, early_stop_reward=500):
+          episodes=1000, num_envs=4, early_stop_reward=2000):
     """
-    訓練基礎 DQN 代理，支援並行環境和早停。
+    Train a basic DQN agent with parallel environments and early stopping, with reduced terminal output frequency.
 
     Args:
-        resume (bool): 是否從已有模型繼續訓練。
-        model_path (str): 模型儲存路徑。
-        memory_path (str): 回放緩衝區儲存路徑。
-        episodes (int): 訓練回合數。
-        num_envs (int): 並行環境數。
-        early_stop_reward (float): 早停的平均獎勵閾值。
+        resume (bool): Whether to resume from a previous model.
+        model_path (str): Path to save/load the model.
+        memory_path (str): Path to save/load the replay buffer.
+        episodes (int): Number of training episodes.
+        num_envs (int): Number of parallel environments.
+        early_stop_reward (float): Average reward threshold for early stopping.
 
     Returns:
-        list: 每個回合的總獎勵。
+        list: Total rewards for each episode.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training on {device}")
 
-    # 初始化並行環境
+    # Initialize parallel environments
     envs = SyncVectorEnv([make_env(seed=MAZE_SEED + i) for i in range(num_envs)])
     state_dim = envs.single_observation_space.shape
     action_dim = envs.single_action_space.n
 
-    # 初始化代理
+    # Initialize agent
     agent = DQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
     if resume and os.path.exists(model_path):
         agent.load(model_path, memory_path)
@@ -49,7 +49,7 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
     episode_rewards = []
     recent_rewards = []
 
-    # 訓練迴圈
+    # Training loop
     states, _ = envs.reset()
     for episode in range(episodes):
         total_rewards = np.zeros(num_envs)
@@ -72,34 +72,35 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
 
             states = next_states
 
-        # 記錄每個環境的結果
+        # Record results
         avg_reward = np.mean(total_rewards)
         episode_rewards.append(avg_reward)
         recent_rewards.append(avg_reward)
         if len(recent_rewards) > 100:
             recent_rewards.pop(0)
 
-        # 輸出訓練進度
-        print(f"Episode {episode+1}/{episodes}, Avg Reward: {avg_reward:.2f}, "
-              f"Steps: {int(np.mean(step_counts))}, Epsilon: {agent.epsilon:.3f}")
+        # Print progress every 10 episodes
+        if (episode + 1) % 10 == 0:
+            print(f"Episode {episode+1}/{episodes}, Avg Reward: {avg_reward:.2f}, "
+                  f"Steps: {int(np.mean(step_counts))}, Epsilon: {agent.epsilon:.3f}")
 
-        # 記錄到 TensorBoard
+        # Log to TensorBoard
         writer.add_scalar('Reward/Average', avg_reward, episode)
         for i in range(num_envs):
             writer.add_scalar(f'Reward/Env{i+1}', total_rewards[i], episode)
         writer.add_scalar('Epsilon', agent.epsilon, episode)
 
-        # 定期保存模型
-        if episode % 10 == 0:
+        # Save model periodically
+        if (episode + 1) % 10 == 0:
             agent.save(model_path, memory_path)
             print(f"Saved model at episode {episode+1}")
 
-        # 早停檢查
+        # Early stopping check
         if len(recent_rewards) >= 100 and np.mean(recent_rewards[-100:]) >= early_stop_reward:
             print(f"Early stopping: Avg reward {np.mean(recent_rewards[-100:]):.2f} >= {early_stop_reward}")
             break
 
-    # 保存最終模型和獎勵
+    # Save final model and rewards
     agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
     with open("episode_rewards.json", "w") as f:
         json.dump(episode_rewards, f)
