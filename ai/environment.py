@@ -7,7 +7,6 @@ from gym.spaces import Discrete, Box
 from game.game import Game
 from game.maze_generator import Map
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, CELL_SIZE, FPS, EDIBLE_DURATION, GHOST_SCORES
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -63,9 +62,7 @@ class PacManEnv:
         return state
 
     def reset(self, seed=None):
-        if seed is not None:
-            np.random.seed(seed)
-            self.seed = seed
+        self.game = Game(player_name="RL_Agent")
         self.pacman = self.game.get_pacman()
         self.ghosts = self.game.get_ghosts()
         self.power_pellets = self.game.get_power_pellets()
@@ -76,11 +73,6 @@ class PacManEnv:
         self.current_score = 0
         self.lives = 3
         self.frame_count = 0
-        for ghost in self.ghosts:
-            ghost.reset(self.maze)
-        self.pacman.score = 0
-        self.pacman.alive = True
-        self.game.running = True  # Ensure game is running
         state = self._get_state()
         logger.debug(f"Reset: Pac-Man at ({self.pacman.x}, {self.pacman.y}), Ghosts at {[f'({g.x}, {g.y})' for g in self.ghosts]}")
         return np.array(state, dtype=np.float32), {}
@@ -122,16 +114,11 @@ class PacManEnv:
             if distance < self.cell_size / 2:
                 if ghost.edible and ghost.edible_timer > 0:
                     reward += 50.0
-                elif not ghost.edible and not ghost.returning_to_spawn:
+                elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
                     self.lives -= 1
                     logger.debug(f"Collision with ghost at ({ghost.x}, {ghost.y}), Lives left: {self.lives}")
                     collision_detected = True
                     if self.lives > 0:
-                        # Reset Pac-Man and ghosts but continue episode
-                        self.pacman.x, self.pacman.y = self.pacman.initial_x, self.pacman.initial_y
-                        self.pacman.current_x, self.pacman.current_y = self.pacman.x, self.pacman.y
-                        for g in self.ghosts:
-                            g.reset(self.maze)
                         reward -= 50.0  # Penalty for losing a life
                     else:
                         self.pacman.alive = False

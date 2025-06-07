@@ -54,6 +54,7 @@ class PacMan(Entity):
         扣除一條命並重置 Pac-Man 位置到初始位置。
         """
         self.lives -= 1
+        self.score -= 50  # 每次死亡扣除 50 分
         # self.x = self.initial_x
         # self.y = self.initial_y
         # self.current_x = self.x * CELL_SIZE + CELL_SIZE // 2
