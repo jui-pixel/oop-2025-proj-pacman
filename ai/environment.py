@@ -173,7 +173,7 @@ class PacManEnv(Game):
         if not 0 <= action < 4:
             raise ValueError(f"Invalid action: {action}")
 
-        moved = False
+        moved = True
         wall_collision = False
         
         def move_pacman():
@@ -184,7 +184,6 @@ class PacManEnv(Game):
             if self.maze.get_tile(new_x, new_y) not in ['#', 'X']:
                 if self.pacman.move_towards_target(FPS):  # 僅在到達當前目標時更新
                     self.pacman.set_new_target(dx, dy, self.maze)
-                    moved = True
                 elif not self.pacman.move_towards_target(FPS):  # 繼續朝當前目標移動
                     moved = False
             else:
