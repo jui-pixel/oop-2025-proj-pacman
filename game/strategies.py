@@ -9,15 +9,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from abc import ABC, abstractmethod
 from typing import List
+from config import MAZE_WIDTH, MAZE_HEIGHT, CELL_SIZE, FPS
 import pygame
 try:
     from ai.agent import DQNAgent
     import torch
     import numpy as np
     PYTORCH_AVAILABLE = True  # 標記 PyTorch 可用
-except ImportError:
+except ImportError as e:
     PYTORCH_AVAILABLE = False  # 無 PyTorch 時回退到規則 AI
     print("PyTorch not found. AI mode will use rule-based AI instead.")
+
+from config import TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN
 
 class ControlStrategy(ABC):
     @abstractmethod
@@ -54,7 +57,7 @@ class PlayerControl(ControlStrategy):
                 self.dx, self.dy = 1, 0
 
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts, moving: bool) -> bool:
-        if not moving and pacman.move_towards_target():
+        if not moving and pacman.move_towards_target(FPS):
             if self.dx != 0 or self.dy != 0:
                 if pacman.set_new_target(self.dx, self.dy, maze):
                     moving = True
@@ -62,7 +65,7 @@ class PlayerControl(ControlStrategy):
 
 class RuleBasedAIControl(ControlStrategy):
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts, moving: bool) -> bool:
-        if not moving and pacman.move_towards_target():
+        if not moving and pacman.move_towards_target(FPS):
             moving = pacman.rule_based_ai_move(maze, power_pellets, score_pellets, ghosts)
         return moving
 
@@ -71,33 +74,33 @@ class DQNAIControl(ControlStrategy):
         if not PYTORCH_AVAILABLE:
             raise ImportError("PyTorch is required for DQN AI.")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.agent = DQNAgent((maze_height, maze_width, 6), 4, self.device, 10000, 128, 1e-4, 0.01)
+        self.agent = DQNAgent((6, maze_height, maze_width), 4, self.device, 10000, 128, 1e-4, 0.01)
         try:
-            self.agent.load("pacman_dqn_final.pth")
+            self.agent.load("pacman_dqn.pth")
             self.agent.epsilon = 0.0
         except FileNotFoundError:
             print("Model file 'pacman_dqn_final.pth' not found. Please train the model first.")
             raise
 
     def move(self, pacman, maze, power_pellets, score_pellets, ghosts, moving: bool) -> bool:
-        if not moving and pacman.move_towards_target():
-            state = np.zeros((maze.height, maze.width, 6), dtype=np.float32)
-            state[pacman.x, pacman.y, 0] = 1
-            for pellet in power_pellets:
-                state[pellet.x, pellet.y, 1] = 1
-            for pellet in score_pellets:
-                state[pellet.x, pellet.y, 2] = 1
-            for ghost in ghosts:
-                if ghost.edible:
-                    state[ghost.x, ghost.y, 3] = 1
-                else:
-                    state[ghost.x, ghost.y, 4] = 1
+        if not moving and pacman.move_towards_target(FPS):
+            state = np.zeros((6, maze.height, maze.width), dtype=np.float32)
             for y in range(maze.height):
                 for x in range(maze.width):
-                    if maze.get_tile(x, y) in ['#', 'X', 'D', 'S']:
-                        state[x, y, 5] = 1.0
+                    if maze.get_tile(x, y) in ['#', 'X']:
+                        state[5, y, x] = 1.0
+                    state[0, pacman.y, pacman.x] = 1.0
+                    for pellet in power_pellets:
+                        state[1, pellet.y, pellet.x] = 1.0
+                    for pellet in score_pellets:
+                        state[2, pellet.y, pellet.x] = 1.0
+                    for ghost in ghosts:
+                        if ghost.edible and ghost.edible_timer > 0 and not ghost.returning_to_spawn:
+                            state[3, ghost.y, ghost.x] = 1.0
+                        else:
+                            state[4, ghost.y, ghost.x] = 1.0
 
-            action = self.agent.get_action(state)
+            action = self.agent.choose_action(state)
             dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
             if pacman.set_new_target(dx, dy, maze):
                 moving = True
@@ -127,16 +130,14 @@ class ControlManager:
         print(f"Switched to {mode}")
 
     def handle_event(self, event):
-        # if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-        #     self.switch_mode()
         if self.current_strategy == self.player_control:
             self.player_control.handle_event(event)
 
-    def move(self, pacman, maze, power_pellets, score_pellets, ghosts) -> bool:
-        self.moving = self.current_strategy.move(pacman, maze, power_pellets, score_pellets, ghosts, self.moving)
-        if self.moving and pacman.move_towards_target():
-            self.moving = False
-        return self.moving
+    def move(self, pacman, maze, power_pellets, score_pellets, ghosts) -> None:
+        if pacman.move_towards_target(FPS):
+            self.current_strategy.move(pacman, maze, power_pellets, score_pellets, ghosts, self.moving)
+        
+        
 
     def get_mode_name(self) -> str:
         if self.current_strategy == self.player_control:

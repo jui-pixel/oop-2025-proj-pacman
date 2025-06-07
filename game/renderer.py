@@ -10,7 +10,7 @@ from .entities.ghost import Ghost
 from typing import List, Tuple
 
 from .maze_generator import Map
-from config import BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW, WHITE, LIGHT_BLUE, CELL_SIZE
+from config import BLACK, DARK_GRAY, GRAY, GREEN, PINK, RED, BLUE, ORANGE, YELLOW, WHITE, LIGHT_BLUE, CELL_SIZE, TILE_BOUNDARY, TILE_WALL, TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR
 from .game import Game
 
 class Renderer:
@@ -46,17 +46,17 @@ class Renderer:
             for x in range(maze.width):
                 tile = maze.get_tile(x, y)
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-                if tile == '#':
+                if tile == TILE_BOUNDARY:
                     pygame.draw.rect(self.screen, DARK_GRAY, rect)  # 繪製邊界
-                elif tile == 'X':
+                elif tile == TILE_WALL:
                     pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁
-                elif tile == '.':
+                elif tile == TILE_PATH:
                     pygame.draw.rect(self.screen, GRAY, rect)  # 繪製路徑
-                elif tile == 'E':
+                elif tile == TILE_POWER_PELLET:
                     pygame.draw.rect(self.screen, GREEN, rect)  # 繪製能量球位置
-                elif tile == 'S':
+                elif tile == TILE_GHOST_SPAWN:
                     pygame.draw.rect(self.screen, PINK, rect)  # 繪製鬼魂重生點
-                elif tile == 'D':
+                elif tile == TILE_DOOR:
                     pygame.draw.rect(self.screen, RED, rect)  # 繪製門
 
         # 渲染能量球
@@ -77,17 +77,31 @@ class Renderer:
 
         # 渲染 Pac-Man
         pacman = game.get_pacman()
-        pacman_rect = pygame.Rect(
+        
+        if game.is_death_animation_playing():
+            # 死亡動畫：縮小Pac-Man
+            progress = game.get_death_animation_progress()
+            scale = 1.0 - progress  # 從1縮小到0
+            radius = int(CELL_SIZE // 2 * scale)
+            pacman_center = (
+                pacman.current_x,
+                pacman.current_y,
+                )
+            if radius > 0:
+                pygame.draw.circle(self.screen, YELLOW, pacman_center, radius)
+        else:
+            # 正常繪製Pac-Man
+            pacman_rect = pygame.Rect(
             pacman.current_x - CELL_SIZE // 4,
             pacman.current_y - CELL_SIZE // 4,
             CELL_SIZE // 2, CELL_SIZE // 2)
-        pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)
+            pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)
 
         # 渲染鬼魂
         for ghost in game.get_ghosts():
             if ghost.returning_to_spawn:
                 base_color = DARK_GRAY
-                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))  # 閃爍效果
+                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.5))  # 閃爍效果
             elif ghost.edible and ghost.edible_timer > 0:
                 base_color = LIGHT_BLUE
                 ghost.alpha = 255
@@ -101,8 +115,10 @@ class Renderer:
                                (0, 0, CELL_SIZE // 2, CELL_SIZE // 2))
             self.screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
 
-        # 渲染分數和控制模式
+        # 渲染分數、控制模式和生命值
         score_text = self.font.render(f"Score: {pacman.score}", True, WHITE)
         self.screen.blit(score_text, (10, 10))
+        lives_text = self.font.render(f"Lives: {game.get_lives()}", True, WHITE)
+        self.screen.blit(lives_text, (10, 50))
         mode_text = self.font.render(control_mode, True, WHITE)
         self.screen.blit(mode_text, (self.screen_width - 150, 10))

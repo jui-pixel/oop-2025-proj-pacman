@@ -171,7 +171,7 @@ def show_loading_screen(screen, font, screen_width, screen_height):
     loading_text = font.render("Loading...", True, YELLOW)
     screen.blit(loading_text, (screen_width // 2 - loading_text.get_width() // 2, screen_height // 2))
     pygame.display.flip()
-    pygame.time.wait(2000)
+    pygame.time.wait(1000)
 
 def show_game_result(screen, font, screen_width, screen_height, won, score):
     """顯示遊戲結束畫面。"""
@@ -215,7 +215,17 @@ def show_game_result(screen, font, screen_width, screen_height, won, score):
         pygame.display.flip()
 
 def show_pause_menu(screen, font, screen_width, screen_height):
-    """顯示暫停選單。"""
+    """顯示暫停選單，使用定格的遊戲畫面作為半透明背景。"""
+    # 複製當前螢幕內容作為背景
+    background = screen.copy()
+    
+    # 創建半透明覆蓋層
+    overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))  # 黑色，透明度 180 (0=完全透明, 255=完全不透明)
+    
+    # 將覆蓋層應用到背景上以使其變暗
+    background.blit(overlay, (0, 0))
+
     buttons = [MenuButton(action, screen_width // 2 - 100, screen_height // 2 - 30 + i * 60, 200, 50, font, GRAY, LIGHT_BLUE) 
               for i, action in enumerate(["Continue", "Back to Menu", "Exit"])]
     selected_index = 0
@@ -246,7 +256,9 @@ def show_pause_menu(screen, font, screen_width, screen_height):
                 for i, button in enumerate(buttons):
                     if button.rect.collidepoint(mouse_pos):
                         return ["continue", "menu", "exit"][i]
-        screen.fill(BLACK)
+        
+        # 繪製定格的背景
+        screen.blit(background, (0, 0))
         pause_text = font.render("Paused", True, YELLOW)
         screen.blit(pause_text, (screen_width // 2 - pause_text.get_width() // 2, screen_height // 2 - 100))
         for button in buttons:
