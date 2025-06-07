@@ -135,18 +135,6 @@ class PacManEnv(Game):
         )
         print(f"Distance to nearest pellet: {min_pellet_dist:.2f}")
 
-        # 碰撞檢測（用於終端輸出）
-        collision_detected = False
-        for ghost in self.ghosts:
-            distance = ((self.pacman.current_x - ghost.current_x) ** 2 + 
-                        (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
-            if distance < self.cell_size / 2:
-                if ghost.edible and ghost.edible_timer > 0:
-                    print(f"Ate edible ghost at ({ghost.x}, {ghost.y}), Score increased by {self.current_score - old_score}")
-                elif not ghost.edible and not ghost.returning_to_spawn:
-                    collision_detected = True
-                    print(f"Collision with ghost at ({ghost.x}, {ghost.y}), Lives left: {self.pacman.lives}")
-
         next_state = np.array(self._get_state(), dtype=np.float32)
         terminated = self.game_over
         truncated = False
@@ -156,7 +144,6 @@ class PacManEnv(Game):
             'eaten_pellets': self.total_pellets - new_pellets_count,
             'total_pellets': self.total_pellets,
             'lives': self.pacman.lives,
-            'collision': collision_detected,
             'min_pellet_dist': min_pellet_dist
         }
         self.frame_count += 1

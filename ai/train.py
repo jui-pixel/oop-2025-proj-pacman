@@ -1,47 +1,55 @@
-import torch
 import os
 import argparse
 import numpy as np
+import torch
 import json
-import logging
+from torch.utils.tensorboard import SummaryWriter
+from gym.vector import SyncVectorEnv
 from environment import PacManEnv
 from agent import DQNAgent
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
-from torch.utils.tensorboard import SummaryWriter
-from gym.vector import SyncVectorEnv
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 def make_env(seed=MAZE_SEED):
+    """創建單個 PacManEnv 環境。"""
     def _env():
-        env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=seed)
-        return env
+        return PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=seed)
     return _env
 
-def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.pkl", episodes=1000, num_envs=4, early_stop_reward=500):
+def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.pkl", 
+          episodes=1000, num_envs=4, early_stop_reward=500):
+    """
+    訓練 DQN 代理，支援並行環境和早停。
+
+    Args:
+        resume (bool): 是否從已有模型繼續訓練。
+        model_path (str): 模型儲存路徑。
+        memory_path (str): 回放緩衝區儲存路徑。
+        episodes (int): 訓練回合數。
+        num_envs (int): 並行環境數。
+        early_stop_reward (float): 早停的平均獎勵閾值。
+
+    Returns:
+        list: 每個回合的總獎勵。
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Training on {device}")
+    print(f"Training on {device}")
 
-    try:
-        envs = SyncVectorEnv([make_env(seed=MAZE_SEED+i) for i in range(num_envs)])
-    except Exception as e:
-        logger.error(f"Failed to initialize environments: {str(e)}")
-        raise RuntimeError(f"Failed to initialize environments: {str(e)}")
-
+    # 初始化並行環境
+    envs = SyncVectorEnv([make_env(seed=MAZE_SEED + i) for i in range(num_envs)])
     state_dim = envs.single_observation_space.shape
     action_dim = envs.single_action_space.n
 
+    # 初始化代理
     agent = DQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
-
     if resume and os.path.exists(model_path):
         agent.load(model_path, memory_path)
-        logger.info(f"Loaded model from {model_path}")
+        print(f"Loaded model from {model_path}")
 
     writer = SummaryWriter()
     episode_rewards = []
     recent_rewards = []
 
+    # 訓練迴圈
     states, _ = envs.reset()
     for episode in range(episodes):
         total_rewards = np.zeros(num_envs)
@@ -50,12 +58,8 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
 
         while not dones.all():
             actions = [agent.choose_action(state) for state in states]
-            try:
-                next_states, rewards, terminated, truncated, infos = envs.step(actions)
-                dones = np.logical_or(terminated, truncated)
-            except Exception as e:
-                logger.error(f"Step failed: {str(e)}")
-                raise RuntimeError(f"Step failed: {str(e)}")
+            next_states, rewards, terminated, truncated, infos = envs.step(actions)
+            dones = np.logical_or(terminated, truncated)
 
             for i in range(num_envs):
                 agent.store_transition(states[i], actions[i], rewards[i], next_states[i], dones[i])
@@ -64,46 +68,55 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
 
             loss = agent.learn()
             if loss is not None:
-                writer.add_scalar('Loss/Agent', loss, agent.steps)
+                writer.add_scalar('Loss', loss, agent.steps)
 
             states = next_states
 
-        for i in range(num_envs):
-            logger.info(f"Episode {episode+1}, Env {i+1}: Reward={total_rewards[i]:.2f}, Steps={step_counts[i]}")
-            episode_rewards.append(total_rewards[i])
-            recent_rewards.append(total_rewards[i])
-            if len(recent_rewards) > 100:
-                recent_rewards.pop(0)
-            writer.add_scalar(f'Reward/Env{i+1}', total_rewards[i], episode)
-            writer.add_scalar('Epsilon', agent.epsilon, episode)
-            writer.add_scalar('Beta', agent.beta, episode)
+        # 記錄每個環境的結果
+        avg_reward = np.mean(total_rewards)
+        episode_rewards.append(avg_reward)
+        recent_rewards.append(avg_reward)
+        if len(recent_rewards) > 100:
+            recent_rewards.pop(0)
 
-        avg_reward = np.mean(recent_rewards[-100:]) if recent_rewards else 0
-        print(f"Episode {episode+1}/{episodes}, Avg Reward: {avg_reward:.2f}, Epsilon: {agent.epsilon:.3f}")
-        
+        # 輸出訓練進度
+        print(f"Episode {episode+1}/{episodes}, Avg Reward: {avg_reward:.2f}, "
+              f"Steps: {int(np.mean(step_counts))}, Epsilon: {agent.epsilon:.3f}")
+
+        # 記錄到 TensorBoard
+        writer.add_scalar('Reward/Average', avg_reward, episode)
+        for i in range(num_envs):
+            writer.add_scalar(f'Reward/Env{i+1}', total_rewards[i], episode)
+        writer.add_scalar('Epsilon', agent.epsilon, episode)
+        writer.add_scalar('Beta', agent.beta, episode)
+
+        # 定期保存模型
         if episode % 10 == 0:
             agent.save(model_path, memory_path)
-            logger.info(f"Saved model at episode {episode+1}")
+            print(f"Saved model at episode {episode+1}")
 
-        if len(recent_rewards) >= 100 and avg_reward >= early_stop_reward:
-            logger.info(f"Early stopping: Avg reward {avg_reward:.2f} >= {early_stop_reward}")
+        # 早停檢查
+        if len(recent_rewards) >= 100 and np.mean(recent_rewards[-100:]) >= early_stop_reward:
+            print(f"Early stopping: Avg reward {np.mean(recent_rewards[-100:]):.2f} >= {early_stop_reward}")
             break
 
+    # 保存最終模型和獎勵
     agent.save("pacman_dqn_final.pth", "replay_buffer_final.pkl")
     with open("episode_rewards.json", "w") as f:
         json.dump(episode_rewards, f)
 
     writer.close()
     envs.close()
-    logger.info("Training completed")
+    print("Training completed")
     return episode_rewards
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Pac-Man Dueling DQN Agent")
+    parser = argparse.ArgumentParser(description="Train Pac-Man DQN Agent")
     parser.add_argument('--resume', action='store_true', help='Resume from previous model')
     parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes')
     parser.add_argument('--num_envs', type=int, default=4, help='Number of parallel environments')
-    parser.add_argument('--early_stop_reward', type=float, default=500, help='Reward threshold for early stopping')
+    parser.add_argument('--early_stop_reward', type=float, default=2000, help='Reward threshold for early stopping')
     args = parser.parse_args()
 
-    train(resume=args.resume, episodes=args.episodes, num_envs=args.num_envs, early_stop_reward=args.early_stop_reward)
+    train(resume=args.resume, episodes=args.episodes, num_envs=args.num_envs, 
+          early_stop_reward=args.early_stop_reward)
