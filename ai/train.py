@@ -18,7 +18,7 @@ def make_env(seed=MAZE_SEED):
 def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.pkl", 
           episodes=1000, num_envs=4, early_stop_reward=500):
     """
-    訓練 DQN 代理，支援並行環境和早停。
+    訓練基礎 DQN 代理，支援並行環境和早停。
 
     Args:
         resume (bool): 是否從已有模型繼續訓練。
@@ -88,7 +88,6 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         for i in range(num_envs):
             writer.add_scalar(f'Reward/Env{i+1}', total_rewards[i], episode)
         writer.add_scalar('Epsilon', agent.epsilon, episode)
-        writer.add_scalar('Beta', agent.beta, episode)
 
         # 定期保存模型
         if episode % 10 == 0:
@@ -115,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument('--resume', action='store_true', help='Resume from previous model')
     parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes')
     parser.add_argument('--num_envs', type=int, default=4, help='Number of parallel environments')
-    parser.add_argument('--early_stop_reward', type=float, default=2000, help='Reward threshold for early stopping')
+    parser.add_argument('--early_stop_reward', type=float, default=500, help='Reward threshold for early stopping')
     args = parser.parse_args()
 
     train(resume=args.resume, episodes=args.episodes, num_envs=args.num_envs, 
