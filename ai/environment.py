@@ -20,6 +20,7 @@ class PacManEnv(Game):
             seed (int): 隨機種子。
         """
         super().__init__(player_name="RL_Agent")
+        self.pacman.speed = 5 * self.pacman.speed
         self.width = width
         self.height = height
         self.cell_size = CELL_SIZE
@@ -77,6 +78,7 @@ class PacManEnv(Game):
             np.random.seed(seed)
             self.seed = seed
         super().__init__(player_name="RL_Agent")  # 調用 Game 的 __init__ 重置遊戲
+        self.pacman.speed = 5 * self.pacman.speed
         self.total_pellets = len(self.score_pellets) + len(self.power_pellets)
         self.eaten_pellets = 0
         self.game_over = False
