@@ -196,7 +196,7 @@ class PacManEnv(Game):
         self.current_score = self.pacman.score
         reward = self.current_score - old_score
         if wall_collision:
-            reward -= 1
+            reward -= 5
         truncated = False
         if self.game_over:
             truncated = True
