@@ -172,17 +172,21 @@ class PacManEnv(Game):
 
         old_score = self.current_score
         moved = False
-
+        wall_collision = False
+        
         def move_pacman():
-            nonlocal moved
+            nonlocal moved, wall_collision
             directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
             dx, dy = directions[action]
             new_x, new_y = self.pacman.x + dx, self.pacman.y + dy
             if self.maze.get_tile(new_x, new_y) not in ['#', 'X']:
-                if self.pacman.move_towards_target(FPS):  # 僅在到達當前目標時設置新目標
+                if self.pacman.move_towards_target(FPS):  # 僅在到達當前目標時更新
                     self.pacman.set_new_target(dx, dy, self.maze)
                     moved = True
-
+                elif not self.pacman.move_towards_target(FPS):  # 繼續朝當前目標移動
+                    moved = False
+            else:
+                wall_collision = True  # 檢測到撞牆
         try:
             self.update(FPS, move_pacman)
         except Exception as e:
@@ -191,7 +195,8 @@ class PacManEnv(Game):
 
         self.current_score = self.pacman.score
         reward = self.current_score - old_score
-        
+        if wall_collision:
+            reward -= 1
         truncated = False
         if self.game_over:
             truncated = True
