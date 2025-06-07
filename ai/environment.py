@@ -191,11 +191,7 @@ class PacManEnv(Game):
 
         self.current_score = self.pacman.score
         reward = self.current_score - old_score
-        if moved and (self.pacman.eat_pellet(self.power_pellets) > 0 or self.pacman.eat_score_pellet(self.score_pellets)):
-            reward += 10
-        if self.game_over and self.pacman.lives <= 0:
-            reward -= 100
-
+        
         truncated = False
         if self.game_over:
             truncated = True
