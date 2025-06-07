@@ -6,23 +6,26 @@ from .entity_base import Entity
 from heapq import heappush, heappop
 from typing import Tuple, List
 import random
-from config import *
+from config import CELL_SIZE, TILE_BOUNDARY, TILE_WALL, TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR, PACMAN_BASE_SPEED, PACMAN_AI_SPEED, MAX_STUCK_FRAMES
 from .pellets import PowerPellet, ScorePellet
 from .ghost import Ghost
 
 class PacMan(Entity):
     def __init__(self, x: int, y: int):
         """
-        初始化 Pac-Man，設置初始分數和生存狀態。
+        初始化 Pac-Man，設置初始分數、生命值和生存狀態。
         """
         super().__init__(x, y, 'P')
         self.score = 0
+        self.lives = 3  # 初始化 3 條命
         self.alive = True
-        self.speed = 4.0  # 基礎移動速度
+        self.speed = PACMAN_BASE_SPEED  # 基礎移動速度
         self.last_direction = None  # 記錄上一次移動方向
         self.alternating_vertical_count = 0  # 記錄連續上下交替移動次數
         self.stuck_count = 0  # 連續卡住計數器
-        self.max_stuck_frames = 10  # 最大卡住幀數
+        self.max_stuck_frames = MAX_STUCK_FRAMES  # 最大卡住幀數
+        self.initial_x = x  # 儲存初始位置
+        self.initial_y = y
 
     def eat_pellet(self, pellets: List['PowerPellet']) -> int:
         """
@@ -46,7 +49,23 @@ class PacMan(Entity):
                 return score_pellet.value
         return 0
     
-    def find_path(self, start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score"):
+    def lose_life(self, maze) -> None:
+        """
+        扣除一條命並重置 Pac-Man 位置到初始位置。
+        """
+        self.lives -= 1
+        self.score -= 50  # 每次死亡扣除 50 分
+        # self.x = self.initial_x
+        # self.y = self.initial_y
+        # self.current_x = self.x * CELL_SIZE + CELL_SIZE // 2
+        # self.current_y = self.y * CELL_SIZE + CELL_SIZE // 2
+        # self.target_x = self.x
+        # self.target_y = self.y
+        # self.last_direction = None
+        # self.alternating_vertical_count = 0
+        # self.stuck_count = 0
+
+    def find_path(self, start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score"):
         """
         使用 A* 算法找到從 start 到 goal 的最短路徑，考慮迷宮障礙和鬼魂威脅。
         當路徑無效或被鬼擋住時，嘗試替代路徑或安全方向。
@@ -76,7 +95,7 @@ class PacMan(Entity):
             search_radius = min(maze.width, maze.height) // 2
             for y in range(max(0, center_y - search_radius), min(maze.height, center_y + search_radius + 1)):
                 for x in range(max(0, center_x - search_radius), min(maze.width, center_x + search_radius + 1)):
-                    if maze.get_tile(x, y) not in ['#', 'X'] and (x, y) not in predicted_danger:
+                    if maze.get_tile(x, y) not in [TILE_BOUNDARY, TILE_WALL] and (x, y) not in predicted_danger:
                         min_ghost_dist = min(((x - ghost.x) ** 2 + (y - ghost.y) ** 2) ** 0.5 for ghost in danger_ghosts)
                         if min_ghost_dist > max_dist:
                             max_dist = min_ghost_dist
@@ -121,7 +140,7 @@ class PacMan(Entity):
 
             for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 neighbor = (current[0] + dx, current[1] + dy)
-                if not maze.xy_valid(neighbor[0], neighbor[1]) or maze.get_tile(neighbor[0], neighbor[1]) in ['#', 'X', 'D', 'S']:
+                if not maze.xy_valid(neighbor[0], neighbor[1]) or maze.get_tile(neighbor[0], neighbor[1]) in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]:
                     continue
 
                 danger_cost = 0
@@ -132,22 +151,28 @@ class PacMan(Entity):
                             danger_cost += 50 / max(1, dist)
                         elif neighbor in predicted_danger:
                             danger_cost += 20
-
+                
                 power_avoidance_penalty = 0
                 if target_type == "edible" and power_pellets:
                     for pellet in power_pellets:
                         dist = ((neighbor[0] - pellet.x) ** 2 + (neighbor[1] - pellet.y) ** 2) ** 0.5
-                        if dist < 3:  # 避開 3 格範圍內的能量球
-                            power_avoidance_penalty += 30 / max(1, dist)
+                        if dist < 2:
+                            power_avoidance_penalty += 400 / max(1, dist)
 
                 power_penalty = 0
                 if target_type == "score" and power_pellets:
                     for pellet in power_pellets:
                         dist = ((neighbor[0] - pellet.x) ** 2 + (neighbor[1] - pellet.y) ** 2) ** 0.5
                         if dist < 2:
-                            power_penalty += 100 / max(1, dist)
-
-                tentative_g_score = g_score[current] + 1 + danger_cost + power_avoidance_penalty + power_penalty
+                            power_penalty += 500 / max(1, dist)
+                
+                score_reward = 0
+                if target_type in ["edible", "none", "flee"] and maze.get_tile(neighbor[0], neighbor[1]) != TILE_WALL:
+                    for pellet in score_pellets:
+                        if pellet.x == neighbor[0] and pellet.y == neighbor[1]:
+                            score_reward -= 0.6  # 順路吃掉分數球
+                            break
+                tentative_g_score = g_score[current] + 1 + danger_cost + power_avoidance_penalty + power_penalty + score_reward
 
                 if neighbor in closed_set and tentative_g_score >= g_score.get(neighbor, float('inf')):
                     continue
@@ -161,7 +186,7 @@ class PacMan(Entity):
         # 路徑無效時，退回到隨機安全方向
         safe_directions = [(dx, dy) for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)] 
                           if maze.xy_valid(start[0] + dx, start[1] + dy) 
-                          and maze.get_tile(start[0] + dx, start[1] + dy) not in ['#', 'X', 'D', 'S']]
+                          and maze.get_tile(start[0] + dx, start[1] + dy) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
         return random.choice(safe_directions) if safe_directions else None
 
     def rule_based_ai_move(self, maze, power_pellets: List['PowerPellet'], score_pellets: List['ScorePellet'], ghosts: List['Ghost']) -> bool:
@@ -182,7 +207,7 @@ class PacMan(Entity):
         Returns:
             bool: 是否成功設置新目標.
         """
-        self.speed = 5.0  # 提高速度以適應 AI 移動
+        self.speed = PACMAN_AI_SPEED  # 提高速度以適應 AI 移動
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 下、上、右、左
         current_x, current_y = self.x, self.y
         start = (current_x, current_y)
@@ -200,7 +225,7 @@ class PacMan(Entity):
                     min_danger_dist = dist
                     nearest_danger = ghost
 
-        # 步驟 3: 檢查是否進入殘局模式
+        # 步驟 3: 檢查是否進入殞局模式
         is_endgame = len(score_pellets) <= 10
 
         # 步驟 4: 計算當前移動方向並檢測連續上下交替移動
@@ -209,7 +234,7 @@ class PacMan(Entity):
             current_dx, current_dy = 0, 0
             for dx, dy in directions:
                 new_x, new_y = current_x + dx, current_y + dy
-                if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) not in ['#', 'X', 'D', 'S']:
+                if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]:
                     if self.set_new_target(dx, dy, maze):
                         current_dx, current_dy = dx, dy
                         direction = (dx, dy)
@@ -223,7 +248,7 @@ class PacMan(Entity):
                                 score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
                                 closest_score = min(score_options, key=lambda x: x[1])[0]
                                 goal = (closest_score.x, closest_score.y)
-                                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score")
+                                direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
                                 if direction:
                                     dx, dy = direction
                                     if self.set_new_target(dx, dy, maze):
@@ -241,7 +266,7 @@ class PacMan(Entity):
             x, y = current_x, current_y
             for _ in range(steps):
                 x, y = x + dx, y + dy
-                if not maze.xy_valid(x, y) or maze.get_tile(x, y) in ['#', 'X', 'D', 'S']:
+                if not maze.xy_valid(x, y) or maze.get_tile(x, y) in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]:
                     return float('inf')
                 for ghost in ghosts:
                     if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
@@ -254,7 +279,7 @@ class PacMan(Entity):
         if not power_pellets and score_pellets:
             immediate_threat = min_danger_dist < 2
             if immediate_threat:
-                direction = self.find_path(start, None, maze, ghosts, power_pellets, mode="flee", target_type="none")
+                direction = self.find_path(start, None, maze, ghosts, score_pellets, power_pellets, mode="flee", target_type="none")
                 if direction:
                     dx, dy = direction
                     if self.set_new_target(dx, dy, maze):
@@ -265,7 +290,7 @@ class PacMan(Entity):
                 score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
                 closest_score = min(score_options, key=lambda x: x[1])[0]
                 goal = (closest_score.x, closest_score.y)
-                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score")
+                direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
                 if direction:
                     dx, dy = direction
                     if self.set_new_target(dx, dy, maze):
@@ -273,7 +298,7 @@ class PacMan(Entity):
                         self.stuck_count = 0
                         return True
 
-        # 步驟 7: 殘局模式處理
+        # 步驟 7: 殞局模式處理
         if is_endgame and score_pellets:
             remaining_scores = [(s, (s.x, s.y)) for s in score_pellets]
             current_pos = start
@@ -292,7 +317,7 @@ class PacMan(Entity):
                 if power_dist < sum(((p[0] - current_x) ** 2 + (p[1] - current_y) ** 2) ** 0.5 for p in best_path) / len(best_path):
                     use_power_pellet = True
                     goal = (closest_power.x, closest_power.y)
-                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="power")
+                    direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="power")
                     if direction:
                         dx, dy = direction
                         if self.set_new_target(dx, dy, maze):
@@ -302,7 +327,7 @@ class PacMan(Entity):
 
             if not use_power_pellet and best_path:
                 goal = best_path[0]
-                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score")
+                direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
                 if direction:
                     dx, dy = direction
                     if self.set_new_target(dx, dy, maze):
@@ -317,7 +342,7 @@ class PacMan(Entity):
                 if power_options:
                     closest_power = min(power_options, key=lambda x: x[1])[0]
                     goal = (closest_power.x, closest_power.y)
-                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="power")
+                    direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="power")
                     if direction:
                         dx, dy = direction
                         if self.set_new_target(dx, dy, maze):
@@ -329,14 +354,14 @@ class PacMan(Entity):
                             score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
                             closest_score = min(score_options, key=lambda x: x[1])[0]
                             goal = (closest_score.x, closest_score.y)
-                            direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score")
+                            direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
                             if direction:
                                 dx, dy = direction
                                 if self.set_new_target(dx, dy, maze):
                                     self.last_direction = (dx, dy)
                                     self.stuck_count = 0
                                     return True
-                        direction = self.find_path(start, None, maze, ghosts, power_pellets, mode="flee", target_type="none")
+                        direction = self.find_path(start, None, maze, ghosts, score_pellets, power_pellets, mode="flee", target_type="none")
                         if direction:
                             dx, dy = direction
                             if self.set_new_target(dx, dy, maze):
@@ -344,7 +369,7 @@ class PacMan(Entity):
                                 self.stuck_count = 0
                                 return True
             else:
-                direction = self.find_path(start, None, maze, ghosts, power_pellets, mode="flee", target_type="none")
+                direction = self.find_path(start, None, maze, ghosts, score_pellets, power_pellets, mode="flee", target_type="none")
                 if direction:
                     dx, dy = direction
                     if self.set_new_target(dx, dy, maze):
@@ -355,9 +380,9 @@ class PacMan(Entity):
             edible_ghosts = [ghost for ghost in ghosts if ghost.edible and ghost.edible_timer > 5 and not ghost.returning_to_spawn and not ghost.waiting]
             if edible_ghosts:
                 closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
-                if ((closest_edible.x - current_x)**2 + (closest_edible.y - current_y)**2) < 100:
+                if ((closest_edible.x - current_x)**2 + (closest_edible.y - current_y)**2) < 144:
                     goal = (closest_edible.x, closest_edible.y)
-                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="edible")
+                    direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="edible")
                     if direction:
                         dx, dy = direction
                         if self.set_new_target(dx, dy, maze):
@@ -369,7 +394,7 @@ class PacMan(Entity):
                 score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
                 closest_score = min(score_options, key=lambda x: x[1])[0]
                 goal = (closest_score.x, closest_score.y)
-                direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="score")
+                direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
                 if direction:
                     dx, dy = direction
                     if self.set_new_target(dx, dy, maze):
@@ -380,7 +405,7 @@ class PacMan(Entity):
                 if edible_ghosts:
                     closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
                     goal = (closest_edible.x, closest_edible.y)
-                    direction = self.find_path(start, goal, maze, ghosts, power_pellets, mode="approach", target_type="edible")
+                    direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="edible")
                     if direction:
                         dx, dy = direction
                         if self.set_new_target(dx, dy, maze):
@@ -390,7 +415,7 @@ class PacMan(Entity):
 
         # 步驟 9: 選擇最安全方向或脫困
         safe_directions = [d for d in directions if maze.xy_valid(current_x + d[0], current_y + d[1]) 
-                         and maze.get_tile(current_x + d[0], current_y + d[1]) not in ['#', 'X', 'D', 'S']]
+                         and maze.get_tile(current_x + d[0], current_y + d[1]) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
         if not safe_directions:
             return False
 

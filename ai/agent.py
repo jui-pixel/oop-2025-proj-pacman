@@ -1,4 +1,3 @@
-# ai/agent.py
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -6,77 +5,54 @@ import torch.nn.functional as F
 import random
 import numpy as np
 import pickle
-from ai.dqn import DuelingDQN
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from collections import deque, namedtuple
+from ai.dqn import DQN, NoisyLinear
 from ai.sumtree import SumTree
 
-class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, lr=1e-4, 
-                 epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_steps=100000, epsilon_warmup_steps=1000,
-                 gamma=0.99, n_step=1, alpha=0.6, beta=0.4, beta_annealing_steps=200000, 
-                 priority_epsilon=1e-5, target_update_freq=100):
-        """
-        Initialize the DQN agent with enhanced epsilon-random exploration.
+Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
-        Args:
-            state_dim (Tuple[int, int, int]): State dimension (C, H, W), e.g., (6, 31, 28).
-            action_dim (int): Number of actions (4).
-            epsilon_start (float): Initial epsilon value.
-            epsilon_end (float): Minimum epsilon value.
-            epsilon_decay_steps (int): Steps to decay epsilon linearly.
-            epsilon_warmup_steps (int): Steps for epsilon warmup.
-            ... (other args unchanged)
-        """
+class DQNAgent:
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=32, 
+                 lr=1e-4, epsilon_start=1.0, epsilon_end=0.10, epsilon_decay_steps=1000000, 
+                 gamma=0.995, target_update_freq=200, n_step=3, alpha=0.6, beta=0.4, beta_increment=0.001):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = torch.device(device)
         self.buffer_size = buffer_size
         self.batch_size = batch_size
+        self.epsilon = epsilon_start
         self.epsilon_start = epsilon_start
         self.epsilon_end = epsilon_end
         self.epsilon_decay_steps = epsilon_decay_steps
-        self.epsilon_warmup_steps = epsilon_warmup_steps
-        self.epsilon = 0.1  # Start low, warmup to epsilon_start
         self.gamma = gamma
-        self.n_step = n_step
-        self.alpha = alpha
-        self.beta = beta
-        self.beta_annealing_steps = beta_annealing_steps
-        self.priority_epsilon = priority_epsilon
         self.target_update_freq = target_update_freq
+        self.n_step = n_step
+        self.alpha = alpha  # Prioritized Replay 優先級指數
+        self.beta = beta    # IS 權重的重要性採樣
+        self.beta_increment = beta_increment
         self.steps = 0
 
-        self.model = DuelingDQN(state_dim, action_dim).to(self.device)
-        self.target_model = DuelingDQN(state_dim, action_dim).to(self.device)
+        self.model = DQN(state_dim, action_dim).to(self.device)
+        self.target_model = DQN(state_dim, action_dim).to(self.device)
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.memory = SumTree(buffer_size)
+        self.n_step_memory = deque(maxlen=n_step)
+        self.max_priority = 1.0
 
     def update_epsilon(self):
-        """
-        Update epsilon with warmup and linear decay.
-        """
-        if self.steps < self.epsilon_warmup_steps:
-            # Linear warmup from 0.1 to epsilon_start
-            self.epsilon = 0.1 + (self.epsilon_start - 0.1) * (self.steps / self.epsilon_warmup_steps)
-        else:
-            # Linear decay from epsilon_start to epsilon_end
-            decay_progress = min((self.steps - self.epsilon_warmup_steps) / self.epsilon_decay_steps, 1.0)
-            self.epsilon = self.epsilon_start - (self.epsilon_start - self.epsilon_end) * decay_progress
+        decay_progress = min(self.steps / self.epsilon_decay_steps, 1.0)
+        self.epsilon = self.epsilon_start - (self.epsilon_start - self.epsilon_end) * decay_progress
 
     def choose_action(self, state):
-        """
-        Select an action using epsilon-greedy policy.
-
-        Args:
-            state (np.ndarray): State of shape (C, H, W).
-        Returns:
-            int: Action index.
-        """
         if random.random() < self.epsilon:
             return random.randrange(self.action_dim)
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)  # (1, C, H, W)
+        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         self.model.eval()
         with torch.no_grad():
             q_values = self.model(state)
@@ -84,43 +60,42 @@ class DQNAgent:
         return q_values.argmax(1).item()
 
     def store_transition(self, state, action, reward, next_state, done):
-        """
-        Store a transition in the replay buffer.
-
-        Args:
-            state (np.ndarray): State of shape (C, H, W).
-            action (int): Action taken.
-            reward (float): Reward received.
-            next_state (np.ndarray): Next state of shape (C, H, W).
-            done (bool): Whether the episode is done.
-        """
-        max_priority = self.memory.total_priority ** self.alpha if self.memory.total_priority > 0 else 1.0
-        self.memory.add(max_priority, (state, action, reward, next_state, done))
+        self.n_step_memory.append((state, action, reward, next_state, done))
+        if len(self.n_step_memory) == self.n_step or done:
+            total_reward = 0
+            final_state = next_state
+            final_done = done
+            for i, (s, a, r, ns, d) in enumerate(reversed(self.n_step_memory)):
+                total_reward = r + self.gamma * total_reward
+                if i == 0:
+                    final_state = s
+                if d:
+                    break
+            transition = Transition(final_state, a, total_reward, next_state, done)
+            priority = self.max_priority if not self.memory.total_priority else self.max_priority
+            self.memory.add(priority, transition)
+            self.n_step_memory.clear()
 
     def sample(self):
-        """
-        Sample a batch of transitions using Prioritized Experience Replay.
+        if self.memory.total_priority == 0:
+            return None, None, None, None, None, None, None
 
-        Returns:
-            Tuple: (states, actions, rewards, next_states, dones, indices, weights)
-        """
-        batch = []
         indices = []
-        priorities = []
+        batch = []
+        weights = []
         segment = self.memory.total_priority / self.batch_size
+        self.beta = min(1.0, self.beta + self.beta_increment)
 
-        self.beta = min(1.0, self.beta + (1.0 - self.beta) / self.beta_annealing_steps)
         for i in range(self.batch_size):
-            a, b = segment * i, segment * (i + 1)
-            v = random.uniform(a, b)
-            idx, priority, data = self.memory.get_leaf(v)
-            batch.append(data)
+            a = segment * i
+            b = segment * (i + 1)
+            s = np.random.uniform(a, b)
+            idx, priority, data = self.memory.get_leaf(s)
             indices.append(idx)
-            priorities.append(priority)
-
-        sampling_probabilities = priorities / self.memory.total_priority
-        weights = (self.memory.capacity * sampling_probabilities) ** (-self.beta)
-        weights /= weights.max()
+            batch.append(data)
+            prob = priority / self.memory.total_priority
+            weight = (self.memory.capacity * prob) ** (-self.beta)
+            weights.append(weight)
 
         states, actions, rewards, next_states, dones = zip(*batch)
         states = torch.FloatTensor(np.array(states)).to(self.device)
@@ -128,41 +103,39 @@ class DQNAgent:
         rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
         next_states = torch.FloatTensor(np.array(next_states)).to(self.device)
         dones = torch.FloatTensor(dones).unsqueeze(1).to(self.device)
-        weights = torch.FloatTensor(weights).unsqueeze(1).to(self.device)
-        return states, actions, rewards, next_states, dones, indices, weights
+        weights = torch.FloatTensor(weights).to(self.device).unsqueeze(1) / max(weights)
+
+        return states, actions, rewards, next_states, dones, weights, indices
 
     def learn(self):
-        """
-        Perform a learning step by sampling a batch and updating the model.
-
-        Returns:
-            float: Loss value, or None if buffer is not full.
-        """
-        if self.memory.data_pointer < self.batch_size:
+        if self.memory.total_priority == 0 or len(self.memory.data) < self.batch_size:
             return None
 
-        states, actions, rewards, next_states, dones, indices, weights = self.sample()
         self.steps += 1
-        self.update_epsilon()  # Update epsilon per step
-
+        self.update_epsilon()
+        self.model.reset_noise()  # Noisy Net 重置噪聲
+        states, actions, rewards, next_states, dones, weights, indices = self.sample()
+        # print(f"States shape: {states.shape}")
         q_values = self.model(states).gather(1, actions)
 
         with torch.no_grad():
-            next_actions = self.model(next_states).argmax(1, keepdim=True)
+            next_actions = self.model(next_states).max(1, keepdim=True)[1]
             next_q_values = self.target_model(next_states).gather(1, next_actions)
-            target_q_values = rewards + (1 - dones) * (self.gamma ** self.n_step) * next_q_values
+            target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
-        loss = (weights * F.mse_loss(q_values, target_q_values, reduction='none')).mean()
-
-        td_errors = torch.abs(q_values - target_q_values).detach().cpu().numpy()
-        for idx, error in zip(indices, td_errors):
-            priority = (error + self.priority_epsilon) ** self.alpha
-            self.memory.update(idx, priority)
+        td_errors = (q_values - target_q_values).abs()
+        loss = (td_errors * weights).mean()
 
         self.optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
         self.optimizer.step()
+
+        # 更新優先級
+        for i, idx in enumerate(indices):
+            priority = td_errors[i].detach().cpu().numpy()[0] + 1e-6  # 避免零優先級
+            self.memory.update(idx, priority)
+            self.max_priority = max(self.max_priority, priority)
 
         if self.steps % self.target_update_freq == 0:
             self.target_model.load_state_dict(self.model.state_dict())
@@ -170,26 +143,19 @@ class DQNAgent:
         return loss.item()
 
     def save(self, model_path, memory_path):
-        """
-        Save the model and replay buffer.
-
-        Args:
-            model_path (str): Path to save the model.
-            memory_path (str): Path to save the replay buffer.
-        """
         torch.save(self.model.state_dict(), model_path)
         with open(memory_path, 'wb') as f:
-            pickle.dump(self.memory, f)
+            pickle.dump(list(self.memory.data), f)  # 儲存 data 陣列
+        print(f"Saved model to {model_path} and memory to {memory_path}")
 
-    def load(self, model_path, memory_path = None):
-        """
-        Load the model and replay buffer.
-
-        Args:
-            model_path (str): Path to load the model.
-            memory_path (str): Path to load the replay buffer.
-        """
+    def load(self, model_path, memory_path=None):
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.target_model.load_state_dict(self.model.state_dict())
-        with open(memory_path, 'rb') as f:
-            self.memory = pickle.load(f)
+        if memory_path and os.path.exists(memory_path):
+            with open(memory_path, 'rb') as f:
+                data = pickle.load(f)
+                for d in data:
+                    if d is not None:
+                        self.memory.add(self.max_priority, d)
+            print(f"Loaded memory from {memory_path}")
+        print(f"Loaded model from {model_path}")
