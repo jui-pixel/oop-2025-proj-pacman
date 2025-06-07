@@ -7,6 +7,7 @@ from .ghost import Ghost1, Ghost2, Ghost3, Ghost4
 from .pellets import PowerPellet, ScorePellet
 from typing import Tuple, List
 import random
+from config import TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN
 
 def initialize_entities(maze) -> Tuple[PacMan, List, List[PowerPellet], List[ScorePellet]]:
     """
@@ -20,7 +21,7 @@ def initialize_entities(maze) -> Tuple[PacMan, List, List[PowerPellet], List[Sco
     """
     # 尋找 Pac-Man 的起始位置
     valid_positions = [(x, y) for y in range(1, maze.height - 1) for x in range(1, maze.width - 1)
-                      if maze.get_tile(x, y) == '.']
+                      if maze.get_tile(x, y) == TILE_PATH]
     
     edge_mid_positions = []
     for x, y in valid_positions:
@@ -41,7 +42,7 @@ def initialize_entities(maze) -> Tuple[PacMan, List, List[PowerPellet], List[Sco
     
     # 初始化鬼魂
     ghost_classes = [Ghost1, Ghost2, Ghost3, Ghost4]
-    ghost_spawn_points = [(x, y) for y in range(maze.height) for x in range(maze.width) if maze.get_tile(x, y) == 'S']
+    ghost_spawn_points = [(x, y) for y in range(maze.height) for x in range(maze.width) if maze.get_tile(x, y) == TILE_GHOST_SPAWN]
     if not ghost_spawn_points:
         raise ValueError("迷宮中沒有'S'格子，無法生成鬼魂！")
     
@@ -54,13 +55,13 @@ def initialize_entities(maze) -> Tuple[PacMan, List, List[PowerPellet], List[Sco
     # 初始化能量球
     power_pellets = []
     a_positions = [(x, y) for y in range(1, maze.height - 1) for x in range(1, maze.width - 1)
-                   if maze.get_tile(x, y) == 'E' and (x, y) != (pacman.x, pacman.y)]
+                   if maze.get_tile(x, y) == TILE_POWER_PELLET and (x, y) != (pacman.x, pacman.y)]
     for x, y in a_positions:
         power_pellets.append(PowerPellet(x, y))
     
     # 初始化分數球
     all_path_positions = [(x, y) for y in range(1, maze.height - 1) for x in range(1, maze.width - 1)
-                         if maze.get_tile(x, y) == '.']
+                         if maze.get_tile(x, y) == TILE_PATH]
     excluded_positions = [(pacman.x, pacman.y)] + ghost_spawn_points + a_positions
     score_positions = [pos for pos in all_path_positions if pos not in excluded_positions]
     score_pellets = [ScorePellet(x, y) for x, y in score_positions]

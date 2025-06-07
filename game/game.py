@@ -8,7 +8,7 @@ from .entities.ghost import *
 from .entities.entity_initializer import initialize_entities
 from .entities.pellets import PowerPellet, ScorePellet
 from .maze_generator import Map
-from config import EDIBLE_DURATION, GHOST_SCORES, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, FPS, CELL_SIZE
+from config import EDIBLE_DURATION, GHOST_SCORES, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, FPS, CELL_SIZE, TILE_GHOST_SPAWN
 from collections import deque
 import pygame
 
@@ -24,11 +24,14 @@ class Game:
         self.maze.generate_maze()  # 生成隨機迷宮
         self.pacman, self.ghosts, self.power_pellets, self.score_pellets = self._initialize_entities()
         self.respawn_points = [(x, y) for y in range(self.maze.height) for x in range(self.maze.width) 
-                               if self.maze.get_tile(x, y) == 'S']  # 鬼魂重生點
+                               if self.maze.get_tile(x, y) == TILE_GHOST_SPAWN]  # 鬼魂重生點
         self.ghost_score_index = 0  # 鬼魂分數索引
         self.running = True  # 遊戲運行狀態
         self.player_name = player_name
         self.start_time = pygame.time.get_ticks()  # 記錄開始時間
+        self.death_animation = False  # 死亡動畫狀態
+        self.death_animation_timer = 0  # 死亡動畫計時器（幀數）
+        self.death_animation_duration = FPS  # 動畫持續1秒（60幀）
 
     def _initialize_entities(self) -> Tuple[PacMan, List[Ghost], List[PowerPellet], List[ScorePellet]]:
         """
@@ -47,6 +50,12 @@ class Game:
             fps (int): 每秒幀數，用於計時。
             move_pacman (Callable[[], None]): 控制 Pac-Man 移動的函數。
         """
+        if self.death_animation:
+            self.death_animation_timer += 1
+            if self.death_animation_timer >= self.death_animation_duration:
+                self.death_animation = False
+            return
+
         move_pacman()  # 移動 Pac-Man
 
         # 檢查是否吃到能量球
@@ -60,8 +69,8 @@ class Game:
 
         # 移動所有鬼魂
         for ghost in self.ghosts:
-            if ghost.move_towards_target():
-                if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == 'S':
+            if ghost.move_towards_target(FPS):
+                if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == TILE_GHOST_SPAWN:
                     ghost.set_waiting(fps)  # 鬼魂到達重生點後等待
                 elif ghost.returning_to_spawn:
                     ghost.return_to_spawn(self.maze)
@@ -77,11 +86,14 @@ class Game:
 
     def _check_collision(self, fps: int) -> None:
         """
-        檢查 Pac-Man 與鬼魂的碰撞，根據鬼魂狀態更新分數或結束遊戲。
+        檢查 Pac-Man 與鬼魂的碰撞，根據鬼魂狀態更新分數或觸發死亡動畫。
 
         Args:
             fps (int): 每秒幀數，用於計時。
         """
+        if not self.running:
+            return
+        
         for ghost in self.ghosts:
             distance = ((self.pacman.current_x - ghost.current_x) ** 2 + 
                         (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
@@ -91,9 +103,17 @@ class Game:
                     self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)
                     ghost.set_returning_to_spawn(fps)  # 鬼魂返回重生點
                 elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
-                    print(f"Game Over! Score: {self.pacman.score}")
-                    self.running = False  # 遊戲結束
-                break
+                    self.pacman.lose_life(self.maze)
+                    for g in self.ghosts:  # 所有鬼魂返回重生點
+                        g.set_returning_to_spawn(fps)
+                    if self.pacman.lives <= 0:
+                        self.running = False  # 遊戲結束
+                        print(f"Game Over! Score: {self.pacman.score}")
+                        self.death_animation = True  # 觸發死亡動畫
+                        self.death_animation_timer = 0
+                    else:
+                        print(f"Life lost! Remaining lives: {self.pacman.lives}")
+                    break
 
     def is_running(self) -> bool:
         """
@@ -102,7 +122,25 @@ class Game:
         Returns:
             bool: 遊戲運行狀態。
         """
-        return self.running
+        return self.running and self.pacman.lives > 0
+
+    def is_death_animation_playing(self) -> bool:
+        """
+        檢查死亡動畫是否正在播放。
+
+        Returns:
+            bool: 死亡動畫狀態。
+        """
+        return self.death_animation
+
+    def get_death_animation_progress(self) -> float:
+        """
+        獲取死亡動畫進度（0到1）。
+
+        Returns:
+            float: 動畫進度。
+        """
+        return min(self.death_animation_timer / self.death_animation_duration, 1.0)
 
     def end_game(self) -> None:
         """
@@ -155,6 +193,15 @@ class Game:
             List[Ghost]: 鬼魂列表。
         """
         return self.ghosts
+
+    def get_lives(self) -> int:
+        """
+        獲取玩家剩餘生命數。
+
+        Returns:
+            int: 剩餘生命數。
+        """
+        return self.pacman.lives
 
     def get_final_score(self) -> int:
         """

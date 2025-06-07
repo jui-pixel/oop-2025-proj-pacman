@@ -75,17 +75,20 @@ def main():
 
     # 主遊戲迴圈
     while True:
-        if not paused and game.is_running():
+        if not paused and (game.is_running() or game.is_death_animation_playing()):
             frame_count += 1
 
             # 處理 Pygame 事件
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     game.end_game()
+                    pygame.quit()
+                    sys.exit()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         paused = True
-                control_manager.handle_event(event)  # 處理鍵盤輸入或切換模式
+                if not game.is_death_animation_playing():
+                    control_manager.handle_event(event)  # 處理鍵盤輸入或切換模式
 
             # 更新遊戲狀態
             if not paused:
@@ -110,7 +113,7 @@ def main():
         pygame.display.flip()  # 更新畫面
         clock.tick(FPS)  # 控制幀率
 
-        if not paused and not game.is_running():
+        if not paused and not game.is_running() and not game.is_death_animation_playing():
             # 遊戲結束，儲存數據並顯示結果
             final_score = game.get_final_score()
             won = game.did_player_win()
