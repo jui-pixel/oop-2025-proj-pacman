@@ -4,28 +4,20 @@ import numpy as np
 import torch
 import json
 from torch.utils.tensorboard import SummaryWriter
-from gym.vector import SyncVectorEnv
 from environment import PacManEnv
 from agent import DQNAgent
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
 
-def make_env(seed=MAZE_SEED):
-    """Create a single PacManEnv environment."""
-    def _env():
-        return PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=seed)
-    return _env
-
 def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.pkl", 
-          episodes=1000, num_envs=4, early_stop_reward=2000):
+          episodes=1000, early_stop_reward=2000):
     """
-    Train a basic DQN agent with parallel environments and early stopping, with reduced terminal output frequency.
+    Train a basic DQN agent with a single environment and early stopping.
 
     Args:
         resume (bool): Whether to resume from a previous model.
         model_path (str): Path to save/load the model.
         memory_path (str): Path to save/load the replay buffer.
         episodes (int): Number of training episodes.
-        num_envs (int): Number of parallel environments.
         early_stop_reward (float): Average reward threshold for early stopping.
 
     Returns:
@@ -34,11 +26,11 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training on {device}")
 
-    # Initialize parallel environments
-    envs = SyncVectorEnv([make_env(seed=MAZE_SEED + i) for i in range(num_envs)])
-    state_dim = envs.single_observation_space.shape
-    action_dim = envs.single_action_space.n
-
+    # Initialize single environment
+    env = PacManEnv(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED)
+    state_dim = env.observation_space.shape
+    action_dim = env.action_space.n
+    pacman = env.pacman
     # Initialize agent
     agent = DQNAgent(state_dim=state_dim, action_dim=action_dim, device=device)
     if resume and os.path.exists(model_path):
@@ -50,44 +42,41 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
     recent_rewards = []
 
     # Training loop
-    states, _ = envs.reset()
+    state, _ = env.reset()
     for episode in range(episodes):
-        total_rewards = np.zeros(num_envs)
-        step_counts = np.zeros(num_envs, dtype=int)
-        dones = np.zeros(num_envs, dtype=bool)
+        total_reward = 0
+        step_count = 0
+        done = False
+        state, _ = env.reset()
+        while not done:
+            if pacman.move_towards_target():
+                action = agent.choose_action(state)
+                next_state, reward, terminated, truncated, info = env.step(action)
+                done = terminated or truncated
 
-        while not dones.all():
-            actions = [agent.choose_action(state) for state in states]
-            next_states, rewards, terminated, truncated, infos = envs.step(actions)
-            dones = np.logical_or(terminated, truncated)
+                agent.store_transition(state, action, reward, next_state, done)
+                total_reward += reward
+                step_count += 1
 
-            for i in range(num_envs):
-                agent.store_transition(states[i], actions[i], rewards[i], next_states[i], dones[i])
-                total_rewards[i] += rewards[i]
-                step_counts[i] += 1
+                loss = agent.learn()
+                if loss is not None:
+                    writer.add_scalar('Loss', loss, agent.steps)
 
-            loss = agent.learn()
-            if loss is not None:
-                writer.add_scalar('Loss', loss, agent.steps)
-
-            states = next_states
+                state = next_state
 
         # Record results
-        avg_reward = np.mean(total_rewards)
-        episode_rewards.append(avg_reward)
-        recent_rewards.append(avg_reward)
+        episode_rewards.append(total_reward)
+        recent_rewards.append(total_reward)
         if len(recent_rewards) > 100:
             recent_rewards.pop(0)
 
-        # Print progress every 10 episodes
-        if (episode + 1) % 10 == 0:
-            print(f"Episode {episode+1}/{episodes}, Avg Reward: {avg_reward:.2f}, "
-                  f"Steps: {int(np.mean(step_counts))}, Epsilon: {agent.epsilon:.3f}")
+        # Print progress every episode
+        if (episode + 1) % 1 == 0:
+            print(f"Episode {episode+1}/{episodes}, Reward: {total_reward:.2f}, "
+                  f"Steps: {step_count}, Epsilon: {agent.epsilon:.3f}")
 
         # Log to TensorBoard
-        writer.add_scalar('Reward/Average', avg_reward, episode)
-        for i in range(num_envs):
-            writer.add_scalar(f'Reward/Env{i+1}', total_rewards[i], episode)
+        writer.add_scalar('Reward', total_reward, episode)
         writer.add_scalar('Epsilon', agent.epsilon, episode)
 
         # Save model periodically
@@ -106,7 +95,7 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         json.dump(episode_rewards, f)
 
     writer.close()
-    envs.close()
+    env.close()
     print("Training completed")
     return episode_rewards
 
@@ -114,9 +103,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Pac-Man DQN Agent")
     parser.add_argument('--resume', action='store_true', help='Resume from previous model')
     parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes')
-    parser.add_argument('--num_envs', type=int, default=4, help='Number of parallel environments')
     parser.add_argument('--early_stop_reward', type=float, default=2000, help='Reward threshold for early stopping')
     args = parser.parse_args()
 
-    train(resume=args.resume, episodes=args.episodes, num_envs=args.num_envs, 
-          early_stop_reward=args.early_stop_reward)
+    train(resume=args.resume, episodes=args.episodes, early_stop_reward=args.early_stop_reward)

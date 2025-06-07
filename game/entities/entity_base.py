@@ -24,7 +24,7 @@ class Entity:
         self.current_y = y * CELL_SIZE + CELL_SIZE // 2
         self.speed = ENTITY_DEFAULT_SPEED  # 移動速度（像素/幀）
 
-    def move_towards_target(self) -> bool:
+    def move_towards_target(self, fps : int) -> bool:
         """
         逐像素移動到目標格子，防止速度溢出。
         
@@ -37,7 +37,7 @@ class Entity:
         dy = target_pixel_y - self.current_y
         dist = (dx ** 2 + dy ** 2) ** 0.5
         
-        if dist <= self.speed:
+        if dist <= self.speed / fps:
             self.current_x = target_pixel_x
             self.current_y = target_pixel_y
             self.x = self.target_x
@@ -45,7 +45,7 @@ class Entity:
             return True
         else:
             if dist != 0:
-                move_dist = min(self.speed, dist)
+                move_dist = min(self.speed / fps, dist)
                 self.current_x += (dx / dist) * move_dist
                 self.current_y += (dy / dist) * move_dist
             return False

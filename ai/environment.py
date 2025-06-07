@@ -4,7 +4,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import numpy as np
 from gym.spaces import Discrete, Box
 from game.game import Game
-from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, CELL_SIZE, FPS
+from config import *
+from typing import Callable
 
 class PacManEnv(Game):
     metadata = {"render_modes": [], "render_fps": None}
@@ -59,6 +60,7 @@ class PacManEnv(Game):
                 state[3, ghost.y, ghost.x] = 1.0
             else:
                 state[4, ghost.y, ghost.x] = 1.0
+        # print(f"State shape from _get_state: {state.shape}")
         return state
 
     def reset(self, seed=None):
@@ -82,7 +84,76 @@ class PacManEnv(Game):
         self.frame_count = 0
         state = self._get_state()
         return np.array(state, dtype=np.float32), {}
+    
+    def update(self, fps: int, move_pacman: Callable[[], None]) -> None:
+        """
+        更新遊戲狀態，包括移動 Pac-Man、鬼魂和檢查碰撞。
 
+        Args:
+            fps (int): 每秒幀數，用於計時。
+            move_pacman (Callable[[], None]): 控制 Pac-Man 移動的函數。
+        """
+
+        move_pacman()  # 移動 Pac-Man
+
+        # 檢查是否吃到能量球
+        score_from_pellet = self.pacman.eat_pellet(self.power_pellets)
+        if score_from_pellet > 0:
+            for ghost in self.ghosts:
+                ghost.set_edible(EDIBLE_DURATION)  # 設置鬼魂為可吃狀態
+
+        # 檢查是否吃到分數球
+        self.pacman.eat_score_pellet(self.score_pellets)
+
+        # 移動所有鬼魂
+        for ghost in self.ghosts:
+            if ghost.move_towards_target():
+                if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == TILE_GHOST_SPAWN:
+                    ghost.set_waiting(fps)  # 鬼魂到達重生點後等待
+                elif ghost.returning_to_spawn:
+                    ghost.return_to_spawn(self.maze)
+                else:
+                    ghost.move(self.pacman, self.maze, fps)  # 執行鬼魂移動邏輯
+
+        # 檢查碰撞
+        self._check_collision(fps)
+
+        if not self.power_pellets and not self.score_pellets:
+            print(f"Game Won! All pellets collected. Final Score: {self.pacman.score}")
+            self.running = False  # 遊戲結束
+            self.game_over = True
+            
+
+    def _check_collision(self, fps: int) -> None:
+        """
+        檢查 Pac-Man 與鬼魂的碰撞，根據鬼魂狀態更新分數或觸發死亡動畫。
+
+        Args:
+            fps (int): 每秒幀數，用於計時。
+        """
+        if not self.running:
+            return
+        
+        for ghost in self.ghosts:
+            distance = ((self.pacman.current_x - ghost.current_x) ** 2 + 
+                        (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
+            if distance < CELL_SIZE / 2:  # 碰撞檢測
+                if ghost.edible and ghost.edible_timer > 0:
+                    self.pacman.score += GHOST_SCORES[self.ghost_score_index]  # 增加分數
+                    self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)
+                    ghost.set_returning_to_spawn(fps)  # 鬼魂返回重生點
+                elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
+                    self.pacman.lose_life(self.maze)
+                    for g in self.ghosts:  # 所有鬼魂返回重生點
+                        g.set_returning_to_spawn(fps)
+                    if self.pacman.lives <= 0:
+                        self.running = False  # 遊戲結束
+                        self.game_over = True 
+                        print(f"Game Over! Score: {self.pacman.score}")
+                    else:
+                        print(f"Life lost! Remaining lives: {self.pacman.lives}")
+                    break
+                
     def step(self, action):
         """
         執行一步動作，更新遊戲狀態並返回結果。
@@ -93,6 +164,7 @@ class PacManEnv(Game):
         Returns:
             tuple: (下一狀態, 獎勵, 是否終止, 是否截斷, 資訊字典)。
         """
+
         if not 0 <= action < 4:
             print(f"Invalid action: {action}")
             raise ValueError(f"Invalid action: {action}")
@@ -125,13 +197,9 @@ class PacManEnv(Game):
         # 計算獎勵：基於分數變化
         reward = self.current_score - old_score
 
-        # 檢查遊戲結束條件
-        if not self.power_pellets and not self.score_pellets:
-            self.game_over = True
-            print("All pellets eaten, game won")
-        elif self.pacman.lives <= 0:
-            self.game_over = True
-            print(f"Game over, no lives left, final score: {self.current_score}")
+        truncated = False
+        if self.game_over:
+            truncated = True
 
         next_state = np.array(self._get_state(), dtype=np.float32)
         info = {
@@ -141,7 +209,6 @@ class PacManEnv(Game):
             "total_pellets": self.total_pellets
         }
         terminated = self.game_over
-        truncated = False
         self.frame_count += 1
         return next_state, reward, terminated, truncated, info
 

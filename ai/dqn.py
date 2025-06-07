@@ -1,68 +1,78 @@
-"""
-定義基礎深度 Q 網路 (DQN) 模型，使用卷積神經網路 (CNN) 處理 Pac-Man 遊戲的狀態輸入。
-此模型設計與 agent.py 中的 DQNAgent 類兼容，支援基礎 DQN 的訓練。
-"""
-
 import torch
 import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import random
 import numpy as np
+import pickle
+import os
+from collections import deque, namedtuple
+
+class NoisyLinear(nn.Module):
+    def __init__(self, in_features, out_features, sigma=0.5):
+        super(NoisyLinear, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.sigma = sigma
+        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
+        self.weight_sigma = nn.Parameter(torch.Tensor(out_features, in_features))
+        self.bias_mu = nn.Parameter(torch.Tensor(out_features))
+        self.bias_sigma = nn.Parameter(torch.Tensor(out_features))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.xavier_uniform_(self.weight_mu)
+        nn.init.xavier_uniform_(self.weight_sigma)
+        nn.init.zeros_(self.bias_mu)
+        nn.init.zeros_(self.bias_sigma)
+
+    def forward(self, x):
+        # print(f"NoisyLinear input shape: {x.shape}")
+        x = x.contiguous()  # 確保連續性
+        if x.dim() != 2 or x.size(1) != self.in_features:
+            raise ValueError(f"Expected input shape (batch_size, {self.in_features}), got {x.shape}")
+        # print(f"Before matmul, x shape: {x.shape}")
+        eps_in = torch.randn(self.in_features).to(x.device)
+        eps_out = torch.randn(self.out_features).to(x.device)
+        # 修正權重計算，移除 unsqueeze(0)
+        weight_noise = eps_out.unsqueeze(1) * eps_in  # 形狀 (512, 7744)
+        weight = self.weight_mu + self.weight_sigma * weight_noise
+        # print(f"Weight shape: {weight.shape}")
+        bias = self.bias_mu + self.bias_sigma * eps_out
+        return x @ weight.transpose(0, 1) + bias
 
 class DQN(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        """
-        初始化基礎 DQN 模型，包含 2 層卷積層和 2 層全連接層。
-
-        Args:
-            input_dim (Tuple[int, int, int]): 輸入維度 (通道數, 高度, 寬度)，例如 (6, 31, 28)。
-                - 通道數 6 分別表示 Pac-Man、能量球、分數球、可食用鬼魂、普通鬼魂和牆壁。
-            output_dim (int): 輸出維度，對應動作數量（例如 4，表示上、下、左、右）。
-        """
+    def __init__(self, state_dim, action_dim):
         super(DQN, self).__init__()
-        self.input_channels = input_dim[0]
-        self.input_height = input_dim[1]
-        self.input_width = input_dim[2]
+        self.conv1 = nn.Conv2d(state_dim[0], 32, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
+        # 動態計算卷積輸出形狀
+        def conv_output_shape(h, w, kernel_size=3, stride=1, padding=0):
+            return ((h + 2 * padding - kernel_size) // stride) + 1
+        h = conv_output_shape(state_dim[1], state_dim[2], stride=1, padding=1)  # 後 conv1
+        w = conv_output_shape(state_dim[2], state_dim[2], stride=1, padding=1)
+        h = conv_output_shape(h, w, stride=2, padding=1)  # 後 conv2
+        w = conv_output_shape(w, w, stride=2, padding=1)
+        conv_out_size = 64 * h * w  # 64 是 conv2 的輸出通道數
+        self.fc1 = NoisyLinear(conv_out_size, 512)
+        self.fc2_value = NoisyLinear(512, 1)
+        self.fc2_advantage = NoisyLinear(512, action_dim)
 
-        # 定義卷積層序列，提取特徵
-        self.feature = nn.Sequential(
-            nn.Conv2d(self.input_channels, 32, kernel_size=3, stride=1, padding=1),  # (6, H, W) -> (32, H, W)
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),  # (32, H, W) -> (64, H/2, W/2)
-            nn.ReLU()
-        )
-
-        # 計算卷積層輸出的展平大小
-        self.conv_out_size = self._get_conv_out(input_dim)
-
-        # 定義全連接層
-        self.fc = nn.Sequential(
-            nn.Linear(self.conv_out_size, 512),  # 展平後映射到 512 維
-            nn.ReLU(),
-            nn.Linear(512, output_dim)  # 輸出動作 Q 值
-        )
-
-    def _get_conv_out(self, input_shape):
-        """
-        計算卷積層輸出的展平大小。
-
-        Args:
-            input_shape (Tuple[int, int, int]): 輸入張量的形狀 (通道數, 高度, 寬度)。
-        Returns:
-            int: 展平後的輸出大小。
-        """
-        o = self.feature(torch.zeros(1, input_shape[0], input_shape[1], input_shape[2]))
-        return int(np.prod(o.size()))
-
-    def forward(self, state):
-        """
-        前向傳播，計算動作的 Q 值。
-
-        Args:
-            state (torch.Tensor): 輸入狀態張量，形狀為 (batch_size, channels, height, width)。
-
-        Returns:
-            torch.Tensor: 輸出 Q 值張量，形狀為 (batch_size, output_dim)。
-        """
-        features = self.feature(state)
-        features = features.view(features.size(0), -1)
-        q_values = self.fc(features)
+    def forward(self, x):
+        # print(f"Input x shape: {x.shape}")
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        batch_size = x.size(0)
+        x = x.contiguous().view(batch_size, -1)  # 強制 contiguous
+        # print(f"Before fc1, x shape: {x.shape}")
+        x = x.contiguous()  # 額外確保連續性
+        x = F.relu(self.fc1(x))
+        value = self.fc2_value(x)
+        advantage = self.fc2_advantage(x)
+        q_values = value + (advantage - advantage.mean(dim=1, keepdim=True))
         return q_values
+    
+    def reset_noise(self):
+        self.fc1.reset_parameters()
+        self.fc2_value.reset_parameters()
+        self.fc2_advantage.reset_parameters()
