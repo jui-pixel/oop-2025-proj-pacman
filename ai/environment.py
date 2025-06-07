@@ -166,36 +166,33 @@ class PacManEnv(Game):
         """
 
         if not 0 <= action < 4:
-            print(f"Invalid action: {action}")
             raise ValueError(f"Invalid action: {action}")
 
         old_score = self.current_score
-        # old_pellets_count = len(self.power_pellets) + len(self.score_pellets)
-        # old_x, old_y = self.pacman.x, self.pacman.y
+        moved = False
 
         def move_pacman():
-            if self.pacman.move_towards_target():
-                directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
-                dx, dy = directions[action]
-                self.pacman.set_new_target(dx, dy, self.maze)
-            
-            # new_x, new_y = self.pacman.x + dx, self.pacman.y + dy
-            # if self.maze.get_tile(new_x, new_y) not in ['#', 'X']:  # 檢查目標是否為牆
-            #     self.pacman.set_new_target(dx, dy, self.maze)
-            #     print(f"Attempting move: Action={action}, From=({self.pacman.x}, {self.pacman.y}), To=({new_x}, {new_y})")
-            # else:
-            #     print(f"Move blocked: Action={action}, Target=({new_x}, {new_y}) is wall")
+            nonlocal moved
+            directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+            dx, dy = directions[action]
+            new_x, new_y = self.pacman.x + dx, self.pacman.y + dy
+            if self.maze.get_tile(new_x, new_y) not in ['#', 'X']:
+                if self.pacman.move_towards_target(FPS):  # 僅在到達當前目標時設置新目標
+                    self.pacman.set_new_target(dx, dy, self.maze)
+                    moved = True
 
         try:
-            self.update(FPS, move_pacman)  # 直接調用 Game 的 update 方法
+            self.update(FPS, move_pacman)
         except Exception as e:
             print(f"Game update failed: {str(e)}")
             raise RuntimeError(f"Game update failed: {str(e)}")
 
         self.current_score = self.pacman.score
-
-        # 計算獎勵：基於分數變化
         reward = self.current_score - old_score
+        if moved and (self.pacman.eat_pellet(self.power_pellets) > 0 or self.pacman.eat_score_pellet(self.score_pellets)):
+            reward += 10
+        if self.game_over and self.pacman.lives <= 0:
+            reward -= 100
 
         truncated = False
         if self.game_over:
