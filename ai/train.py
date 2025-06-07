@@ -59,8 +59,8 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
                 if loss is not None:
                     writer.add_scalar('Loss', loss, agent.steps)
 
-            total_reward += reward
-            step_count += 1
+                total_reward += reward
+                step_count += 1
             state = next_state
 
         # Record results

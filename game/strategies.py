@@ -74,7 +74,7 @@ class DQNAIControl(ControlStrategy):
         if not PYTORCH_AVAILABLE:
             raise ImportError("PyTorch is required for DQN AI.")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.agent = DQNAgent((6, maze_height, maze_width), 4, self.device, 10000, 128, 1e-4, 0.01)
+        self.agent = DQNAgent((6, maze_height, maze_width), 4, self.device, 100000, 128, 1e-4, 0.01)
         try:
             self.agent.load("pacman_dqn.pth")
             self.agent.epsilon = 0.0
