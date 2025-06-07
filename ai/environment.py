@@ -107,7 +107,7 @@ class PacManEnv(Game):
 
         # 移動所有鬼魂
         for ghost in self.ghosts:
-            if ghost.move_towards_target():
+            if ghost.move_towards_target(FPS):
                 if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == TILE_GHOST_SPAWN:
                     ghost.set_waiting(fps)  # 鬼魂到達重生點後等待
                 elif ghost.returning_to_spawn:
