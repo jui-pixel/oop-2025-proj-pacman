@@ -16,7 +16,7 @@ try:
     import torch
     import numpy as np
     PYTORCH_AVAILABLE = True  # 標記 PyTorch 可用
-except ImportError:
+except ImportError as e:
     PYTORCH_AVAILABLE = False  # 無 PyTorch 時回退到規則 AI
     print("PyTorch not found. AI mode will use rule-based AI instead.")
 
@@ -76,7 +76,7 @@ class DQNAIControl(ControlStrategy):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.agent = DQNAgent((6, maze_height, maze_width), 4, self.device, 10000, 128, 1e-4, 0.01)
         try:
-            self.agent.load("pacman_dqn_final.pth")
+            self.agent.load("pacman_dqn.pth")
             self.agent.epsilon = 0.0
         except FileNotFoundError:
             print("Model file 'pacman_dqn_final.pth' not found. Please train the model first.")
@@ -94,7 +94,7 @@ class DQNAIControl(ControlStrategy):
                         state[1, pellet.y, pellet.x] = 1.0
                     for pellet in score_pellets:
                         state[2, pellet.y, pellet.x] = 1.0
-                    for ghost in self.ghosts:
+                    for ghost in ghosts:
                         if ghost.edible and ghost.edible_timer > 0 and not ghost.returning_to_spawn:
                             state[3, ghost.y, ghost.x] = 1.0
                         else:

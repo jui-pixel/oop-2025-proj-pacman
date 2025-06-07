@@ -6,9 +6,11 @@ import random
 import numpy as np
 import pickle
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from collections import deque, namedtuple
-from dqn import DQN, NoisyLinear
-from sumtree import SumTree
+from ai.dqn import DQN, NoisyLinear
+from ai.sumtree import SumTree
 
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
