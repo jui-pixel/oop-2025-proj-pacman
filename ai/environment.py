@@ -135,6 +135,7 @@ class PacManEnv(Game):
 
         next_state = np.array(self._get_state(), dtype=np.float32)
         terminated = self.game_over
+        truncated = False
         self.frame_count += 1
         return next_state, reward, terminated, truncated
 
