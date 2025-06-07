@@ -49,19 +49,18 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         done = False
         state, _ = env.reset()
         while not done:
-            
             action = agent.choose_action(state)
             next_state, reward, terminated, truncated, info = env.step(action)
             done = terminated or truncated
 
-            agent.store_transition(state, action, reward, next_state, done)
+            if info.get("valid_step", True):  # 僅在移動完成時存儲和學習
+                agent.store_transition(state, action, reward, next_state, done)
+                loss = agent.learn()
+                if loss is not None:
+                    writer.add_scalar('Loss', loss, agent.steps)
+
             total_reward += reward
             step_count += 1
-
-            loss = agent.learn()
-            if loss is not None:
-                writer.add_scalar('Loss', loss, agent.steps)
-
             state = next_state
 
         # Record results

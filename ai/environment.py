@@ -210,6 +210,13 @@ class PacManEnv(Game):
         }
         terminated = self.game_over
         self.frame_count += 1
+        
+        if not moved and not terminated:
+            reward = 0  # 移動中無獎勵
+            info["valid_step"] = False
+        else:
+            info["valid_step"] = True
+        
         return next_state, reward, terminated, truncated, info
 
     def close(self):
