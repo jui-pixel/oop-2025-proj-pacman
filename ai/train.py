@@ -58,7 +58,7 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
 
         while not dones.all():
             actions = [agent.choose_action(state) for state in states]
-            next_states, rewards, terminated, truncated = envs.step(actions)
+            next_states, rewards, terminated, truncated, infos = envs.step(actions)
             dones = np.logical_or(terminated, truncated)
 
             for i in range(num_envs):

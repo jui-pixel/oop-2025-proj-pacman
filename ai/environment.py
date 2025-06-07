@@ -134,10 +134,16 @@ class PacManEnv(Game):
             print(f"Game over, no lives left, final score: {self.current_score}")
 
         next_state = np.array(self._get_state(), dtype=np.float32)
+        info = {
+            "frame_count": self.frame_count,
+            "current_score": self.current_score,
+            "eaten_pellets": self.eaten_pellets,
+            "total_pellets": self.total_pellets
+        }
         terminated = self.game_over
         truncated = False
         self.frame_count += 1
-        return next_state, reward, terminated, truncated
+        return next_state, reward, terminated, truncated, info
 
     def close(self):
         """
