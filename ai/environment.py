@@ -81,7 +81,6 @@ class PacManEnv(Game):
         self.current_score = 0
         self.frame_count = 0
         state = self._get_state()
-        print(f"Reset: Pac-Man at ({self.pacman.x}, {self.pacman.y}), Ghosts at {[f'({g.x}, {g.y})' for g in self.ghosts]}, Lives={self.pacman.lives}")
         return np.array(state, dtype=np.float32), {}
 
     def step(self, action):
@@ -103,9 +102,17 @@ class PacManEnv(Game):
         old_x, old_y = self.pacman.x, self.pacman.y
 
         def move_pacman():
-            directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
-            dx, dy = directions[action]
-            self.pacman.set_new_target(dx, dy, self.maze)
+            if self.pacman.move_towards_target():
+                directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+                dx, dy = directions[action]
+                self.pacman.set_new_target(dx, dy, self.maze)
+            
+            # new_x, new_y = self.pacman.x + dx, self.pacman.y + dy
+            # if self.maze.get_tile(new_x, new_y) not in ['#', 'X']:  # 檢查目標是否為牆
+            #     self.pacman.set_new_target(dx, dy, self.maze)
+            #     print(f"Attempting move: Action={action}, From=({self.pacman.x}, {self.pacman.y}), To=({new_x}, {new_y})")
+            # else:
+            #     print(f"Move blocked: Action={action}, Target=({new_x}, {new_y}) is wall")
 
         try:
             self.update(FPS, move_pacman)  # 直接調用 Game 的 update 方法
@@ -114,11 +121,9 @@ class PacManEnv(Game):
             raise RuntimeError(f"Game update failed: {str(e)}")
 
         self.current_score = self.pacman.score
-        new_pellets_count = len(self.power_pellets) + len(self.score_pellets)
 
-        # 計算獎勵：基於分數變化，減去時間懲罰
+        # 計算獎勵：基於分數變化
         reward = self.current_score - old_score
-        reward -= 0.01  # 時間懲罰
 
         # 檢查遊戲結束條件
         if not self.power_pellets and not self.score_pellets:
@@ -128,27 +133,10 @@ class PacManEnv(Game):
             self.game_over = True
             print(f"Game over, no lives left, final score: {self.current_score}")
 
-        # 記錄與最近球的距離
-        min_pellet_dist = min(
-            [((self.pacman.x - pellet.x) ** 2 + (self.pacman.y - pellet.y) ** 2) ** 0.5 
-             for pellet in self.score_pellets + self.power_pellets] + [float('inf')]
-        )
-        print(f"Distance to nearest pellet: {min_pellet_dist:.2f}")
-
         next_state = np.array(self._get_state(), dtype=np.float32)
         terminated = self.game_over
-        truncated = False
-        info = {
-            'score': self.current_score,
-            'game_over': self.game_over,
-            'eaten_pellets': self.total_pellets - new_pellets_count,
-            'total_pellets': self.total_pellets,
-            'lives': self.pacman.lives,
-            'min_pellet_dist': min_pellet_dist
-        }
         self.frame_count += 1
-        print(f"Step: Action={action}, Reward={reward:.2f}, Lives={self.pacman.lives}, Terminated={terminated}, Score={self.current_score}")
-        return next_state, reward, terminated, truncated, info
+        return next_state, reward, terminated, truncated
 
     def close(self):
         """
