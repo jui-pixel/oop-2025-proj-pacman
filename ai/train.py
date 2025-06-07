@@ -114,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument('--resume', action='store_true', help='Resume from previous model')
     parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes')
     parser.add_argument('--num_envs', type=int, default=4, help='Number of parallel environments')
-    parser.add_argument('--early_stop_reward', type=float, default=500, help='Reward threshold for early stopping')
+    parser.add_argument('--early_stop_reward', type=float, default=2000, help='Reward threshold for early stopping')
     args = parser.parse_args()
 
     train(resume=args.resume, episodes=args.episodes, num_envs=args.num_envs, 
