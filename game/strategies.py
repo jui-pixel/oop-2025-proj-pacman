@@ -132,11 +132,11 @@ class ControlManager:
         if self.current_strategy == self.player_control:
             self.player_control.handle_event(event)
 
-    def move(self, pacman, maze, power_pellets, score_pellets, ghosts) -> bool:
-        self.moving = self.current_strategy.move(pacman, maze, power_pellets, score_pellets, ghosts, self.moving)
-        if self.moving and pacman.move_towards_target():
-            self.moving = False
-        return self.moving
+    def move(self, pacman, maze, power_pellets, score_pellets, ghosts) -> None:
+        if pacman.move_towards_target():
+            self.current_strategy.move(pacman, maze, power_pellets, score_pellets, ghosts, self.moving)
+        
+        
 
     def get_mode_name(self) -> str:
         if self.current_strategy == self.player_control:

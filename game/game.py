@@ -54,15 +54,6 @@ class Game:
             self.death_animation_timer += 1
             if self.death_animation_timer >= self.death_animation_duration:
                 self.death_animation = False
-                self.death_animation_timer = 0
-                self.pacman.lose_life(self.maze)
-                for g in self.ghosts:
-                    g.set_returning_to_spawn(fps)
-                if self.pacman.lives <= 0:
-                    print(f"Game Over! Score: {self.pacman.score}")
-                    self.running = False
-                else:
-                    print(f"Life lost! Remaining lives: {self.pacman.lives}")
             return
 
         move_pacman()  # 移動 Pac-Man
@@ -100,6 +91,9 @@ class Game:
         Args:
             fps (int): 每秒幀數，用於計時。
         """
+        if not self.running:
+            return
+        
         for ghost in self.ghosts:
             distance = ((self.pacman.current_x - ghost.current_x) ** 2 + 
                         (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
@@ -113,10 +107,10 @@ class Game:
                     for g in self.ghosts:  # 所有鬼魂返回重生點
                         g.set_returning_to_spawn(fps)
                     if self.pacman.lives <= 0:
+                        self.running = False  # 遊戲結束
                         print(f"Game Over! Score: {self.pacman.score}")
                         self.death_animation = True  # 觸發死亡動畫
                         self.death_animation_timer = 0
-                        self.running = False  # 遊戲結束
                     else:
                         print(f"Life lost! Remaining lives: {self.pacman.lives}")
                     break
