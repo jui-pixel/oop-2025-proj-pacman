@@ -19,7 +19,7 @@ FPS = 30
 MAZE_WIDTH = 21
 MAZE_HEIGHT = 21
 MAZE_SEED = 1
-EDIBLE_DURATION = 100
+EDIBLE_DURATION = 30
 GHOST_SCORES = [50, 100, 150, 200]
 
 # Speed constants (pixels per frame)

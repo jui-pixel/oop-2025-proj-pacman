@@ -77,11 +77,25 @@ class Renderer:
 
         # 渲染 Pac-Man
         pacman = game.get_pacman()
-        pacman_rect = pygame.Rect(
+        
+        if game.is_death_animation_playing():
+            # 死亡動畫：縮小Pac-Man
+            progress = game.get_death_animation_progress()
+            scale = 1.0 - progress  # 從1縮小到0
+            radius = int(CELL_SIZE // 2 * scale)
+            pacman_center = (
+                pacman.current_x,
+                pacman.current_y,
+                )
+            if radius > 0:
+                pygame.draw.circle(self.screen, YELLOW, pacman_center, radius)
+        else:
+            # 正常繪製Pac-Man
+            pacman_rect = pygame.Rect(
             pacman.current_x - CELL_SIZE // 4,
             pacman.current_y - CELL_SIZE // 4,
             CELL_SIZE // 2, CELL_SIZE // 2)
-        pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)
+            pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)
 
         # 渲染鬼魂
         for ghost in game.get_ghosts():

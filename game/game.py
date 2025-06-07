@@ -29,6 +29,9 @@ class Game:
         self.running = True  # 遊戲運行狀態
         self.player_name = player_name
         self.start_time = pygame.time.get_ticks()  # 記錄開始時間
+        self.death_animation = False  # 死亡動畫狀態
+        self.death_animation_timer = 0  # 死亡動畫計時器（幀數）
+        self.death_animation_duration = FPS  # 動畫持續1秒（60幀）
 
     def _initialize_entities(self) -> Tuple[PacMan, List[Ghost], List[PowerPellet], List[ScorePellet]]:
         """
@@ -47,6 +50,21 @@ class Game:
             fps (int): 每秒幀數，用於計時。
             move_pacman (Callable[[], None]): 控制 Pac-Man 移動的函數。
         """
+        if self.death_animation:
+            self.death_animation_timer += 1
+            if self.death_animation_timer >= self.death_animation_duration:
+                self.death_animation = False
+                self.death_animation_timer = 0
+                self.pacman.lose_life(self.maze)
+                for g in self.ghosts:
+                    g.set_returning_to_spawn(fps)
+                if self.pacman.lives <= 0:
+                    print(f"Game Over! Score: {self.pacman.score}")
+                    self.running = False
+                else:
+                    print(f"Life lost! Remaining lives: {self.pacman.lives}")
+            return
+
         move_pacman()  # 移動 Pac-Man
 
         # 檢查是否吃到能量球
@@ -77,7 +95,7 @@ class Game:
 
     def _check_collision(self, fps: int) -> None:
         """
-        檢查 Pac-Man 與鬼魂的碰撞，根據鬼魂狀態更新分數或扣除生命。
+        檢查 Pac-Man 與鬼魂的碰撞，根據鬼魂狀態更新分數或觸發死亡動畫。
 
         Args:
             fps (int): 每秒幀數，用於計時。
@@ -96,6 +114,8 @@ class Game:
                         g.set_returning_to_spawn(fps)
                     if self.pacman.lives <= 0:
                         print(f"Game Over! Score: {self.pacman.score}")
+                        self.death_animation = True  # 觸發死亡動畫
+                        self.death_animation_timer = 0
                         self.running = False  # 遊戲結束
                     else:
                         print(f"Life lost! Remaining lives: {self.pacman.lives}")
@@ -109,6 +129,24 @@ class Game:
             bool: 遊戲運行狀態。
         """
         return self.running and self.pacman.lives > 0
+
+    def is_death_animation_playing(self) -> bool:
+        """
+        檢查死亡動畫是否正在播放。
+
+        Returns:
+            bool: 死亡動畫狀態。
+        """
+        return self.death_animation
+
+    def get_death_animation_progress(self) -> float:
+        """
+        獲取死亡動畫進度（0到1）。
+
+        Returns:
+            float: 動畫進度。
+        """
+        return min(self.death_animation_timer / self.death_animation_duration, 1.0)
 
     def end_game(self) -> None:
         """
