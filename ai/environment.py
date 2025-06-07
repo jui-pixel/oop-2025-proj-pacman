@@ -180,14 +180,12 @@ class PacManEnv(Game):
             nonlocal moved, wall_collision
             directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
             dx, dy = directions[action]
-            new_x, new_y = self.pacman.x + dx, self.pacman.y + dy
-            if self.maze.get_tile(new_x, new_y) not in ['#', 'X']:
-                if self.pacman.move_towards_target(FPS):  # 僅在到達當前目標時更新
-                    self.pacman.set_new_target(dx, dy, self.maze)
-                elif not self.pacman.move_towards_target(FPS):  # 繼續朝當前目標移動
-                    moved = False
-            else:
-                wall_collision = True  # 檢測到撞牆
+            if self.pacman.move_towards_target(FPS):  # 僅在到達當前目標時更新
+                if not self.pacman.set_new_target(dx, dy, self.maze):
+                    wall_collision = True
+            else:  # 繼續朝當前目標移動
+                moved = False
+
         try:
             self.update(FPS, move_pacman)
         except Exception as e:
