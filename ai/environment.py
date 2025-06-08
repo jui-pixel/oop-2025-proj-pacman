@@ -88,7 +88,7 @@ class PacManEnv(Game):
         self.current_score = 0
         self.old_score = 0
         self.frame_count = 0
-        self.ghost_move_counter = 0
+        self.ghost_move_counter = 2
         state = self._get_state()
         return np.array(state, dtype=np.float32), {}
 
