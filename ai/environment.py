@@ -119,7 +119,7 @@ class PacManEnv(Game):
                 elif ghost.returning_to_spawn:
                     ghost.return_to_spawn(self.maze)
                 else:
-                    if (self.frame_count+1) % self.ghost_move_counter == 0:
+                    if self.frame_count % self.ghost_move_counter == 0:
                         ghost.move(self.pacman, self.maze, fps)  # 執行鬼魂移動邏輯
                         ghost.x = ghost.target_x
                         ghost.y = ghost.target_y
