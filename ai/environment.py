@@ -1,3 +1,4 @@
+# ai/environment.py
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -29,6 +30,7 @@ class PacManEnv(Game):
         self.eaten_pellets = 0
         self.game_over = False
         self.current_score = 0
+        self.old_score = 0
         self.frame_count = 0
         self.state_channels = 6
         self.state_shape = (self.state_channels, self.height, self.width)
@@ -83,6 +85,7 @@ class PacManEnv(Game):
         self.eaten_pellets = 0
         self.game_over = False
         self.current_score = 0
+        self.old_score = 0
         self.frame_count = 0
         state = self._get_state()
         return np.array(state, dtype=np.float32), {}
@@ -151,9 +154,10 @@ class PacManEnv(Game):
                     if self.pacman.lives <= 0:
                         self.running = False  # 遊戲結束
                         self.game_over = True 
-                        print(f"Game Over! Score: {self.pacman.score}")
+                        # print(f"Game Over! Score: {self.pacman.score}")
                     else:
-                        print(f"Life lost! Remaining lives: {self.pacman.lives}")
+                        # print(f"Life lost! Remaining lives: {self.pacman.lives}")
+                        break
                     break
                 
     def step(self, action):
@@ -170,28 +174,30 @@ class PacManEnv(Game):
         if not 0 <= action < 4:
             raise ValueError(f"Invalid action: {action}")
 
-        old_score = self.current_score
-        moved = False
-
+        moved = True
+        wall_collision = False
+        
         def move_pacman():
-            nonlocal moved
+            nonlocal moved, wall_collision
             directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
             dx, dy = directions[action]
-            new_x, new_y = self.pacman.x + dx, self.pacman.y + dy
-            if self.maze.get_tile(new_x, new_y) not in ['#', 'X']:
-                if self.pacman.move_towards_target(FPS):  # 僅在到達當前目標時設置新目標
-                    self.pacman.set_new_target(dx, dy, self.maze)
-                    moved = True
+            if self.pacman.move_towards_target(FPS):  # 僅在到達當前目標時更新
+                if not self.pacman.set_new_target(dx, dy, self.maze):
+                    wall_collision = True
+            else:  # 繼續朝當前目標移動
+                moved = False
 
         try:
             self.update(FPS, move_pacman)
         except Exception as e:
             print(f"Game update failed: {str(e)}")
             raise RuntimeError(f"Game update failed: {str(e)}")
-
-        self.current_score = self.pacman.score
-        reward = self.current_score - old_score
-        
+        self.old_score = self.current_score
+        if moved:
+            self.current_score = self.pacman.score  
+        reward = self.current_score - self.old_score
+        if wall_collision:
+            reward -= 5
         truncated = False
         if self.game_over:
             truncated = True
@@ -205,6 +211,13 @@ class PacManEnv(Game):
         }
         terminated = self.game_over
         self.frame_count += 1
+        
+        if not moved and not terminated:
+            reward = 0  # 移動中無獎勵
+            info["valid_step"] = False
+        else:
+            info["valid_step"] = True
+        
         return next_state, reward, terminated, truncated, info
 
     def close(self):

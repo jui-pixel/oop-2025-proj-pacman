@@ -1,3 +1,4 @@
+# ai/agent.py
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,9 +16,9 @@ from ai.sumtree import SumTree
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=32, 
-                 lr=1e-4, epsilon_start=1.0, epsilon_end=0.10, epsilon_decay_steps=1000000, 
-                 gamma=0.995, target_update_freq=200, n_step=3, alpha=0.6, beta=0.4, beta_increment=0.001):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, 
+                 lr=5e-4, epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_steps=100000, 
+                 gamma=0.99, target_update_freq=100, n_step=4, alpha=0.6, beta=0.4, beta_increment=0.001):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = torch.device(device)
