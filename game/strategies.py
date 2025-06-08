@@ -1,3 +1,4 @@
+# game/strategies.py
 """
 定義 Pac-Man 的控制策略，包括玩家控制、規則基礎 AI 和 DQN AI。
 提供動態切換控制模式的功能，支援鍵盤輸入和自動化 AI 控制。
