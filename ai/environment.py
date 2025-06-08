@@ -7,7 +7,7 @@ from gym.spaces import Discrete, Box
 from game.game import Game
 from config import *
 from typing import Callable
-
+import random
 class PacManEnv(Game):
     metadata = {"render_modes": [], "render_fps": None}  # 元數據，暫無渲染功能
 
@@ -59,13 +59,33 @@ class PacManEnv(Game):
         for pellet in self.power_pellets:
             state[1, pellet.y, pellet.x] = 1.0  # 能量球
         for pellet in self.score_pellets:
-            state[2, pellet.y, pellet.x] = 1.0  # 分數球
+            state[2, pellet.y, self.pacman.x] = 1.0  # 分數球
         for ghost in self.ghosts:
             if ghost.edible and ghost.edible_timer > 0 and not ghost.returning_to_spawn:
                 state[3, ghost.y, ghost.x] = 1.0  # 可食用鬼魂
             else:
                 state[4, ghost.y, ghost.x] = 1.0  # 普通鬼魂
         return state
+
+    def get_expert_action(self):
+        """
+        使用規則基礎 AI 獲取專家動作。
+
+        Returns:
+            int: 專家選擇的動作（0=上, 1=下, 2=左, 3=右）。
+        """
+        directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]  # 上、下、左、右
+        success = self.pacman.rule_based_ai_move(self.maze, self.power_pellets, self.score_pellets, self.ghosts)
+        if success and self.pacman.last_direction:
+            dx, dy = self.pacman.last_direction
+            for i, (dx_dir, dy_dir) in enumerate(directions):
+                if dx == dx_dir and dy == dy_dir:
+                    return i
+        # 如果 AI 移動失敗，隨機選擇一個合法動作
+        safe_directions = [i for i, (dx, dy) in enumerate(directions) 
+                          if self.maze.xy_valid(self.pacman.x + dx, self.pacman.y + dy)
+                          and self.maze.get_tile(self.pacman.x + dx, self.pacman.y + dy) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
+        return random.choice(safe_directions) if safe_directions else 0
 
     def reset(self, seed=None):
         """
@@ -207,22 +227,17 @@ class PacManEnv(Game):
         truncated = False
         if self.game_over:
             truncated = True
-
+        terminated = self.game_over
         next_state = np.array(self._get_state(), dtype=np.float32)
         info = {
             "frame_count": self.frame_count,
             "current_score": self.current_score,
             "eaten_pellets": self.eaten_pellets,
-            "total_pellets": self.total_pellets
+            "total_pellets": self.total_pellets,
+            "valid_step": moved and not terminated
         }
-        terminated = self.game_over
-        self.frame_count += 1
         
-        if not moved and not terminated:
-            reward = 0  # 移動中無獎勵
-            info["valid_step"] = False
-        else:
-            info["valid_step"] = True
+        self.frame_count += 1
         
         return next_state, reward, terminated, truncated, info
 

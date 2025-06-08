@@ -19,7 +19,9 @@ Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'
 class DQNAgent:
     def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, 
                  lr=1e-3, epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_steps=1000000, 
-                 gamma=0.99, target_update_freq=200, n_step=4, alpha=0.6, beta=0.4, beta_increment=0.001):
+                 gamma=0.99, target_update_freq=200, n_step=4, alpha=0.6, beta=0.4, 
+                 beta_increment=0.001, expert_prob_start=0.3, expert_prob_end=0.0, 
+                 expert_prob_decay_steps=500000):
         """
         初始化 DQN 代理，設定深度強化學習的參數。
 
@@ -39,6 +41,9 @@ class DQNAgent:
             alpha (float): 優先級回放的優先級指數。
             beta (float): 重要性採樣的初始權重。
             beta_increment (float): 每次迭代增加的重要性採樣權重。
+            expert_prob_start (float): 初始專家策略機率。
+            expert_prob_end (float): 最終專家策略機率。
+            expert_prob_decay_steps (int): 專家策略機率衰減步數。
         """
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -49,6 +54,10 @@ class DQNAgent:
         self.epsilon_start = epsilon_start
         self.epsilon_end = epsilon_end
         self.epsilon_decay_steps = epsilon_decay_steps
+        self.expert_prob = expert_prob_start  # 當前專家策略機率
+        self.expert_prob_start = expert_prob_start
+        self.expert_prob_end = expert_prob_end
+        self.expert_prob_decay_steps = expert_prob_decay_steps
         self.gamma = gamma
         self.target_update_freq = target_update_freq
         self.n_step = n_step
@@ -75,6 +84,8 @@ class DQNAgent:
         """根據訓練步數更新探索率，逐步從 epsilon_start 衰減到 epsilon_end。"""
         decay_progress = min(self.steps / self.epsilon_decay_steps, 1.0)  # 計算衰減進度
         self.epsilon = self.epsilon_start - (self.epsilon_start - self.epsilon_end) * decay_progress
+        # 更新專家策略機率
+        self.expert_prob = self.expert_prob_start - (self.expert_prob_start - self.expert_prob_end) * decay_progress
 
     def choose_action(self, state):
         """
@@ -121,7 +132,8 @@ class DQNAgent:
             transition = Transition(final_state, a, total_reward, next_state, done)
             priority = self.max_priority if not self.memory.total_priority else self.max_priority
             self.memory.add(priority, transition)  # 將轉換加入優先級回放緩衝區
-            self.n_step_memory.clear()
+            if done:
+                self.n_step_memory.clear()
 
     def sample(self):
         """
@@ -161,9 +173,44 @@ class DQNAgent:
 
         return states, actions, rewards, next_states, dones, weights, indices
 
-    def learn(self):
+    def pretrain(self, expert_data, pretrain_steps=1000):
+        """
+        使用專家數據進行模仿學習預訓練。
+
+        Args:
+            expert_data (list): 包含 (state, action) 的專家數據。
+            pretrain_steps (int): 預訓練步數。
+        """
+        print(f"Starting pretraining with {len(expert_data)} expert samples for {pretrain_steps} steps...")
+        self.model.train()
+        for step in range(pretrain_steps):
+            # 隨機採樣一批專家數據
+            batch = random.sample(expert_data, min(self.batch_size, len(expert_data)))
+            states, actions = zip(*batch)
+            states = torch.FloatTensor(np.array(states)).to(self.device)
+            actions = torch.LongTensor(actions).to(self.device)
+
+            # 計算交叉熵損失
+            q_values = self.model(states)
+            loss = F.cross_entropy(q_values, actions)
+
+            # 優化
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+            self.optimizer.step()
+
+            if (step + 1) % 100 == 0:
+                print(f"Pretrain step {step + 1}/{pretrain_steps}, Loss: {loss.item():.4f}")
+
+        print("Pretraining completed")
+
+    def learn(self, expert_action=False):
         """
         執行一次學習步驟，更新模型參數。
+
+        Args:
+            expert_action (bool): 是否為專家動作。
 
         Returns:
             float: 損失值，若無足夠數據則返回 None。
@@ -179,7 +226,7 @@ class DQNAgent:
         with torch.no_grad():  # 不計算梯度
             next_actions = self.model(next_states).max(1, keepdim=True)[1]  # 選擇下個狀態的最佳動作
             next_q_values = self.target_model(next_states).gather(1, next_actions)  # 獲取目標 Q 值
-            target_q_values = rewards + (1 - dones) * self.gamma * next_q_values  # 計算目標值
+            target_q_values = rewards + (1 - dones) * (self.gamma ** self.n_step) * next_q_values  # 計算目標值
 
         td_errors = (q_values - target_q_values).abs()  # 計算 TD 誤差
         loss = (td_errors * weights).mean()  # 加權損失

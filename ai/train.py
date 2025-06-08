@@ -8,11 +8,38 @@ from torch.utils.tensorboard import SummaryWriter
 from environment import PacManEnv
 from agent import DQNAgent
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED
+import random
+def collect_expert_data(env, agent, num_episodes=100):
+    """
+    使用規則基礎 AI 收集專家數據。
+
+    Args:
+        env (PacManEnv): Pac-Man 環境。
+        agent (DQNAgent): DQN 代理，用於儲存數據。
+        num_episodes (int): 收集數據的回合數。
+
+    Returns:
+        list: 包含 (state, action) 的專家數據列表。
+    """
+    expert_data = []
+    for episode in range(num_episodes):
+        state, _ = env.reset()
+        done = False
+        while not done:
+            action = env.get_expert_action()  # 使用專家策略
+            next_state, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
+            if info.get('valid_step', False):
+                expert_data.append((state, action))
+                agent.store_transition(state, action, reward, next_state, done)
+            state = next_state
+        print(f"Expert episode {episode + 1}/{num_episodes} completed")
+    return expert_data
 
 def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.pkl", 
-          episodes=1000, early_stop_reward=2000):
+          episodes=1000, early_stop_reward=2000, pretrain_episodes=100):
     """
-    訓練 DQN 代理，使用單一環境並支援早期停止。
+    訓練 DQN 代理，加入模仿學習預訓練，支援早期停止。
 
     Args:
         resume (bool): 是否從之前的模型繼續訓練。
@@ -20,6 +47,7 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         memory_path (str): 回放緩衝區保存/載入路徑。
         episodes (int): 訓練的總回合數。
         early_stop_reward (float): 平均獎勵閾值，若達到則提前停止。
+        pretrain_episodes (int): 模仿學習預訓練的回合數。
 
     Returns:
         list: 每個回合的總獎勵。
@@ -38,6 +66,12 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         agent.load(model_path, memory_path)
         print(f"Loaded model from {model_path}")
 
+    # 模仿學習預訓練
+    if not resume:
+        print(f"Collecting {pretrain_episodes} episodes of expert data for pretraining...")
+        expert_data = collect_expert_data(env, agent, pretrain_episodes)
+        agent.pretrain(expert_data, pretrain_steps=1000)  # 執行預訓練
+
     writer = SummaryWriter()  # 初始化 TensorBoard 記錄器
     episode_rewards = []  # 儲存每個回合的獎勵
     recent_rewards = []  # 儲存最近 100 回合的獎勵
@@ -51,13 +85,19 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         state, _ = env.reset()  # 重置環境
         agent.model.reset_noise()
         while not done:
-            action = agent.choose_action(state)  # 選擇動作
-            next_state, reward, terminated, truncated, info = env.step(action)  # 執行動作
+            # 結合專家策略和 DQN 策略
+            if random.random() < agent.expert_prob:  # 使用專家策略的機率
+                action = env.get_expert_action()
+                expert_action = True
+            else:
+                action = agent.choose_action(state)
+                expert_action = False
+            next_state, reward, terminated, truncated, info = env.step(action)
             done = terminated or truncated
             # 僅在移動完成時儲存和學習
-            if info['valid_step'] == True:
+            if info.get('valid_step', False):
                 agent.store_transition(state, action, reward, next_state, done)
-                loss = agent.learn()  # 學習更新
+                loss = agent.learn(expert_action=expert_action)
                 if loss is not None:
                     writer.add_scalar('Loss', loss, agent.steps)  # 記錄損失
                 total_reward += reward
@@ -73,11 +113,12 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         # 每回合打印進度
         if (episode + 1) % 1 == 0:
             print(f"Episode {episode+1}/{episodes}, Reward: {total_reward:.2f}, "
-                  f"Steps: {step_count}, Epsilon: {agent.epsilon:.3f}")
+                  f"Steps: {step_count}, Epsilon: {agent.epsilon:.3f}, Expert Prob: {agent.expert_prob:.3f}")
 
         # 記錄到 TensorBoard
         writer.add_scalar('Reward', total_reward, episode)
         writer.add_scalar('Epsilon', agent.epsilon, episode)
+        writer.add_scalar('Expert Probability', agent.expert_prob, episode)
 
         # 定期保存模型
         if (episode + 1) % 10 == 0:
@@ -102,7 +143,9 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Pac-Man DQN Agent")
     parser.add_argument('--resume', action='store_true', help='Resume from previous model')
-    parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes')
-    parser.add_argument('--early_stop_reward', type=float, default=2000, help='Reward threshold for early stopping')
+    parser.add_argument('--episodes', type=int, default=9000, help='Number of episodes')
+    parser.add_argument('--early_stop_reward', type=float, default=4000, help='Reward threshold for early stopping')
+    parser.add_argument('--pretrain_episodes', type=int, default=1000, help='Number of expert episodes for pretraining')
     args = parser.parse_args()
-    train(resume=args.resume, episodes=args.episodes, early_stop_reward=args.early_stop_reward)
+    train(resume=args.resume, episodes=args.episodes, early_stop_reward=args.early_stop_reward, 
+          pretrain_episodes=args.pretrain_episodes)
