@@ -133,7 +133,7 @@ if __name__ == "__main__":
     parser.add_argument('--resume', action='store_true', help='Resume from previous model')
     parser.add_argument('--episodes', type=int, default=9000, help='Number of episodes')
     parser.add_argument('--early_stop_reward', type=float, default=4000, help='Reward threshold for early stopping')
-    parser.add_argument('--pretrain_episodes', type=int, default=10, help='Number of expert episodes for pretraining')
+    parser.add_argument('--pretrain_episodes', type=int, default=1000, help='Number of expert episodes for pretraining')
     args = parser.parse_args()
     train(resume=args.resume, episodes=args.episodes, early_stop_reward=args.early_stop_reward, 
           pretrain_episodes=args.pretrain_episodes)
