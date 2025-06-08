@@ -32,6 +32,7 @@ class PacManEnv(Game):
         self.current_score = 0  # 當前分數
         self.old_score = 0  # 上一次分數
         self.frame_count = 0  # 幀數計數
+        self.ghost_move_counter = 2 # 每2幀鬼走一步
         self.state_channels = 6  # 狀態通道數（Pac-Man、能量球等）
         self.state_shape = (self.state_channels, self.height, self.width)  # 狀態形狀
 
@@ -87,6 +88,7 @@ class PacManEnv(Game):
         self.current_score = 0
         self.old_score = 0
         self.frame_count = 0
+        self.ghost_move_counter = 0
         state = self._get_state()
         return np.array(state, dtype=np.float32), {}
 
@@ -117,7 +119,10 @@ class PacManEnv(Game):
                 elif ghost.returning_to_spawn:
                     ghost.return_to_spawn(self.maze)
                 else:
-                    ghost.move(self.pacman, self.maze, fps)  # 執行鬼魂移動邏輯
+                    if self.frame_count % self.ghost_move_counter == 0:
+                        ghost.move(self.pacman, self.maze, fps)  # 執行鬼魂移動邏輯
+                        ghost.x = ghost.target_x
+                        ghost.y = ghost.target_y
 
         # 檢查碰撞
         self._check_collision(fps)
