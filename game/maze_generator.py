@@ -347,6 +347,7 @@ class Map:
         if self.seed is not None:
             random.seed(self.seed + 1000)
 
+        # 收集所有有效候選單元格（排除鬼魂出生點及其周圍）
         empty_cells = []
         exclude_cells = set()
         for y in range(self.height):
@@ -366,29 +367,73 @@ class Map:
 
         empty_count = len(all_candidate_cells)
 
-        num_pellets = max(8, int(empty_count * 0.1))
-        num_pellets = min(num_pellets, 20)
+        # 動態計算能量球數量，根據迷宮大小調整
+        num_pellets = max(4, min(int(empty_count * 0.1), 16))  # 4到16個能量球
 
         pellet_positions = set()
 
         if empty_count >= num_pellets:
+            # 將迷宮分成更細的網格（例如 5x5）
+            grid_size_x = max(1, self.width // 5)
+            grid_size_y = max(1, self.height // 5)
             grid_cells_map = {}
-            grid_size_x = max(1, self.width // 4)
-            grid_size_y = max(1, self.height // 4)
 
+            # 將候選單元格分配到網格
             for cell in all_candidate_cells:
                 x, y = cell
-                gx = min(x // grid_size_x, 3)
-                gy = min(y // grid_size_y, 3)
+                gx = x // grid_size_x
+                gy = y // grid_size_y
                 grid_key = (gx, gy)
                 if grid_key not in grid_cells_map:
                     grid_cells_map[grid_key] = []
                 grid_cells_map[grid_key].append(cell)
 
-            for grid_key in random.sample(list(grid_cells_map.keys()), min(len(grid_cells_map), num_pellets)):
+            # 計算每個網格的中心點
+            grid_centers = []
+            for grid_key in grid_cells_map:
+                gx, gy = grid_key
+                cells = grid_cells_map[grid_key]
+                if cells:
+                    avg_x = sum(x for x, _ in cells) / len(cells)
+                    avg_y = sum(y for _, y in cells) / len(cells)
+                    grid_centers.append((grid_key, (avg_x, avg_y)))
+
+            # 根據中心點距離排序，選擇分佈均勻的網格
+            selected_grids = []
+            selected_centers = []
+            for _ in range(min(len(grid_centers), num_pellets)):
+                if not grid_centers:
+                    break
+                if not selected_grids:
+                    grid_key, center = random.choice(grid_centers)
+                    selected_grids.append(grid_key)
+                    selected_centers.append(center)
+                    grid_centers = [(gk, c) for gk, c in grid_centers if gk != grid_key]
+                else:
+                    # 選擇距離現有網格中心最遠的網格
+                    max_dist = -1
+                    best_grid = None
+                    best_center = None
+                    for grid_key, center in grid_centers:
+                        min_dist = float('inf')
+                        for selected_center in selected_centers:
+                            dist = ((center[0] - selected_center[0]) ** 2 + (center[1] - selected_center[1]) ** 2) ** 0.5
+                            min_dist = min(min_dist, dist)
+                        if min_dist > max_dist:
+                            max_dist = min_dist
+                            best_grid = grid_key
+                            best_center = center
+                    if best_grid:
+                        selected_grids.append(best_grid)
+                        selected_centers.append(best_center)
+                        grid_centers = [(gk, c) for gk, c in grid_centers if gk != best_grid]
+
+            # 在選定的網格中隨機選擇一個單元格放置能量球
+            for grid_key in selected_grids:
                 if grid_cells_map[grid_key]:
                     pellet_positions.add(random.choice(grid_cells_map[grid_key]))
 
+            # 如果能量球數量不足，隨機補充
             remaining_needed = num_pellets - len(pellet_positions)
             if remaining_needed > 0:
                 available_for_random = [cell for cell in all_candidate_cells if cell not in pellet_positions]
@@ -397,6 +442,7 @@ class Map:
         elif empty_count > 0:
             pellet_positions.update(random.sample(all_candidate_cells, empty_count))
 
+        # 放置能量球
         for x, y in pellet_positions:
             self.set_tile(x, y, TILE_POWER_PELLET)
 

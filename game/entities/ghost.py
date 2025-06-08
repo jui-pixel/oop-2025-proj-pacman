@@ -240,8 +240,8 @@ class Ghost1(Ghost):
         if pacman.target_x != pacman.x or pacman.target_y != pacman.y:
             dx = pacman.target_x - pacman.x
             dy = pacman.target_y - pacman.y
-        target_x = pacman.x + dx * 3  # 預測 3 步
-        target_y = pacman.y + dy * 3
+        target_x = pacman.x + dx * 2  # 預測 2 步
+        target_y = pacman.y + dy * 2
         target_x = max(0, min(maze.width - 1, target_x))
         target_y = max(0, min(maze.height - 1, target_y))
         if self.move_to_target(target_x, target_y, maze):
@@ -260,6 +260,9 @@ class Ghost1(Ghost):
                 flank_y = pacman.y + (pacman.y - self.y)
                 closest_ghost.move_to_target(flank_x, flank_y, maze)
         self.move_random(maze)
+    
+    def escape_from_pacman(self, pacman, maze):
+        self.chase_pacman(pacman, maze) # 快速死亡來重新追擊
 
 class Ghost2(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost2"):
