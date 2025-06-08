@@ -18,8 +18,8 @@ Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'
 
 class DQNAgent:
     def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, 
-                 lr=5e-4, epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_steps=100000, 
-                 gamma=0.99, target_update_freq=100, n_step=4, alpha=0.6, beta=0.4, beta_increment=0.001):
+                 lr=1e-3, epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_steps=1000000, 
+                 gamma=0.99, target_update_freq=200, n_step=4, alpha=0.6, beta=0.4, beta_increment=0.001):
         """
         初始化 DQN 代理，設定深度強化學習的參數。
 
