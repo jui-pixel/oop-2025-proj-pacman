@@ -121,6 +121,8 @@ class PacManEnv(Game):
                 else:
                     if self.frame_count % self.ghost_move_counter == 0:
                         ghost.move(self.pacman, self.maze, fps)  # 執行鬼魂移動邏輯
+                        ghost.current_x = ghost.target_x * CELL_SIZE + CELL_SIZE // 2
+                        ghost.current_y = ghost.target_y * CELL_SIZE + CELL_SIZE // 2
                         ghost.x = ghost.target_x
                         ghost.y = ghost.target_y
 
@@ -184,6 +186,8 @@ class PacManEnv(Game):
                 if not self.pacman.set_new_target(dx, dy, self.maze):
                     wall_collision = True
                 else:
+                    self.pacman.current_x = self.pacman.target_x * CELL_SIZE + CELL_SIZE // 2
+                    self.pacman.current_y = self.pacman.target_y * CELL_SIZE + CELL_SIZE // 2
                     self.pacman.x = self.pacman.target_x
                     self.pacman.y = self.pacman.target_y
             else:  # 繼續朝目標移動
