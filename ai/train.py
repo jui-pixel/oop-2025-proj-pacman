@@ -49,6 +49,7 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         step_count = 0
         done = False
         state, _ = env.reset()  # 重置環境
+        agent.model.reset_noise()
         while not done:
             action = agent.choose_action(state)  # 選擇動作
             next_state, reward, terminated, truncated, info = env.step(action)  # 執行動作

@@ -21,7 +21,7 @@ class PacManEnv(Game):
             seed (int): 隨機種子，確保可重現性。
         """
         super().__init__(player_name="RL_Agent")  # 調用父類初始化
-        self.pacman.speed = 5 * self.pacman.speed  # 提高 Pac-Man 速度適應 AI
+        self.pacman.speed = 5 * self.pacman.speed
         self.width = width
         self.height = height
         self.cell_size = CELL_SIZE
@@ -178,6 +178,8 @@ class PacManEnv(Game):
             if self.pacman.move_towards_target(FPS):  # 僅在到達目標時更新
                 if not self.pacman.set_new_target(dx, dy, self.maze):
                     wall_collision = True
+                self.pacman.x = self.pacman.target_x
+                self.pacman.y = self.pacman.target_y
             else:  # 繼續朝目標移動
                 moved = False
 

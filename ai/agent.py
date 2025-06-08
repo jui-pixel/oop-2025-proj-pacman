@@ -173,7 +173,6 @@ class DQNAgent:
 
         self.steps += 1
         self.update_epsilon()  # 更新探索率
-        self.model.reset_noise()  # 重置 Noisy Net 噪聲
         states, actions, rewards, next_states, dones, weights, indices = self.sample()
         q_values = self.model(states).gather(1, actions)  # 獲取當前 Q 值
 
