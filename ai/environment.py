@@ -178,8 +178,9 @@ class PacManEnv(Game):
             if self.pacman.move_towards_target(FPS):  # 僅在到達目標時更新
                 if not self.pacman.set_new_target(dx, dy, self.maze):
                     wall_collision = True
-                self.pacman.x = self.pacman.target_x
-                self.pacman.y = self.pacman.target_y
+                else:
+                    self.pacman.x = self.pacman.target_x
+                    self.pacman.y = self.pacman.target_y
             else:  # 繼續朝目標移動
                 moved = False
 
