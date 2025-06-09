@@ -85,7 +85,7 @@ class PacManEnv(Game):
             state[2, pellet.y, pellet.x] = 1.0
         # 設置鬼魂位置
         for ghost in self.ghosts:
-            if ghost.edible and ghost.edible_timer > 0 and not ghost.returning_to_spawn:
+            if ghost.edible and ghost.edible_timer > 3 and not ghost.returning_to_spawn:
                 state[3, ghost.y, ghost.x] = 1.0  # 可食用鬼魂
             else:
                 state[4, ghost.y, ghost.x] = 1.0  # 普通鬼魂
