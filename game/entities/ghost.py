@@ -1,8 +1,8 @@
 # game/entities/ghost.py
 """
-定義基礎鬼魂類別，提供通用行為（如 BFS 路徑尋找、隨機移動等）。
-子類可覆寫 chase_pacman 方法實現特定追逐策略。
+定義基礎鬼魂類別（Ghost）及其子類（Ghost1, Ghost2, Ghost3, Ghost4），提供通用行為和特定的追逐策略。
 """
+
 from .entity_base import Entity
 from ..maze_generator import Map
 from typing import Tuple, List, Optional
@@ -13,33 +13,64 @@ from config import RED, PINK, CYAN, LIGHT_BLUE, TILE_PATH, TILE_DOOR, TILE_POWER
 class Ghost(Entity):
     def __init__(self, x: int, y: int, name: str = "Ghost", color: Tuple[int, int, int] = RED):
         """
-        初始化基礎鬼魂，設置位置、名稱和顏色。
+        初始化基礎鬼魂，設置位置、名稱、顏色和狀態屬性。
+
+        原理：
+        - 鬼魂是 Pac-Man 遊戲中的主要敵人，具有不同狀態（正常、可食用、返回重生點、等待）。
+        - 每個鬼魂有獨特的顏色和名稱，支持多樣化的行為策略。
+        - 狀態屬性包括：
+          - edible：是否可食用（吃能量球後觸發）。
+          - returning_to_spawn：是否正在返回重生點（被吃後觸發）。
+          - waiting：是否在重生點等待。
+          - death_count：死亡次數，影響速度和等待時間。
+
+        Args:
+            x (int): 迷宮中的 x 坐標（格子坐標）。
+            y (int): 迷宮中的 y 坐標（格子坐標）。
+            name (str): 鬼魂名稱，預設為 "Ghost"。
+            color (Tuple[int, int, int]): 鬼魂的 RGB 顏色，預設為紅色。
         """
-        super().__init__(x, y, 'G')
-        self.name = name
-        self.color = color
-        self.default_speed = GHOST_DEFAULT_SPEED
-        self.speed = GHOST_DEFAULT_SPEED
-        self.edible = False
-        self.edible_timer = 0
-        self.returning_to_spawn = False
-        self.return_speed = GHOST_RETURN_SPEED
-        self.death_count = 0
-        self.waiting = False
-        self.wait_timer = 0
-        self.alpha = 255
-        self.last_x = None
-        self.last_y = None
+        super().__init__(x, y, 'G')  # 調用基類 Entity 初始化
+        self.name = name  # 鬼魂名稱
+        self.color = color  # 鬼魂顏色
+        self.default_speed = GHOST_DEFAULT_SPEED  # 默認移動速度
+        self.speed = self.default_speed  # 當前速度
+        self.edible = False  # 是否可食用
+        self.edible_timer = 0  # 可食用持續時間
+        self.returning_to_spawn = False  # 是否返回重生點
+        self.return_speed = GHOST_RETURN_SPEED  # 返回重生點速度
+        self.death_count = 0  # 死亡次數
+        self.waiting = False  # 是否在等待狀態
+        self.wait_timer = 0  # 等待計時器
+        self.alpha = 255  # 透明度（用於渲染）
+        self.last_x = None  # 上次 x 坐標（避免反覆移動）
+        self.last_y = None  # 上次 y 坐標
+        self.memory_x = x  # 記憶 Pac-Man 最近位置
+        self.memory_y = y  # 記憶 Pac-Man 最近位置
 
     def move(self, pacman, maze, fps: int, ghosts: List['Ghost'] = None):
         """
-        根據鬼魂狀態執行移動邏輯。
+        根據鬼魂狀態執行移動邏輯（等待、可食用、返回重生點或追逐）。
+
+        原理：
+        - 根據當前狀態執行不同移動邏輯：
+          - 等待狀態：減少等待計時器，到達 0 時恢復正常狀態並加速。
+          - 可食用狀態：執行逃跑邏輯，遠離 Pac-Man。
+          - 返回重生點：快速返回迷宮中的 'S' 格子。
+          - 正常狀態：執行子類定義的追逐策略。
+        - 速度隨死亡次數增加：new_speed = default_speed * (1.1 ^ death_count)。
+
+        Args:
+            pacman: PacMan 物件，提供位置信息。
+            maze: 迷宮物件，提供路徑信息。
+            fps (int): 每秒幀數，用於計算移動。
+            ghosts (List[Ghost], optional): 其他鬼魂列表，用於協作。
         """
         if self.waiting:
             self.wait_timer -= 1
             if self.wait_timer <= 0:
                 self.waiting = False
-                self.speed = self.default_speed
+                self.speed = self.default_speed * (1.1 ** self.death_count)  # 加速公式
             return
 
         if self.edible:
@@ -57,11 +88,27 @@ class Ghost(Entity):
 
     def bfs_path(self, start_x: int, start_y: int, target_x: int, target_y: int, maze) -> Optional[Tuple[int, int]]:
         """
-        使用 BFS 尋找從 (start_x, start_y) 到 (target_x, target_y) 的最短路徑。
+        使用廣度優先搜尋（BFS）尋找從 (start_x, start_y) 到 (target_x, target_y) 的最短路徑。
+
+        原理：
+        - BFS 保證找到最短路徑，適用於迷宮中的路徑規劃。
+        - 檢查可通行格子（TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN）。
+        - 若無直接路徑，嘗試最近的可通行點作為替代目標。
+        - 返回第一步的方向 (dx, dy)，或 None 表示無路徑。
+
+        Args:
+            start_x (int): 起始 x 坐標。
+            start_y (int): 起始 y 坐標。
+            target_x (int): 目標 x 坐標。
+            target_y (int): 目標 y 坐標。
+            maze: 迷宮物件。
+
+        Returns:
+            Optional[Tuple[int, int]]: 第一步方向 (dx, dy)，或 None。
         """
-        queue = deque([(start_x, start_y, [])])
-        visited = {(start_x, start_y)}
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        queue = deque([(start_x, start_y, [])])  # 隊列儲存 (x, y, 路徑)
+        visited = {(start_x, start_y)}  # 已訪問節點
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 下、上、右、左
 
         while queue:
             x, y, path = queue.popleft()
@@ -77,44 +124,64 @@ class Ghost(Entity):
                     new_path = path + [(dx, dy)]
                     queue.append((new_x, new_y, new_path))
 
+        # 若無直接路徑，尋找最近的可通行點
+        nearby_targets = [
+            (new_x, new_y) for dx, dy in directions
+            if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
+        ]
+        if nearby_targets:
+            target = min(nearby_targets, key=lambda p: (p[0] - target_x) ** 2 + (p[1] - target_y) ** 2)
+            return self.bfs_path(start_x, start_y, target[0], target[1], maze)
         return None
 
     def move_to_target(self, target_x: int, target_y: int, maze) -> bool:
         """
         嘗試移動到目標位置，若無路徑則嘗試附近目標。
+
+        原理：
+        - 使用 BFS 尋找目標路徑，確保移動有效。
+        - 目標坐標限制在迷宮範圍內，防止越界。
+        - 若成功設置新目標，更新 last_x 和 last_y，返回 True。
+
+        Args:
+            target_x (int): 目標 x 坐標。
+            target_y (int): 目標 y 坐標。
+            maze: 迷宮物件。
+
+        Returns:
+            bool: 是否成功設置目標並移動。
         """
-        target_x = max(0, min(maze.width - 1, target_x))
+        target_x = max(0, min(maze.width - 1, target_x))  # 限制目標坐標
         target_y = max(0, min(maze.height - 1, target_y))
         direction = self.bfs_path(self.x, self.y, target_x, target_y, maze)
         if direction and self.set_new_target(direction[0], direction[1], maze):
-            self.last_x, self.last_y = self.x, self.y
+            self.last_x, self.last_y = self.x, self.y  # 更新上次位置
             return True
-
-        nearby_targets = [
-            (self.x + dx * 3, self.y + dy * 3)
-            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]
-            if maze.xy_valid(self.x + dx * 3, self.y + dy * 3) and
-            maze.get_tile(self.x + dx * 3, self.y + dy * 3) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
-        ]
-        if nearby_targets:
-            target_x, target_y = random.choice(nearby_targets)
-            direction = self.bfs_path(self.x, self.y, target_x, target_y, maze)
-            if direction and self.set_new_target(direction[0], direction[1], maze):
-                self.last_x, self.last_y = self.x, self.y
-                return True
         return False
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
-        基礎追逐邏輯，使用 BFS 追逐 Pac-Man，若無路徑則嘗試附近目標。
+        基礎追逐邏輯，子類需覆寫實現具體策略。
+
+        原理：
+        - 提供一個虛方法，由子類實現特定的追逐策略（例如直接追逐、包抄、圍堵）。
+        - 允許鬼魂根據 Pac-Man 位置和迷宮結構制定智能移動計劃。
         """
         pass
 
     def return_to_spawn(self, maze):
         """
-        快速返回最近的重生點 'S'。
+        快速返回最近的重生點 'S'，優先選擇最短路徑。
+
+        原理：
+        - 被 Pac-Man 吃掉後，鬼魂以較高速度（return_speed）返回迷宮中的 'S' 格子。
+        - 使用 BFS 尋找最短路徑，若無路徑則隨機移動。
+        - 到達重生點後進入等待狀態。
+
+        Args:
+            maze: 迷宮物件。
         """
-        self.speed = self.return_speed
+        self.speed = self.return_speed  # 使用返回速度
         spawn_points = [(x, y) for y in range(maze.height)
                         for x in range(maze.width) if maze.get_tile(x, y) == TILE_GHOST_SPAWN]
         if not spawn_points:
@@ -122,17 +189,26 @@ class Ghost(Entity):
             return
 
         closest_spawn = min(spawn_points, key=lambda p: (p[0] - self.x) ** 2 + (p[1] - self.y) ** 2)
-        direction = self.bfs_path(self.x, self.y, closest_spawn[0], closest_spawn[1], maze)
-        if direction and self.set_new_target(direction[0], direction[1], maze):
-            self.last_x, self.last_y = self.x, self.y
+        if self.move_to_target(closest_spawn[0], closest_spawn[1], maze):
+            if self.x == closest_spawn[0] and self.y == closest_spawn[1]:
+                self.returning_to_spawn = False
+                self.set_waiting(60)  # 假設 fps = 60
             return
         self.move_random(maze)
 
     def escape_from_pacman(self, pacman, maze):
         """
-        在可吃狀態下逃離 Pac-Man。
+        在可食用狀態下逃離 Pac-Man，選擇與 Pac-Man 距離最大的方向。
+
+        原理：
+        - 當鬼魂可食用時，選擇使距離 Pac-Man 最遠的方向移動，距離公式：dist = √((x - pacman.x)^2 + (y - pacman.y)^2)。
+        - 若無有效方向，則隨機移動。
+
+        Args:
+            pacman: PacMan 物件。
+            maze: 迷宮物件。
         """
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 下、上、右、左
         best_direction = None
         max_distance = -1
 
@@ -150,7 +226,14 @@ class Ghost(Entity):
 
     def move_random(self, maze):
         """
-        隨機選擇一個可通行方向移動。
+        隨機選擇一個可通行方向移動，避免反覆移動。
+
+        原理：
+        - 當無明確目標時，隨機選擇可通行方向，優先避免回到上一步位置（90% 概率）。
+        - 隨機化移動增加鬼魂行為的多樣性，模擬不確定性。
+
+        Args:
+            maze: 迷宮物件。
         """
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         random.shuffle(directions)
@@ -160,11 +243,24 @@ class Ghost(Entity):
 
     def set_new_target(self, dx: int, dy: int, maze) -> bool:
         """
-        設置新目標格子，檢查是否可通行並避免反覆移動。
+        設置新目標格子，檢查可通行性並避免反覆移動。
+
+        原理：
+        - 檢查新目標 (new_x, new_y) 是否有效且可通行。
+        - 若新目標與上一步位置相同，則以 90% 概率拒絕，防止來回移動。
+        - 成功設置目標後更新 target_x 和 target_y。
+
+        Args:
+            dx (int): x 方向偏移。
+            dy (int): y 方向偏移。
+            maze: 迷宮物件。
+
+        Returns:
+            bool: 是否成功設置目標。
         """
         new_x, new_y = self.x + dx, self.y + dy
         if (self.last_x is not None and new_x == self.last_x and new_y == self.last_y and
-            random.random() < 0.8):
+            random.random() < 0.9):  # 90% 概率避免反覆移動
             return False
         if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]:
             self.target_x, self.target_y = new_x, new_y
@@ -173,7 +269,14 @@ class Ghost(Entity):
 
     def set_edible(self, duration: int):
         """
-        設置鬼魂為可吃狀態。
+        設置鬼魂為可食用狀態，降低移動效率。
+
+        原理：
+        - 當 Pac-Man 吃到能量球時，鬼魂進入可食用狀態，持續指定幀數（duration）。
+        - 僅在非返回重生點或非等待狀態下生效。
+
+        Args:
+            duration (int): 可食用狀態的持續幀數。
         """
         if not (self.returning_to_spawn or self.waiting):
             self.edible = True
@@ -181,7 +284,15 @@ class Ghost(Entity):
 
     def set_returning_to_spawn(self, fps: int):
         """
-        設置鬼魂返回重生點。
+        設置鬼魂返回重生點，增加速度並更新狀態。
+
+        原理：
+        - 當鬼魂被 Pac-Man 吃掉時，進入返回重生點狀態，速度設為 return_speed。
+        - 死亡次數遞增，影響後續速度和等待時間。
+        - 重置可食用狀態和透明度。
+
+        Args:
+            fps (int): 每秒幀數。
         """
         self.speed = self.return_speed
         self.death_count += 1
@@ -192,19 +303,33 @@ class Ghost(Entity):
 
     def set_waiting(self, fps: int):
         """
-        設置鬼魂為等待狀態。
+        設置鬼魂為等待狀態，根據死亡次數調整等待時間。
+
+        原理：
+        - 鬼魂到達重生點後進入等待狀態，等待時間隨死亡次數減少。
+        - 等待時間計算公式：wait_time = GHOST_WAIT_TIME / max(1, death_count * 1.5) * (900 / fps)。
+
+        Args:
+            fps (int): 每秒幀數。
         """
         self.returning_to_spawn = False
         self.waiting = True
-        wait_time = GHOST_WAIT_TIME / max(1, self.death_count)
+        wait_time = GHOST_WAIT_TIME / max(1, self.death_count * 1.5)
         self.wait_timer = int(wait_time * 900 / fps)
 
     def reset(self, maze: Map):
         """
-        重置鬼魂狀態。
+        重置鬼魂狀態，恢復初始設置。
+
+        原理：
+        - 重置鬼魂的所有狀態屬性，隨機選擇一個重生點作為新位置。
+        - 用於遊戲重置或新回合開始。
+
+        Args:
+            maze: 迷宮物件。
         """
         self.default_speed = GHOST_DEFAULT_SPEED
-        self.speed = GHOST_DEFAULT_SPEED
+        self.speed = self.default_speed
         self.edible = False
         self.edible_timer = 0
         self.returning_to_spawn = False
@@ -215,6 +340,8 @@ class Ghost(Entity):
         self.alpha = 255
         self.last_x = None
         self.last_y = None
+        self.memory_x = self.x
+        self.memory_y = self.y
         spawn_points = [(x, y) for y in range(maze.height)
                         for x in range(maze.width) if maze.get_tile(x, y) == TILE_GHOST_SPAWN]
         if spawn_points:
@@ -226,91 +353,133 @@ class Ghost(Entity):
 class Ghost1(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost1"):
         """
-        初始化 Ghost1，使用紅色。
+        初始化 Ghost1（紅色鬼魂），作為領頭追逐者。
+
+        原理：
+        - Ghost1 採用直接追逐策略，預測 Pac-Man 的未來位置。
+        - 使用紅色，速度為 GHOST1_SPEED。
         """
         super().__init__(x, y, name, color=RED)
-        self.speed = GHOST1_SPEED  # 提高速度以增加挑戰性
+        self.speed = GHOST1_SPEED
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
-        改進追逐邏輯：根據 Pac-Man 最近兩步的移動方向預測其下一位置，優先使用 BFS 追逐，若無路徑則嘗試附近目標。
+        領頭追逐策略：預測 Pac-Man 未來 3 步位置，優先使用 BFS 追逐，若無路徑則協調其他鬼魂。
+
+        原理：
+        - 預測 Pac-Man 的移動方向，計算未來 2 步位置：target_x = pacman.x + dx * 2
+        - 使用 BFS 尋找最短路徑，若失敗則追蹤記憶位置或隨機移動。
+        - 與其他鬼魂協作，通知最近的鬼魂進行包抄。
         """
-        # 預測 Pac-Man 的下一位置
         dx, dy = 0, 0
         if pacman.target_x != pacman.x or pacman.target_y != pacman.y:
             dx = pacman.target_x - pacman.x
             dy = pacman.target_y - pacman.y
-        target_x = pacman.x + dx * 2  # 預測 Pac-Man 前進兩格
+        target_x = pacman.x + dx * 2  # 預測 2 步
         target_y = pacman.y + dy * 2
-        # 限制目標在迷宮內
         target_x = max(0, min(maze.width - 1, target_x))
         target_y = max(0, min(maze.height - 1, target_y))
-        # 使用 BFS 追逐預測位置
         if self.move_to_target(target_x, target_y, maze):
+            self.memory_x, self.memory_y = pacman.x, pacman.y
             return
-        # 若無路徑，嘗試直接追逐 Pac-Man
-        if self.move_to_target(pacman.x, pacman.y, maze):
+
+        if self.move_to_target(self.memory_x, self.memory_y, maze):
             return
-        # 最後隨機移動
+
+        if ghosts:
+            closest_ghost = min(ghosts, key=lambda g: g != self and ((g.x - pacman.x) ** 2 + (g.y - pacman.y) ** 2) ** 0.5, default=None)
+            if closest_ghost:
+                flank_x = pacman.x + (pacman.x - self.x)
+                flank_y = pacman.y + (pacman.y - self.y)
+                closest_ghost.move_to_target(flank_x, flank_y, maze)
         self.move_random(maze)
+    
+    def escape_from_pacman(self, pacman, maze):
+        """
+        可食用狀態下快速死亡以重新追擊。
+
+        原理：
+        - Ghost1 在可食用狀態下不逃跑，而是繼續追逐，模擬快速被吃以重新進入正常狀態。
+        """
+        self.chase_pacman(pacman, maze)
 
 class Ghost2(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost2"):
         """
-        初始化 Ghost2，使用粉紅色。
+        初始化 Ghost2（粉紅色鬼魂），作為側翼包抄者。
+
+        原理：
+        - Ghost2 採用包抄策略，與 Ghost1 協作，阻塞 Pac-Man 的逃跑路線。
+        - 使用粉紅色，速度為 GHOST2_SPEED。
         """
         super().__init__(x, y, name, color=PINK)
-        self.speed = GHOST2_SPEED  # 提高速度以增加挑戰性
+        self.speed = GHOST2_SPEED
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
-        改進追逐邏輯：瞄準 Pac-Man 前方 6 格，預測其軌跡，若無路徑則嘗試側翼包抄。
+        側翼包抄策略：根據 Ghost1 位置計算包抄點，阻塞 Pac-Man 逃跑路線。
+
+        原理：
+        - 計算與 Ghost1 的對稱點：target_x = pacman.x + (pacman.x - ghost1.x) * 2
+        - 若無對稱點，則阻塞 Pac-Man 附近的關鍵路口。
+        - 若失敗，則隨機移動。
         """
-        dx, dy = 0, 0
-        if pacman.target_x > pacman.x:
-            dx = 1
-        elif pacman.target_x < pacman.x:
-            dx = -1
-        elif pacman.target_y > pacman.y:
-            dy = 1
-        elif pacman.target_y < pacman.y:
-            dy = -1
-        # 瞄準前方 6 格
-        target_x = pacman.x + dx * 6
-        target_y = pacman.y + dy * 6
+        ghost1 = next((g for g in ghosts if g.name == "Ghost1"), None) if ghosts else None
+        if not ghost1:
+            if self.move_to_target(pacman.x, pacman.y, maze):
+                return
+            self.move_random(maze)
+            return
+
+        dx = pacman.x - ghost1.x
+        dy = pacman.y - ghost1.y
+        target_x = pacman.x + dx * 2
+        target_y = pacman.y + dy * 2
         target_x = max(0, min(maze.width - 1, target_x))
         target_y = max(0, min(maze.height - 1, target_y))
         if self.move_to_target(target_x, target_y, maze):
             return
-        # 側翼包抄：嘗試左右兩側的目標
-        flank_targets = [
-            (pacman.x + dy * 4, pacman.y - dx * 4),  # 左側
-            (pacman.x - dy * 4, pacman.y + dx * 4)   # 右側
+
+        nearby_points = [
+            (pacman.x + dx, pacman.y + dy) for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+            if maze.xy_valid(pacman.x + dx, pacman.y + dy) and
+            maze.get_tile(pacman.x + dx, pacman.y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
         ]
-        for tx, ty in flank_targets:
-            tx = max(0, min(maze.width - 1, tx))
-            ty = max(0, min(maze.height - 1, ty))
-            if self.move_to_target(tx, ty, maze):
+        if nearby_points:
+            target = min(nearby_points, key=lambda p: ((p[0] - pacman.x) ** 2 + (p[1] - pacman.y) ** 2) ** 0.5)
+            if self.move_to_target(target[0], target[1], maze):
                 return
         self.move_random(maze)
 
 class Ghost3(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost3"):
         """
-        初始化 Ghost3，使用青色。
+        初始化 Ghost3（青色鬼魂），作為圍堵者。
+
+        原理：
+        - Ghost3 採用圍堵策略，與 Ghost1 和 Ghost2 協作，設置陷阱阻塞 Pac-Man。
+        - 使用青色，速度為 GHOST3_SPEED。
         """
         super().__init__(x, y, name, color=CYAN)
-        self.speed = GHOST3_SPEED  # 提高速度以增加挑戰性
+        self.speed = GHOST3_SPEED
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
-        改進追逐邏輯：與 Ghost1 協同，動態計算對稱點，並在接近 Pac-Man 時設置陷阱。
+        圍堵策略：計算 Pac-Man 可能的逃跑路徑，設置陷阱。
+
+        原理：
+        - 預測 Pac-Man 移動方向，計算中點並延長：target_x = (pacman.x + ghost1.x) // 2 + dx * 4
+        - 若目標太近，則選擇路口作為陷阱點（路口定義為有多於兩個可通行方向的格子）。
+        - 若失敗，則隨機移動。
         """
         ghost1 = next((g for g in ghosts if g.name == "Ghost1"), None) if ghosts else None
-        if not ghost1:
+        ghost2 = next((g for g in ghosts if g.name == "Ghost2"), None) if ghosts else None
+        if not ghost1 or not ghost2:
+            if self.move_to_target(pacman.x, pacman.y, maze):
+                return
             self.move_random(maze)
             return
-        # 計算 Pac-Man 移動方向
+
         dx, dy = 0, 0
         if pacman.target_x > pacman.x:
             dx = 1
@@ -320,33 +489,28 @@ class Ghost3(Ghost):
             dy = 1
         elif pacman.target_y < pacman.y:
             dy = -1
-        # 動態對稱點
-        mid_x = pacman.x + dx * 2
-        mid_y = pacman.y + dy * 2
-        target_x = ghost1.x + 2 * (mid_x - ghost1.x)
-        target_y = ghost1.y + 2 * (mid_y - ghost1.y)
+
+        mid_x = (pacman.x + ghost1.x) // 2
+        mid_y = (pacman.y + ghost1.y) // 2
+        target_x = mid_x + dx * 4
+        target_y = mid_y + dy * 4
         target_x = max(0, min(maze.width - 1, target_x))
         target_y = max(0, min(maze.height - 1, target_y))
-        # 接近 Pac-Man 時設置陷阱
-        distance_to_pacman = ((self.x - pacman.x) ** 2 + (self.y - pacman.y) ** 2) ** 0.5
-        if distance_to_pacman < 5:
-            # 選擇附近路口（多於一個可移動方向的格子）作為陷阱
-            nearby_points = [
-                (self.x + dx, self.y + dy)
-                for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]
-                if maze.xy_valid(self.x + dx, self.y + dy) and
-                maze.get_tile(self.x + dx, self.y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
+
+        if ((target_x - pacman.x) ** 2 + (target_y - pacman.y) ** 2) ** 0.5 < 6:
+            junctions = [
+                (x, y) for x, y in [(pacman.x + dx * 2, pacman.y + dy * 2),
+                                    (pacman.x + dy, pacman.y - dx),
+                                    (pacman.x - dy, pacman.y + dx)]
+                if maze.xy_valid(x, y) and maze.get_tile(x, y) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
+                and sum(maze.xy_valid(x + ddx, y + ddy) and maze.get_tile(x + ddx, y + ddy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
+                        for ddx, ddy in [(0, 1), (0, -1), (1, 0), (-1, 0)]) > 2
             ]
-            if nearby_points:
-                valid_points = [
-                    (x, y) for x, y in nearby_points
-                    if sum(maze.xy_valid(x + dx, y + dy) and maze.get_tile(x + dx, y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
-                           for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]) > 1
-                ]
-                if valid_points:
-                    target_x, target_y = random.choice(valid_points)
-                    if self.move_to_target(target_x, target_y, maze):
-                        return
+            if junctions:
+                target = min(junctions, key=lambda p: ((p[0] - pacman.x) ** 2 + (p[1] - pacman.y) ** 2) ** 0.5)
+                if self.move_to_target(target[0], target[1], maze):
+                    return
+
         if self.move_to_target(target_x, target_y, maze):
             return
         self.move_random(maze)
@@ -354,55 +518,55 @@ class Ghost3(Ghost):
 class Ghost4(Ghost):
     def __init__(self, x: int, y: int, name: str = "Ghost4"):
         """
-        初始化 Ghost4，使用淺藍色。
+        初始化 Ghost4（淺藍色鬼魂），作為攪亂者。
+
+        原理：
+        - Ghost4 採用攪亂策略，隨機阻塞路口或追逐 Pac-Man。
+        - 使用淺藍色，速度為 GHOST4_SPEED。
         """
         super().__init__(x, y, name, color=LIGHT_BLUE)
-        self.speed = GHOST4_SPEED  # 提高速度以增加挑戰性
+        self.speed = GHOST4_SPEED
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
-        改進追逐邏輯：當距離 Pac-Man 小於 8 格時，移動到附近路口控制區域，否則使用 BFS 追逐。
+        攪亂策略：當距離 Pac-Man 小於 6 格時隨機阻塞路口，否則預測並追逐。
+
+        原理：
+        - 若與 Pac-Man 距離小於 6，隨機選擇附近路口阻塞（路口定義為有多於一個可通行方向的格子）。
+        - 否則預測 Pac-Man 未來 2 步位置進行追逐。
+        - 若失敗，則隨機移動。
         """
         distance = ((self.x - pacman.x) ** 2 + (self.y - pacman.y) ** 2) ** 0.5
-        threshold = 8
+        threshold = 6
         if distance < threshold:
-            # 尋找附近路口（多於一個可移動方向的格子）並移動到離 Pac-Man 最近的路口
             nearby_points = [
                 (self.x + dx, self.y + dy)
                 for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
                 if maze.xy_valid(self.x + dx, self.y + dy) and
                 maze.get_tile(self.x + dx, self.y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
             ]
-            if nearby_points:
-                # 選擇路口：有多於一個可移動方向的格子
-                junctions = [
-                    (x, y) for x, y in nearby_points
-                    if sum(maze.xy_valid(x + dx, y + dy) and maze.get_tile(x + dx, y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
-                           for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]) > 1
-                ]
-                if junctions:
-                    # 選擇離 Pac-Man 最近的路口
-                    target = min(junctions, key=lambda p: ((p[0] - pacman.x) ** 2 + (p[1] - pacman.y) ** 2) ** 0.5)
-                    if self.move_to_target(target[0], target[1], maze):
-                        return
-            # 若無路口，隨機移動
+            junctions = [
+                (x, y) for x, y in nearby_points
+                if sum(maze.xy_valid(x + ddx, y + ddy) and maze.get_tile(x + ddx, y + ddy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
+                       for ddx, ddy in [(0, 1), (0, -1), (1, 0), (-1, 0)]) > 1
+            ]
+            if junctions:
+                target = random.choice(junctions)
+                if self.move_to_target(target[0], target[1], maze):
+                    return
             self.move_random(maze)
             return
 
-        # 當距離大於等於 8 格時，使用 BFS 追逐 Pac-Man
-        # 預測 Pac-Man 的下一位置
         dx, dy = 0, 0
         if pacman.target_x != pacman.x or pacman.target_y != pacman.y:
             dx = pacman.target_x - pacman.x
             dy = pacman.target_y - pacman.y
-        target_x = pacman.x + dx  # 預測 Pac-Man 前進一格
-        target_y = pacman.y + dy
+        target_x = pacman.x + dx * 2  # 預測 2 步
+        target_y = pacman.y + dy * 2
         target_x = max(0, min(maze.width - 1, target_x))
         target_y = max(0, min(maze.height - 1, target_y))
         if self.move_to_target(target_x, target_y, maze):
             return
-        # 若無路徑，嘗試直接追逐 Pac-Man 的當前位置
         if self.move_to_target(pacman.x, pacman.y, maze):
             return
-        # 最後隨機移動
         self.move_random(maze)
