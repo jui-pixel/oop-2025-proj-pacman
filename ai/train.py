@@ -88,6 +88,7 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
     # 如果 resume 為真且模型存在，則載入模型和回放緩衝區
     if resume and os.path.exists(model_path):
         agent.load(model_path, memory_path)
+        agent.expert_prob = 0.01
         print(f"從 {model_path} 載入模型")
 
     # 如果不繼續訓練，執行模仿學習預訓練

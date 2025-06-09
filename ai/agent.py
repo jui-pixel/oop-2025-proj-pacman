@@ -18,8 +18,8 @@ from ai.sumtree import SumTree
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, 
-                 lr=1e-4, gamma=0.95, target_update_freq=1000, n_step=8, alpha=0.6, beta=0.4, 
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=256, 
+                 lr=5e-5, gamma=0.99, target_update_freq=500, n_step=16, alpha=0.65, beta=0.45, 
                  beta_increment=0.001, expert_prob_start=0.3, expert_prob_end=0.01, 
                  expert_prob_decay_steps=200000):
         """
