@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
     %% Game Module Classes (game/)
     class Entity {
@@ -242,3 +243,4 @@ classDiagram
     }
     DQNAgent *--> DQN
     DQNAgent *--> SumTree
+```
