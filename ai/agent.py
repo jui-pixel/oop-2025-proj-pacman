@@ -18,8 +18,8 @@ from torch.amp import autocast, GradScaler
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=256, 
-                 lr=1e-4, gamma=0.90, target_update_freq=500, n_step=8, alpha=0.6, beta=0.4, 
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, 
+                 lr=5e-4, gamma=0.95, target_update_freq=500, n_step=8, alpha=0.6, beta=0.4, 
                  beta_increment=0.001, expert_prob_start=0.3, expert_prob_end=0.01, 
                  expert_prob_decay_steps=200000):
         """
@@ -157,6 +157,8 @@ class DQNAgent:
         position_change = np.sqrt((state_pacman_x - next_state_pacman_x) ** 2 + 
                                 (state_pacman_y - next_state_pacman_y) ** 2)
         if reward >= 0 or position_change > 0.1 or done:
+            self.n_step_memory.append((state, action, reward, next_state, done))
+        elif position_change == 0 and random.random() > 0.7:
             self.n_step_memory.append((state, action, reward, next_state, done))
         else:
             return
