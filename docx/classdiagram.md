@@ -134,7 +134,7 @@ classDiagram
     Game *--> "0..*" PowerPellet
     Game *--> "0..*" ScorePellet
 
-    class ControlStrategy <<abstract>> {
+    class ControlStrategy<<abstract>> {
         +move(...) bool
     }
 
