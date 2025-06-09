@@ -1,45 +1,245 @@
 # game/entities/pacman.py
-"""
-定義 Pac-Man 實體，包括移動邏輯、得分機制和基於 A* 算法的規則基礎 AI 路徑規劃。
-"""
-
+from enum import Enum
+from typing import Tuple, List, Optional
 from .entity_base import Entity
 from heapq import heappush, heappop
-from typing import Tuple, List
 import random
 from config import CELL_SIZE, TILE_BOUNDARY, TILE_WALL, TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR, PACMAN_BASE_SPEED, PACMAN_AI_SPEED, MAX_STUCK_FRAMES
 from .pellets import PowerPellet, ScorePellet
 from .ghost import Ghost
 
+# 行為樹節點狀態
+class NodeStatus(Enum):
+    SUCCESS = "success"
+    FAILURE = "failure"
+    RUNNING = "running"
+
+# 行為樹基類
+class BehaviorNode:
+    def execute(self, pacman: 'PacMan', maze, power_pellets: List[PowerPellet], score_pellets: List[ScorePellet], ghosts: List[Ghost]) -> NodeStatus:
+        raise NotImplementedError
+
+# 條件節點
+class ConditionNode(BehaviorNode):
+    def __init__(self, condition_func):
+        self.condition_func = condition_func
+
+    def execute(self, pacman, maze, power_pellets, score_pellets, ghosts):
+        return NodeStatus.SUCCESS if self.condition_func(pacman, maze, power_pellets, score_pellets, ghosts) else NodeStatus.FAILURE
+
+# 動作節點
+class ActionNode(BehaviorNode):
+    def __init__(self, action_func):
+        self.action_func = action_func
+
+    def execute(self, pacman, maze, power_pellets, score_pellets, ghosts):
+        return self.action_func(pacman, maze, power_pellets, score_pellets, ghosts)
+
+# 選擇節點
+class SelectorNode(BehaviorNode):
+    def __init__(self, children: List[BehaviorNode]):
+        self.children = children
+
+    def execute(self, pacman, maze, power_pellets, score_pellets, ghosts):
+        for child in self.children:
+            status = child.execute(pacman, maze, power_pellets, score_pellets, ghosts)
+            if status == NodeStatus.SUCCESS:
+                return NodeStatus.SUCCESS
+            elif status == NodeStatus.RUNNING:
+                return NodeStatus.RUNNING
+        return NodeStatus.FAILURE
+
+# 序列節點
+class SequenceNode(BehaviorNode):
+    def __init__(self, children: List[BehaviorNode]):
+        self.children = children
+
+    def execute(self, pacman, maze, power_pellets, score_pellets, ghosts):
+        for child in self.children:
+            status = child.execute(pacman, maze, power_pellets, score_pellets, ghosts)
+            if status == NodeStatus.FAILURE:
+                return NodeStatus.FAILURE
+            elif status == NodeStatus.RUNNING:
+                return NodeStatus.RUNNING
+        return NodeStatus.SUCCESS
+
 class PacMan(Entity):
     def __init__(self, x: int, y: int):
-        """
-        初始化 Pac-Man，設置初始分數、生命值和狀態屬性。
+        super().__init__(x, y, 'P')
+        self.score = 0
+        self.lives = 3
+        self.alive = True
+        self.speed = PACMAN_BASE_SPEED
+        self.last_direction = None
+        self.alternating_vertical_count = 0
+        self.stuck_count = 0
+        self.max_stuck_frames = MAX_STUCK_FRAMES
+        self.initial_x = x
+        self.initial_y = y
+        # 初始化行為樹
+        self.behavior_tree = self._build_behavior_tree()
 
-        原理：
-        - Pac-Man 是遊戲的主角，具有生命值、得分和移動狀態。
-        - 初始設置 3 條命，分數為 0，支持 AI 控制的移動邏輯。
-        - 狀態屬性包括：
-          - score：當前分數。
-          - lives：剩餘生命數。
-          - last_direction：上一次移動方向，用於檢測反覆移動。
-          - stuck_count：卡住計數器，用於脫困。
+    def _build_behavior_tree(self) -> BehaviorNode:
+        """構建行為樹，模擬 rule_based_ai_move 的決策邏輯。"""
+        # 條件函數
+        def is_immediate_threat(pacman, maze, power_pellets, score_pellets, ghosts):
+            min_danger_dist = float('inf')
+            for ghost in ghosts:
+                if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
+                    dist = ((pacman.x - ghost.x) ** 2 + (pacman.y - ghost.y) ** 2) ** 0.5
+                    min_danger_dist = min(min_danger_dist, dist)
+            return min_danger_dist < 2
+
+        def is_threat_nearby(pacman, maze, power_pellets, score_pellets, ghosts):
+            min_danger_dist = float('inf')
+            for ghost in ghosts:
+                if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
+                    dist = ((pacman.x - ghost.x) ** 2 + (pacman.y - ghost.y) ** 2) ** 0.5
+                    min_danger_dist = min(min_danger_dist, dist)
+            return min_danger_dist < 6
+
+        def has_power_pellet(pacman, maze, power_pellets, score_pellets, ghosts):
+            return bool(power_pellets)
+
+        def is_endgame(pacman, maze, power_pellets, score_pellets, ghosts):
+            return len(score_pellets) <= 10
+
+        def is_power_pellet_closer(pacman, maze, power_pellets, score_pellets, ghosts):
+            if not power_pellets or not score_pellets:
+                return False
+            power_dist = min(((p.x - pacman.x) ** 2 + (p.y - pacman.y) ** 2) ** 0.5 for p in power_pellets)
+            score_dists = [((s.x - pacman.x) ** 2 + (s.y - pacman.y) ** 2) ** 0.5 for s in score_pellets]
+            avg_score_dist = sum(score_dists) / len(score_dists)
+            return power_dist < avg_score_dist
+
+        def has_edible_ghost(pacman, maze, power_pellets, score_pellets, ghosts):
+            for ghost in ghosts:
+                if ghost.edible and ghost.edible_timer > 3 and not ghost.returning_to_spawn and not ghost.waiting:
+                    dist = ((ghost.x - pacman.x) ** 2 + (ghost.y - pacman.y) ** 2) ** 0.5
+                    if dist < 100:
+                        return True
+            return False
+
+        def has_score_pellet(pacman, maze, power_pellets, score_pellets, ghosts):
+            return bool(score_pellets)
+
+        def is_stuck(pacman, maze, power_pellets, score_pellets, ghosts):
+            return pacman.stuck_count > pacman.max_stuck_frames
+
+        # 動作函數
+        def flee_from_ghosts(pacman, maze, power_pellets, score_pellets, ghosts):
+            direction = pacman.find_path((pacman.x, pacman.y), None, maze, ghosts, score_pellets, power_pellets, mode="flee", target_type="none")
+            if direction:
+                dx, dy = direction
+                if pacman.set_new_target(dx, dy, maze):
+                    pacman.last_direction = (dx, dy)
+                    pacman.stuck_count = 0
+                    return NodeStatus.SUCCESS
+            return NodeStatus.FAILURE
+
+        def move_to_power_pellet(pacman, maze, power_pellets, score_pellets, ghosts):
+            closest_power = min(power_pellets, key=lambda p: (p.x - pacman.x) ** 2 + (p.y - pacman.y) ** 2)
+            goal = (closest_power.x, closest_power.y)
+            direction = pacman.find_path((pacman.x, pacman.y), goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="power")
+            if direction:
+                dx, dy = direction
+                if pacman.set_new_target(dx, dy, maze):
+                    pacman.last_direction = (dx, dy)
+                    pacman.stuck_count = 0
+                    return NodeStatus.SUCCESS
+            return NodeStatus.FAILURE
+
+        def move_to_score_pellet(pacman, maze, power_pellets, score_pellets, ghosts):
+            closest_score = min(score_pellets, key=lambda s: (s.x - pacman.x) ** 2 + (s.y - pacman.y) ** 2)
+            goal = (closest_score.x, closest_score.y)
+            direction = pacman.find_path((pacman.x, pacman.y), goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
+            if direction:
+                dx, dy = direction
+                if pacman.set_new_target(dx, dy, maze):
+                    pacman.last_direction = (dx, dy)
+                    pacman.stuck_count = 0
+                    return NodeStatus.SUCCESS
+            return NodeStatus.FAILURE
+
+        def move_to_edible_ghost(pacman : PacMan, maze, power_pellets, score_pellets, ghosts : List[Ghost]):
+            edible_ghosts = [g for g in ghosts if g.edible and g.edible_timer > 3 and not g.returning_to_spawn and not g.waiting]
+            if not edible_ghosts:
+                return NodeStatus.FAILURE
+            closest_edible = min(edible_ghosts, key=lambda g: (g.x - pacman.x) ** 2 + (g.y - pacman.y) ** 2)
+            goal = (closest_edible.target_x, closest_edible.target_y)
+            direction = pacman.find_path((pacman.x, pacman.y), goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="edible")
+            if direction:
+                dx, dy = direction
+                if pacman.set_new_target(dx, dy, maze):
+                    pacman.last_direction = (dx, dy)
+                    pacman.stuck_count = 0
+                    return NodeStatus.SUCCESS
+            return NodeStatus.FAILURE
+
+        def random_safe_move(pacman, maze, power_pellets, score_pellets, ghosts):
+            directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+            safe_directions = [(dx, dy) for dx, dy in directions 
+                              if maze.xy_valid(pacman.x + dx, pacman.y + dy) 
+                              and maze.get_tile(pacman.x + dx, pacman.y + dy) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
+            if safe_directions:
+                dx, dy = random.choice(safe_directions)
+                if pacman.set_new_target(dx, dy, maze):
+                    pacman.last_direction = (dx, dy)
+                    pacman.stuck_count = 0
+                    return NodeStatus.SUCCESS
+            return NodeStatus.FAILURE
+
+        # 構建行為樹
+        return SelectorNode([
+            SequenceNode([
+                ConditionNode(is_immediate_threat),
+                ActionNode(flee_from_ghosts)
+            ]),
+            SequenceNode([
+                ConditionNode(is_threat_nearby),
+                ConditionNode(has_power_pellet),
+                ActionNode(move_to_power_pellet)
+            ]),
+            SequenceNode([
+                ConditionNode(is_endgame),
+                SelectorNode([
+                    SequenceNode([
+                        ConditionNode(is_power_pellet_closer),
+                        ActionNode(move_to_power_pellet)
+                    ]),
+                    ActionNode(move_to_score_pellet)
+                ])
+            ]),
+            SequenceNode([
+                ConditionNode(has_edible_ghost),
+                ActionNode(move_to_edible_ghost)
+            ]),
+            SequenceNode([
+                ConditionNode(has_score_pellet),
+                ActionNode(move_to_score_pellet)
+            ]),
+            SequenceNode([
+                ConditionNode(is_stuck),
+                ActionNode(random_safe_move)
+            ])
+        ])
+
+    def rule_based_ai_move(self, maze, power_pellets: List['PowerPellet'], score_pellets: List['ScorePellet'], ghosts: List['Ghost']) -> bool:
+        """
+        使用行為樹執行 AI 移動邏輯，替代原有的多層決策。
 
         Args:
-            x (int): 迷宮中的 x 坐標（格子坐標）。
-            y (int): 迷宮中的 y 坐標（格子坐標）。
+            maze: 迷宮物件。
+            power_pellets: 能量球列表。
+            score_pellets: 分數球列表。
+            ghosts: 鬼魂列表。
+
+        Returns:
+            bool: 是否成功設置新目標。
         """
-        super().__init__(x, y, 'P')  # 調用基類 Entity 初始化
-        self.score = 0  # 初始分數
-        self.lives = 3  # 初始生命數
-        self.alive = True  # 生存狀態
-        self.speed = PACMAN_BASE_SPEED  # 基礎移動速度
-        self.last_direction = None  # 上次移動方向
-        self.alternating_vertical_count = 0  # 連續上下交替移動次數
-        self.stuck_count = 0  # 連續卡住計數
-        self.max_stuck_frames = MAX_STUCK_FRAMES  # 最大卡住幀數
-        self.initial_x = x  # 初始 x 坐標
-        self.initial_y = y  # 初始 y 坐標
+        self.speed = PACMAN_AI_SPEED
+        status = self.behavior_tree.execute(self, maze, power_pellets, score_pellets, ghosts)
+        return status == NodeStatus.SUCCESS
 
     def eat_pellet(self, pellets: List['PowerPellet']) -> int:
         """
@@ -254,248 +454,4 @@ class PacMan(Entity):
                           if maze.xy_valid(start[0] + dx, start[1] + dy) 
                           and maze.get_tile(start[0] + dx, start[1] + dy) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
         return random.choice(safe_directions) if safe_directions else None
-
-    def rule_based_ai_move(self, maze, power_pellets: List['PowerPellet'], score_pellets: List['ScorePellet'], ghosts: List['Ghost']) -> bool:
-        """
-        智能規則基礎的 AI 移動邏輯，使用 A* 路徑規劃，優先收集分數球，避開危險鬼魂。
-
-        原理：
-        - 採用多層決策邏輯，根據遊戲狀態選擇最佳行動：
-          1. 檢查危險鬼魂（不可食用且非返回/等待狀態）的距離。
-          2. 若無能量球，優先吃分數球。
-          3. 在殞局模式（分數球 ≤ 10）下，動態選擇能量球或分數球。
-          4. 若有威脅（距離 < 6），優先吃能量球或逃跑。
-          5. 若有可食用鬼魂，追逐最近的鬼魂（距離 < 100）。
-          6. 否則，接近最近的分數球。
-        - 使用 A* 算法計算路徑，考慮鬼魂威脅和能量球懲罰。
-        - 包含脫困機制：若卡住超過 MAX_STUCK_FRAMES，隨機選擇安全方向。
-
-        Args:
-            maze: 迷宮物件。
-            power_pellets (List[PowerPellet]): 能量球列表。
-            score_pellets (List[ScorePellet]): 分數球列表。
-            ghosts (List[Ghost]): 鬼魂列表。
-
-        Returns:
-            bool: 是否成功設置新目標。
-        """
-        self.speed = PACMAN_AI_SPEED  # 使用 AI 專用速度
-        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 下、上、右、左
-        current_x, current_y = self.x, self.y
-        start = (current_x, current_y)
-
-        # 步驟 1: 檢查活著的不可食用鬼魂數量
-        alive_ghosts = sum(1 for ghost in ghosts if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible)
-
-        # 步驟 2: 評估威脅
-        min_danger_dist = float('inf')
-        nearest_danger = None
-        for ghost in ghosts:
-            if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
-                dist = ((current_x - ghost.x) ** 2 + (current_y - ghost.y) ** 2) ** 0.5
-                if dist < min_danger_dist:
-                    min_danger_dist = dist
-                    nearest_danger = ghost
-
-        # 步驟 3: 檢查是否進入殞局模式
-        is_endgame = len(score_pellets) <= 10
-
-        # 步驟 4: 模擬幾步路徑選擇
-        def simulate_move(dx, dy, steps=3):
-            """
-            模擬移動幾步，檢查安全性。
-
-            原理：
-            - 模擬 Pac-Man 沿指定方向移動 steps 步，檢查是否進入危險區域。
-            - 若接近鬼魂（距離 < 2）或撞牆，返回無窮大成本。
-            - 返回移動距離：dist = √((x - current_x)^2 + (y - current_y)^2)
-
-            Args:
-                dx (int): x 方向偏移。
-                dy (int): y 方向偏移。
-                steps (int): 模擬步數。
-
-            Returns:
-                float: 模擬移動的成本。
-            """
-            x, y = current_x, current_y
-            for _ in range(steps):
-                x, y = x + dx, y + dy
-                if not maze.xy_valid(x, y) or maze.get_tile(x, y) in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]:
-                    return float('inf')
-                for ghost in ghosts:
-                    if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
-                        dist = ((x - ghost.x) ** 2 + (y - ghost.y) ** 2) ** 0.5
-                        if dist < 2:
-                            return float('inf')
-            return ((x - current_x) ** 2 + (y - current_y) ** 2) ** 0.5
-
-        # 步驟 5: 若無能量球，優先吃分數球
-        if not power_pellets and score_pellets:
-            immediate_threat = min_danger_dist < 2
-            if immediate_threat:
-                direction = self.find_path(start, None, maze, ghosts, score_pellets, power_pellets, mode="flee", target_type="none")
-                if direction:
-                    dx, dy = direction
-                    if self.set_new_target(dx, dy, maze):
-                        self.last_direction = (dx, dy)
-                        self.stuck_count = 0
-                        return True
-            else:
-                score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
-                closest_score = min(score_options, key=lambda x: x[1])[0]
-                goal = (closest_score.x, closest_score.y)
-                direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
-                if direction:
-                    dx, dy = direction
-                    if self.set_new_target(dx, dy, maze):
-                        self.last_direction = (dx, dy)
-                        self.stuck_count = 0
-                        return True
-
-        # 步驟 6: 殞局模式處理
-        if is_endgame and score_pellets:
-            remaining_scores = [(s, (s.x, s.y)) for s in score_pellets]
-            current_pos = start
-            best_path = []
-            while remaining_scores:
-                closest = min(remaining_scores, key=lambda s: ((s[1][0] - current_pos[0]) ** 2 + (s[1][1] - current_pos[1]) ** 2) ** 0.5)
-                best_path.append(closest[1])
-                current_pos = closest[1]
-                remaining_scores.remove(closest)
-
-            use_power_pellet = False
-            if power_pellets and (min_danger_dist < 6 or alive_ghosts >= 3):
-                power_options = [(p, (p.x - current_x) ** 2 + (p.y - current_y) ** 2) for p in power_pellets]
-                closest_power = min(power_options, key=lambda x: x[1])[0]
-                power_dist = ((closest_power.x - current_x) ** 2 + (closest_power.y - current_y) ** 2) ** 0.5
-                if power_dist < sum(((p[0] - current_x) ** 2 + (p[1] - current_y) ** 2) ** 0.5 for p in best_path) / len(best_path):
-                    use_power_pellet = True
-                    goal = (closest_power.x, closest_power.y)
-                    direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="power")
-                    if direction:
-                        dx, dy = direction
-                        if self.set_new_target(dx, dy, maze):
-                            self.last_direction = (dx, dy)
-                            self.stuck_count = 0
-                            return True
-
-            if not use_power_pellet and best_path:
-                goal = best_path[0]
-                direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
-                if direction:
-                    dx, dy = direction
-                    if self.set_new_target(dx, dy, maze):
-                        self.last_direction = (dx, dy)
-                        self.stuck_count = 0
-                        return True
-
-        # 步驟 7: 優先級策略
-        if min_danger_dist < 6:
-            if power_pellets:
-                power_options = [(p, (p.x - current_x) ** 2 + (p.y - current_y) ** 2) for p in power_pellets]
-                if power_options:
-                    closest_power = min(power_options, key=lambda x: x[1])[0]
-                    goal = (closest_power.x, closest_power.y)
-                    direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="power")
-                    if direction:
-                        dx, dy = direction
-                        if self.set_new_target(dx, dy, maze):
-                            self.last_direction = (dx, dy)
-                            self.stuck_count = 0
-                            return True
-                    else:
-                        if score_pellets:
-                            score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
-                            closest_score = min(score_options, key=lambda x: x[1])[0]
-                            goal = (closest_score.x, closest_score.y)
-                            direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
-                            if direction:
-                                dx, dy = direction
-                                if self.set_new_target(dx, dy, maze):
-                                    self.last_direction = (dx, dy)
-                                    self.stuck_count = 0
-                                    return True
-                        direction = self.find_path(start, None, maze, ghosts, score_pellets, power_pellets, mode="flee", target_type="none")
-                        if direction:
-                            dx, dy = direction
-                            if self.set_new_target(dx, dy, maze):
-                                self.last_direction = (dx, dy)
-                                self.stuck_count = 0
-                                return True
-            else:
-                direction = self.find_path(start, None, maze, ghosts, score_pellets, power_pellets, mode="flee", target_type="none")
-                if direction:
-                    dx, dy = direction
-                    if self.set_new_target(dx, dy, maze):
-                        self.last_direction = (dx, dy)
-                        self.stuck_count = 0
-                        return True
-        else:
-            edible_ghosts = [ghost for ghost in ghosts if ghost.edible and ghost.edible_timer > 3 and not ghost.returning_to_spawn and not ghost.waiting]
-            if edible_ghosts:
-                closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
-                if ((closest_edible.x - current_x)**2 + (closest_edible.y - current_y)**2) < 100:
-                    goal = (closest_edible.x, closest_edible.y)
-                    direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="edible")
-                    if direction:
-                        dx, dy = direction
-                        if self.set_new_target(dx, dy, maze):
-                            self.last_direction = (dx, dy)
-                            self.stuck_count = 0
-                            return True
-            
-            if score_pellets:
-                score_options = [(s, (s.x - current_x) ** 2 + (s.y - current_y) ** 2) for s in score_pellets]
-                closest_score = min(score_options, key=lambda x: x[1])[0]
-                goal = (closest_score.x, closest_score.y)
-                direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
-                if direction:
-                    dx, dy = direction
-                    if self.set_new_target(dx, dy, maze):
-                        self.last_direction = (dx, dy)
-                        self.stuck_count = 0
-                        return True
-            else:
-                if edible_ghosts:
-                    closest_edible = min(edible_ghosts, key=lambda g: (g.x - current_x) ** 2 + (g.y - current_y) ** 2)
-                    goal = (closest_edible.x, closest_edible.y)
-                    direction = self.find_path(start, goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="edible")
-                    if direction:
-                        dx, dy = direction
-                        if self.set_new_target(dx, dy, maze):
-                            self.last_direction = (dx, dy)
-                            self.stuck_count = 0
-                            return True
-
-        # 步驟 8: 選擇最安全方向或脫困
-        safe_directions = [d for d in directions if maze.xy_valid(current_x + d[0], current_y + d[1]) 
-                         and maze.get_tile(current_x + d[0], current_y + d[1]) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
-        if not safe_directions:
-            return False
-
-        best_score = float('inf')
-        best_direction = None
-        for dx, dy in safe_directions:
-            score = simulate_move(dx, dy)
-            if score < best_score:
-                best_score = score
-                best_direction = (dx, dy)
-
-        if best_direction:
-            dx, dy = best_direction
-            if self.set_new_target(dx, dy, maze):
-                self.last_direction = (dx, dy)
-                self.stuck_count = 0
-                return True
-        else:
-            self.stuck_count += 1
-            if self.stuck_count > self.max_stuck_frames:
-                random_direction = random.choice(safe_directions)
-                dx, dy = random_direction
-                if self.set_new_target(dx, dy, maze):
-                    self.last_direction = (dx, dy)
-                    self.stuck_count = 0
-                    return True
-
-        return False
+    
