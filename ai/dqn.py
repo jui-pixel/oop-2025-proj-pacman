@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import numpy as np
 class NoisyLinear(nn.Module):
     """嘈雜線性層（Noisy Linear Layer），用於在深度強化學習中引入隨機噪聲以增強探索。
 
@@ -42,9 +42,9 @@ class NoisyLinear(nn.Module):
         - 偏置均值和標準差初始化為零，確保初始行為接近標準線性層。
         """
         nn.init.xavier_uniform_(self.weight_mu)  # Xavier 初始化權重均值
-        nn.init.xavier_uniform_(self.weight_sigma)  # Xavier 初始化權重標準差
+        nn.init.constant_(self.weight_sigma, self.sigma / np.sqrt(self.in_features))  # Xavier 初始化權重標準差
         nn.init.zeros_(self.bias_mu)  # 偏置均值設為零
-        nn.init.zeros_(self.bias_sigma)  # 偏置標準差設為零
+        nn.init.constant_(self.bias_sigma, self.sigma / np.sqrt(self.in_features))
 
     def reset_noise(self):
         """重新生成噪聲，保持參數不變。
@@ -54,8 +54,10 @@ class NoisyLinear(nn.Module):
         - 噪聲從標準正態分佈 N(0, 1) 中抽樣，與輸入和輸出維度獨立。
         - 在 Pac-Man 中，這確保 DQN 在選擇動作（上、下、左、右）時保持探索多樣性。
         """
-        self.eps_in = torch.randn(self.in_features, device=self.weight_mu.device)  # 輸入維度噪聲
-        self.eps_out = torch.randn(self.out_features, device=self.weight_mu.device)  # 輸出維度噪聲
+        epsilon_in = torch.randn(self.in_features, device=self.weight_mu.device) / np.sqrt(self.in_features)
+        epsilon_out = torch.randn(self.out_features, device=self.weight_mu.device) / np.sqrt(self.out_features)
+        self.eps_in = torch.sign(epsilon_in) * torch.sqrt(torch.abs(epsilon_in))
+        self.eps_out = torch.sign(epsilon_out) * torch.sqrt(torch.abs(epsilon_out))
 
     def forward(self, x):
         """前向傳播，計算帶噪聲的線性變換。
@@ -81,8 +83,10 @@ class NoisyLinear(nn.Module):
         weight = self.weight_mu + self.weight_sigma * weight_noise  # 最終權重
         # 計算帶噪聲的偏置
         bias = self.bias_mu + self.bias_sigma * self.eps_out  # 最終偏置
+        weight_sigma_mean = self.weight_sigma.abs().mean().item()
+        bias_sigma_mean = self.bias_sigma.abs().mean().item()
         # 計算線性變換：y = x * w^T + b
-        return x @ weight.transpose(0, 1) + bias
+        return x @ weight.transpose(0, 1) + bias, {"weight_sigma_mean": weight_sigma_mean, "bias_sigma_mean": bias_sigma_mean}
 
 class DQN(nn.Module):
     """深度 Q 學習網絡（DQN），用於逼近 Pac-Man 遊戲的 Q 值函數。

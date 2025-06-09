@@ -88,27 +88,7 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
     if not resume:
         print(f"收集 {pretrain_episodes} 回合的專家數據進行預訓練...")
         expert_data = collect_expert_data(env, agent, pretrain_episodes, max_steps_per_episode=200)
-        # 使用 AMP 進行預訓練
-        scaler = GradScaler('cuda')
-        agent.model.train()
-        print(f"Starting pretraining with {len(expert_data)} expert samples...")
-        for step in range(10000):  # 固定步數
-            batch = random.sample(expert_data, min(agent.batch_size, len(expert_data)))
-            states, actions = zip(*batch)
-            states = torch.FloatTensor(np.array(states)).to(device)
-            actions = torch.LongTensor(actions).to(device).squeeze()
-            with autocast('cuda'):
-                q_values = agent.model(states)
-                loss = F.cross_entropy(q_values, actions)
-            agent.optimizer.zero_grad()
-            scaler.scale(loss).backward()
-            scaler.unscale_(agent.optimizer)
-            torch.nn.utils.clip_grad_norm_(agent.model.parameters(), max_norm=10.0)
-            scaler.step(agent.optimizer)
-            scaler.update()
-            if (step + 1) % 100 == 0:
-                print(f"Pretrain step {step + 1}/10000, Loss: {loss.item():.4f}")
-        print("Pretraining completed")
+        agent.pretrain(expert_data, pretrain_steps=10000)
 
     writer = SummaryWriter()
     episode_rewards = []
@@ -121,6 +101,8 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
         done = False
         state, _ = env.reset(random_spawn_seed=episode)
         agent.model.reset_noise()
+        action_counts = np.zeros(action_dim)  # 動作分佈計數
+        q_values_list = []
         while not done:
             if random.random() < agent.expert_prob:
                 action = env.get_expert_action()
@@ -128,6 +110,11 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
             else:
                 action = agent.choose_action(state)
                 expert_action = False
+            action_counts[action] += 1
+            q_values, noise_metrics = agent.model(torch.FloatTensor(state).unsqueeze(0).to(device))
+            q_values_list.append(q_values.detach().cpu().numpy().mean())
+            writer.add_scalar('Weight_Sigma_Mean', noise_metrics['weight_sigma_mean'], agent.steps)
+            writer.add_scalar('Bias_Sigma_Mean', noise_metrics['bias_sigma_mean'], agent.steps)
             next_state, reward, terminated, truncated, info = env.step(action)
             done = terminated or truncated
             if info.get('valid_step', False):
@@ -138,15 +125,18 @@ def train(resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.
                 total_reward += reward
                 step_count += 1
             state = next_state
-
         episode_rewards.append(total_reward)
         recent_rewards.append(total_reward)
         if len(recent_rewards) > 100:
             recent_rewards.pop(0)
-
+        # 記錄額外指標
+        writer.add_scalar('Mean_Q_Value', np.mean(q_values_list) if q_values_list else 0, episode)
+        for i in range(action_dim):
+            writer.add_scalar(f'Action_{i}_Ratio', action_counts[i] / max(step_count, 1), episode)
         if (episode + 1) % 1 == 0:
             print(f"回合 {episode+1}/{episodes}，獎勵：{total_reward:.2f}，"
-                  f"步數：{step_count}，專家概率：{agent.expert_prob:.3f}")
+                  f"步數：{step_count}，專家概率：{agent.expert_prob:.3f}，"
+                  f"平均 Q 值：{np.mean(q_values_list):.4f}")
 
         writer.add_scalar('Reward', total_reward, episode)
         writer.add_scalar('Expert Probability', agent.expert_prob, episode)

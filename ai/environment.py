@@ -307,13 +307,13 @@ class PacManEnv(Game):
         if moved:
             self.current_score = self.pacman.score  # 更新分數
         reward = self.current_score - self.old_score  # 計算獎勵（分數增量）
-        if wall_collision:
-            reward -= 1  # 撞牆懲罰
-        min_ghost_dist = min(((self.pacman.current_x - g.current_x) ** 2 + 
-                        (self.pacman.current_y - g.current_y) ** 2) ** 0.5 
-                        for g in self.ghosts)
-        if min_ghost_dist < CELL_SIZE * 2:
-            reward -= 10
+        # if wall_collision:
+        #     reward -= 1  # 撞牆懲罰
+        # min_ghost_dist = min(((self.pacman.current_x - g.current_x) ** 2 + 
+        #                 (self.pacman.current_y - g.current_y) ** 2) ** 0.5 
+        #                 for g in self.ghosts)
+        # if min_ghost_dist < CELL_SIZE * 2:
+        #     reward -= 10
         if not self.power_pellets and not self.score_pellets:
             reward += 500
         truncated = False

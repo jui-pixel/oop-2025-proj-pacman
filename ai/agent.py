@@ -19,9 +19,9 @@ Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'
 
 class DQNAgent:
     def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, 
-                 lr=5e-4, gamma=0.95, target_update_freq=500, n_step=8, alpha=0.6, beta=0.4, 
+                 lr=1e-3, gamma=0.95, target_update_freq=10, n_step=8, alpha=0.8, beta=0.6, 
                  beta_increment=0.001, expert_prob_start=0.3, expert_prob_end=0.01, 
-                 expert_prob_decay_steps=200000):
+                 expert_prob_decay_steps=500000):
         """
         初始化 DQN 代理，設定深度強化學習的參數。
 
@@ -249,21 +249,30 @@ class DQNAgent:
         """
         print(f"Starting pretraining with {len(expert_data)} expert samples for {pretrain_steps} steps...")
         self.model.train()
+        scaler = GradScaler("cuda" if self.device.type == "cuda" else "cpu")
         for step in range(pretrain_steps):
-            # 隨機抽樣
             batch = random.sample(expert_data, min(self.batch_size, len(expert_data)))
             states, actions = zip(*batch)
             states = torch.FloatTensor(np.array(states)).to(self.device)
             actions = torch.LongTensor(actions).to(self.device).squeeze()
-            # 計算 Q 值並預測動作
-            q_values = self.model(states)
-            # 計算交叉熵損失
-            loss = F.cross_entropy(q_values, actions)
+            if self.device.type == "cuda":
+                with autocast("cuda"):
+                    q_values = self.model(states)
+                    loss = F.cross_entropy(q_values, actions)
+            else:
+                q_values = self.model(states)
+                loss = F.cross_entropy(q_values, actions)
             self.optimizer.zero_grad()
-            loss.backward()
-            # 梯度裁剪，防止梯度爆炸
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
-            self.optimizer.step()
+            if self.device.type == "cuda":
+                scaler.scale(loss).backward()
+                scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
+                scaler.step(self.optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
+                self.optimizer.step()
             if (step + 1) % 100 == 0:
                 print(f"Pretrain step {step + 1}/{pretrain_steps}, Loss: {loss.item():.4f}")
         print("Pretraining completed")
@@ -330,7 +339,7 @@ class DQNAgent:
             self.max_priority = max(self.max_priority, priority)
         # 定期軟更新目標網絡
         if self.steps % self.target_update_freq == 0:
-            tau = 0.005  # 軟更新係數
+            tau = 0.001  # 軟更新係數
             for target_param, param in zip(self.target_model.parameters(), self.model.parameters()):
                 target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
         return loss.item()
