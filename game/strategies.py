@@ -256,7 +256,7 @@ class ControlManager:
     - 提供切換控制模式、處理事件和執行移動的統一接口。
     - 若 DQN AI 初始化失敗，自動回退到規則 AI。
     """
-    def __init__(self, maze_width: int, maze_height: int, model_path: str = "pacman_dqn.pth"):
+    def __init__(self, maze_width: int, maze_height: int, model_path: str = "pacman_dqn_final.pth"):
         """
         初始化控制管理器，管理不同的控制策略。
 
@@ -268,7 +268,7 @@ class ControlManager:
         Args:
             maze_width (int): 迷宮寬度（格子數）。
             maze_height (int): 迷宮高度（格子數）。
-            model_path (str): DQN 模型文件路徑（預設為 "pacman_dqn.pth"）。(因為目前還沒練出成功的)
+            model_path (str): DQN 模型文件路徑（預設為 "pacman_dqn_final.pth"）。(因為目前還沒練出成功的)
         """
         self.player_control = PlayerControl()  # 玩家控制策略
         self.rule_based_ai = RuleBasedAIControl()  # 規則 AI 策略
