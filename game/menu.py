@@ -1,7 +1,22 @@
 import sys
 import pygame
 import json
+import os
+import config
 from config import *
+import importlib
+
+try:
+    import torch
+    PYTORCH_AVAILABLE = True
+    PYTORCH_VERSION = torch.__version__
+    CUDA_AVAILABLE = torch.cuda.is_available()
+    CUDA_DEVICE = torch.cuda.get_device_name(0) if CUDA_AVAILABLE else "N/A"
+except ImportError:
+    PYTORCH_AVAILABLE = False
+    PYTORCH_VERSION = "Not Installed"
+    CUDA_AVAILABLE = False
+    CUDA_DEVICE = "N/A"
 
 class MenuButton:
     """
@@ -160,14 +175,42 @@ def show_leaderboard(screen, font, screen_width, screen_height):
         back_text = font.render("Press ESC to return", True, WHITE)
         screen.blit(back_text, (screen_width // 2 - back_text.get_width() // 2, screen_height - 50))  # 提示返回
         pygame.display.flip()
+def update_config_seed(new_seed):
+    """
+    更新 config.py 中的 MAZE_SEED 值並儲存到檔案，然後重新加載 config 模組。
 
+    Args:
+        new_seed (int): 新的迷宮種子值。
+    """
+    global MAZE_SEED
+    MAZE_SEED = new_seed
+    try:
+        with open("config.py", "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        with open("config.py", "w", encoding="utf-8") as f:
+            for line in lines:
+                if line.strip().startswith("MAZE_SEED ="):
+                    f.write(f"MAZE_SEED = {new_seed}\n")
+                else:
+                    f.write(line)
+        importlib.reload(config)  # 重新加載 config 模組
+        # 更新 menu 模組中的 MAZE_SEED
+        globals()['MAZE_SEED'] = config.MAZE_SEED
+    except Exception as e:
+        print(f"Error updating config.py: {e}")
+        
 def show_settings(screen, font, screen_width, screen_height):
     """
-    顯示設定頁面（目前為占位符）。
+    顯示設定頁面，包含 FPS、迷宮尺寸、種子、DQN 模型、PyTorch 和 CUDA 狀態，並允許修改 MAZE_SEED。
 
     原理：
-    - 顯示簡單的設定頁面，僅包含標題和提示文字。
-    - 支援 ESC 鍵返回主選單，未來可擴展為實際設定功能（如音量、難度等）。
+    - 從 config 模組讀取 FPS、MAZE_WIDTH、MAZE_HEIGHT、MAZE_SEED。
+    - 檢查 pacman_dqn.pth 是否存在，判斷 DQN 模型是否可用。
+    - 檢查 PyTorch 是否安裝（版本）以及 CUDA 是否可用（設備名稱）。
+    - 垂直排列顯示參數，標題為黃色，內容為白色，與主選單風格一致。
+    - 添加兩個按鈕（+1 和 -1）用於調整 MAZE_SEED，種子值不得小於 1。
+    - 支援滑鼠點擊和鍵盤（上下鍵選擇，Enter 確認，左右鍵調整種子）交互。
+    - 支援 ESC 鍵返回主選單，提示文字顯示於底部。
 
     Args:
         screen (pygame.Surface): 繪製目標的螢幕表面。
@@ -175,19 +218,93 @@ def show_settings(screen, font, screen_width, screen_height):
         screen_width (int): 螢幕寬度。
         screen_height (int): 螢幕高度。
     """
+    # 檢查 DQN 模型檔案
+    dqn_available = "Available" if os.path.exists("pacman_dqn.pth") else "Not Available"
+
+    # 創建按鈕：增加和減少 MAZE_SEED
+    seed_plus_button = MenuButton("+1", screen_width // 2 + 120, 100 + 3 * 40, 50, 40, font, GRAY, LIGHT_BLUE)
+    seed_minus_button = MenuButton("-1", screen_width // 2 + 180, 100 + 3 * 40, 50, 40, font, GRAY, LIGHT_BLUE)
+    buttons = [seed_plus_button, seed_minus_button]
+    selected_index = 0
+    buttons[selected_index].is_hovered = True  # 預設第一個按鈕被選中
+
+    # 本地變數追蹤當前種子值
+    current_seed = MAZE_SEED
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                return  # 返回主選單
-        screen.fill(BLACK)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return  # 返回主選單
+                elif event.key == pygame.K_DOWN:
+                    buttons[selected_index].is_hovered = False
+                    selected_index = (selected_index + 1) % len(buttons)  # 向下循環選擇
+                    buttons[selected_index].is_hovered = True
+                elif event.key == pygame.K_UP:
+                    buttons[selected_index].is_hovered = False
+                    selected_index = (selected_index - 1) % len(buttons)  # 向上循環選擇
+                    buttons[selected_index].is_hovered = True
+                elif event.key == pygame.K_RETURN:
+                    if buttons[selected_index] == seed_plus_button:
+                        current_seed += 1
+                        update_config_seed(current_seed)
+                    elif buttons[selected_index] == seed_minus_button and current_seed > 1:
+                        current_seed -= 1
+                        update_config_seed(current_seed)
+                elif event.key == pygame.K_RIGHT:
+                    current_seed += 1
+                    update_config_seed(current_seed)
+                elif event.key == pygame.K_LEFT and current_seed > 1:
+                    current_seed -= 1
+                    update_config_seed(current_seed)
+            elif event.type == pygame.MOUSEMOTION:
+                mouse_pos = pygame.mouse.get_pos()
+                for button in buttons:
+                    button.check_hover(mouse_pos)  # 更新懸停狀態
+            elif event.type == pygame.MOUSEBUTTONDOWN and pygame.mouse.get_pressed()[0]:
+                mouse_pos = pygame.mouse.get_pos()
+                for button in buttons:
+                    if button.rect.collidepoint(mouse_pos):
+                        if button == seed_plus_button:
+                            current_seed += 1
+                            update_config_seed(current_seed)
+                        elif button == seed_minus_button and current_seed > 1:
+                            current_seed -= 1
+                            update_config_seed(current_seed)
+
+        # 更新設定清單
+        settings = [
+            f"FPS: {FPS}",
+            f"Maze Width: {MAZE_WIDTH}",
+            f"Maze Height: {MAZE_HEIGHT}",
+            f"Maze Seed: {current_seed}",
+            f"DQN Model: {dqn_available}",
+            f"PyTorch: {PYTORCH_VERSION}",
+            f"CUDA: {f'{CUDA_DEVICE}' if CUDA_AVAILABLE else 'Not Available'}"
+        ]
+
+        screen.fill(BLACK)  # 清空螢幕
+        # 繪製標題
         title = font.render("Settings", True, YELLOW)
-        screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))  # 置中顯示標題
-        placeholder = font.render("Settings (Press ESC to return)", True, WHITE)
-        screen.blit(placeholder, (screen_width // 2 - placeholder.get_width() // 2, screen_height // 2))  # 顯示占位提示
-        pygame.display.flip()
+        screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))
+
+        # 繪製設定清單
+        for i, setting in enumerate(settings):
+            text = font.render(setting, True, WHITE)
+            screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100 + i * 40))
+
+        # 繪製按鈕
+        for button in buttons:
+            button.draw(screen)
+
+        # 繪製返回提示
+        back_text = font.render("Press ESC to return, Left/Right to adjust seed", True, WHITE)
+        screen.blit(back_text, (screen_width // 2 - back_text.get_width() // 2, screen_height - 50))
+
+        pygame.display.flip()  # 更新螢幕
 
 def save_score(name, score, seed, play_time):
     """
