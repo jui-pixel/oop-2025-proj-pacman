@@ -120,7 +120,7 @@ class DQNAgent:
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         self.model.eval()  # 設置為評估模式
         with torch.no_grad():
-            q_values = self.model(state)  # 計算 Q 值
+            q_values, _ = self.model(state)  # 只取 Q 值，忽略 noise_metrics
         self.model.train()  # 恢復訓練模式
         return q_values.argmax(1).item()  # 返回最大 Q 值的動作索引
 
@@ -239,8 +239,8 @@ class DQNAgent:
         原理：
         - 模仿學習通過最小化模型預測動作與專家動作之間的交叉熵損失，初始化網絡參數。
         - 損失函數：L = -∑ [y_i * log(π(a|s))，其中：
-          - y_i：專家動作（one-hot 編碼）
-          - π(a|s)：模型預測的動作概率
+        - y_i：專家動作（one-hot 編碼）
+        - π(a|s)：模型預測的動作概率
         - 預訓練可以讓模型學習專家行為，減少早期隨機探索的低效性。
 
         Args:
@@ -257,10 +257,10 @@ class DQNAgent:
             actions = torch.LongTensor(actions).to(self.device).squeeze()
             if self.device.type == "cuda":
                 with autocast("cuda"):
-                    q_values = self.model(states)
+                    q_values, _ = self.model(states)  # 只取 Q 值，忽略 noise_metrics
                     loss = F.cross_entropy(q_values, actions)
             else:
-                q_values = self.model(states)
+                q_values, _ = self.model(states)  # 只取 Q 值，忽略 noise_metrics
                 loss = F.cross_entropy(q_values, actions)
             self.optimizer.zero_grad()
             if self.device.type == "cuda":
@@ -276,7 +276,7 @@ class DQNAgent:
             if (step + 1) % 100 == 0:
                 print(f"Pretrain step {step + 1}/{pretrain_steps}, Loss: {loss.item():.4f}")
         print("Pretraining completed")
-
+    
     def learn(self, expert_action=False):
         """
         執行一次學習步驟，更新模型參數。
@@ -311,11 +311,12 @@ class DQNAgent:
         # 使用混合精度訓練
         with autocast("cuda"):
             # 計算當前 Q 值
-            q_values = self.model(states).gather(1, actions)
+            q_values, _ = self.model(states)  # 只取 Q 值，忽略 noise_metrics
+            q_values = q_values.gather(1, actions)
             with torch.no_grad():
                 # 使用主模型選擇動作，目標模型計算 Q 值（Double DQN）
-                next_actions = self.model(next_states).max(1, keepdim=True)[1]
-                next_q_values = self.target_model(next_states).gather(1, next_actions)
+                next_actions = self.model(next_states)[0].max(1, keepdim=True)[1]  # 取 Q 值
+                next_q_values = self.target_model(next_states)[0].gather(1, next_actions)  # 取 Q 值
                 # 計算目標 Q 值
                 target_q_values = rewards + (1 - dones) * (self.gamma ** self.n_step) * next_q_values
             # 計算 TD 誤差

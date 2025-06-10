@@ -141,26 +141,44 @@ class DQN(nn.Module):
         原理：
         - 輸入狀態經過卷積層提取空間特徵，展平後輸入全連接層。
         - 使用 Dueling DQN 結構計算 Q 值：
-          - V(s)：由 fc2_value 輸出，表示狀態的總體價值。
-          - A(s, a)：由 fc2_advantage 輸出，表示每個動作的相對優勢。
-          - Q(s, a) = V(s) + (A(s, a) - mean(A(s, a')))，通過平均優勢校正穩定輸出。
+        - V(s)：由 fc2_value 輸出，表示狀態的總體價值。
+        - A(s, a)：由 fc2_advantage 輸出，表示每個動作的相對優勢。
+        - Q(s, a) = V(s) + (A(s, a) - mean(A(s, a')))，通過平均優勢校正穩定輸出。
         - 在 Pac-Man 中，輸入為 (batch_size, 6, 31, 31)，輸出為 (batch_size, 4) 的 Q 值。
 
         Args:
             x (torch.Tensor): 輸入狀態張量，形狀為 (batch_size, channels, height, width)。
 
         Returns:
-            torch.Tensor: Q 值張量，形狀為 (batch_size, action_dim)。
+            tuple: (q_values, noise_metrics)
+                - q_values: Q 值張量，形狀為 (batch_size, action_dim)。
+                - noise_metrics: 字典，包含所有 NoisyLinear 層的噪聲標準差均值。
         """
         x = self.conv(x)  # 通過卷積層提取空間特徵
         batch_size = x.size(0)  # 獲取批量大小
         x = x.contiguous().view(batch_size, -1)  # 展平卷積輸出為 (batch_size, conv_out_size)
-        x = F.relu(self.fc1(x))  # 中間層 + ReLU 激活
-        value = self.fc2_value(x)  # 計算狀態價值 V(s)
-        advantage = self.fc2_advantage(x)  # 計算動作優勢 A(s, a)
+        
+        # 處理 fc1 的輸出
+        x, fc1_metrics = self.fc1(x)  # 分離 NoisyLinear 的輸出和噪聲指標
+        x = F.relu(x)  # 僅將 Tensor 傳入 ReLU
+        
+        # 處理價值流和優勢流
+        value, value_metrics = self.fc2_value(x)  # 計算狀態價值 V(s)
+        advantage, advantage_metrics = self.fc2_advantage(x)  # 計算動作優勢 A(s, a)
+        
+        # 合併噪聲指標
+        noise_metrics = {
+            'fc1_weight_sigma_mean': fc1_metrics['weight_sigma_mean'],
+            'fc1_bias_sigma_mean': fc1_metrics['bias_sigma_mean'],
+            'value_weight_sigma_mean': value_metrics['weight_sigma_mean'],
+            'value_bias_sigma_mean': value_metrics['bias_sigma_mean'],
+            'advantage_weight_sigma_mean': advantage_metrics['weight_sigma_mean'],
+            'advantage_bias_sigma_mean': advantage_metrics['bias_sigma_mean']
+        }
+        
         # 計算 Q 值：Q(s, a) = V(s) + (A(s, a) - mean(A(s, a')))
         q_values = value + (advantage - advantage.mean(dim=1, keepdim=True))
-        return q_values
+        return q_values, noise_metrics
 
     def reset_noise(self):
         """重置所有嘈雜層的噪聲。
