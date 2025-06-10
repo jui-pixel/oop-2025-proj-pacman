@@ -16,6 +16,7 @@ try:
     from ai.agent import DQNAgent
     import torch
     import numpy as np
+    from torch.amp import autocast
     PYTORCH_AVAILABLE = True  # 表示 PyTorch 可用
 except ImportError as e:
     PYTORCH_AVAILABLE = False  # 表示 PyTorch 不可用
@@ -182,18 +183,18 @@ class DQNAIControl(ControlStrategy):
             state_dim=(6, maze_height, maze_width),  # 狀態維度：6 通道（圖層）x 高度 x 寬度
             action_dim=4,  # 動作維度：4 個方向（上、下、左、右）
             device=self.device,
-            buffer_size=50000,  # 經驗回放緩衝區大小
-            batch_size=128,  # 訓練批次大小
-            lr=1e-3,  # 學習率
-            gamma=0.99,  # 折扣因子
+            buffer_size=100000,  # 經驗回放緩衝區大小
+            batch_size=64,  # 訓練批次大小
+            lr=5e-4,  # 學習率
+            gamma=0.90,  # 折扣因子
             target_update_freq=1000,  # 目標網絡更新頻率
             n_step=4,  # n 步回報
             alpha=0.6,  # 優先經驗回放的 alpha 參數
             beta=0.4,  # 優先經驗回放的 beta 參數
             beta_increment=0.001,  # beta 增量
-            expert_prob_start=0.3,  # 初始專家策略概率
+            expert_prob_start=0.0,  # 初始專家策略概率
             expert_prob_end=0.0,  # 最終專家策略概率
-            expert_prob_decay_steps=200000  # 專家策略衰減步數
+            expert_prob_decay_steps=1  # 專家策略衰減步數
         )
         try:
             self.agent.load(model_path)  # 載入模型
@@ -225,22 +226,22 @@ class DQNAIControl(ControlStrategy):
         if pacman.move_towards_target(FPS):  # 若到達當前目標格子
             # 生成狀態，6 通道迷宮表示
             state = np.zeros((6, maze.height, maze.width), dtype=np.float32)
-            for y in range(maze.height):
-                for x in range(maze.width):
-                    if maze.get_tile(x, y) in ['#', 'X']:  # 牆壁或邊界
-                        state[5, y, x] = 1.0
+            walls = np.array([[1.0 if maze.get_tile(x, y) in [TILE_WALL, TILE_BOUNDARY] else 0.0 
+                             for x in range(maze.width)] for y in range(maze.height)])
+            state[5] = walls
             state[0, pacman.y, pacman.x] = 1.0  # Pac-Man 位置
             for pellet in power_pellets:
                 state[1, pellet.y, pellet.x] = 1.0  # 能量球位置
             for pellet in score_pellets:
                 state[2, pellet.y, pellet.x] = 1.0  # 分數球位置
             for ghost in ghosts:
-                if ghost.edible and ghost.edible_timer > 0 and not ghost.returning_to_spawn:
+                if ghost.edible and ghost.edible_timer > 3 and not ghost.returning_to_spawn:
                     state[3, ghost.y, ghost.x] = 1.0  # 可食用鬼魂位置
                 else:
                     state[4, ghost.y, ghost.x] = 1.0  # 危險鬼魂位置
-            self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲（探索策略）
-            action = self.agent.choose_action(state)  # 選擇動作
+            with autocast(self.device.type):
+                self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲（探索策略）
+                action = self.agent.choose_action(state)  # 選擇動作
             dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]  # 動作轉換為方向
             if pacman.set_new_target(dx, dy, maze):  # 設置新目標
                 return True

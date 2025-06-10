@@ -12,16 +12,16 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) 
 from collections import deque, namedtuple
 from ai.dqn import DQN, NoisyLinear
 from ai.sumtree import SumTree
-
+from torch.amp import autocast, GradScaler
 # 定義轉換元組，用於儲存強化學習中的單次轉換數據
 # 包含：當前狀態、執行的動作、獲得的獎勵、下一個狀態、是否終止
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class DQNAgent:
     def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, 
-                 lr=1e-4, gamma=0.95, target_update_freq=1000, n_step=8, alpha=0.6, beta=0.4, 
+                 lr=1e-3, gamma=0.95, target_update_freq=10, n_step=8, alpha=0.8, beta=0.6, 
                  beta_increment=0.001, expert_prob_start=0.3, expert_prob_end=0.01, 
-                 expert_prob_decay_steps=200000):
+                 expert_prob_decay_steps=500000):
         """
         初始化 DQN 代理，設定深度強化學習的參數。
 
@@ -120,7 +120,7 @@ class DQNAgent:
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         self.model.eval()  # 設置為評估模式
         with torch.no_grad():
-            q_values = self.model(state)  # 計算 Q 值
+            q_values, _ = self.model(state)  # 只取 Q 值，忽略 noise_metrics
         self.model.train()  # 恢復訓練模式
         return q_values.argmax(1).item()  # 返回最大 Q 值的動作索引
 
@@ -150,7 +150,19 @@ class DQNAgent:
             raise ValueError(f"無效的動作：{action}，預期 0 到 {self.action_dim-1}")
 
         # 將轉換數據存入 n-step 緩衝區
-        self.n_step_memory.append((state, action, reward, next_state, done))
+        state_pacman_x = np.argmax(np.max(state[0], axis=1))
+        state_pacman_y = np.argmax(np.max(state[0], axis=0))
+        next_state_pacman_x = np.argmax(np.max(next_state[0], axis=1))
+        next_state_pacman_y = np.argmax(np.max(next_state[0], axis=0))
+        position_change = np.sqrt((state_pacman_x - next_state_pacman_x) ** 2 + 
+                                (state_pacman_y - next_state_pacman_y) ** 2)
+        if reward >= 0 or position_change > 0.1 or done:
+            self.n_step_memory.append((state, action, reward, next_state, done))
+        elif position_change == 0 and random.random() > 0.7:
+            self.n_step_memory.append((state, action, reward, next_state, done))
+        else:
+            return
+        # self.n_step_memory.append((state, action, reward, next_state, done))
         # 當緩衝區滿或回合結束時，計算 n-step 轉換
         if len(self.n_step_memory) >= self.n_step or done:
             for i in range(len(self.n_step_memory) - (1 if done else 0)):
@@ -227,8 +239,8 @@ class DQNAgent:
         原理：
         - 模仿學習通過最小化模型預測動作與專家動作之間的交叉熵損失，初始化網絡參數。
         - 損失函數：L = -∑ [y_i * log(π(a|s))，其中：
-          - y_i：專家動作（one-hot 編碼）
-          - π(a|s)：模型預測的動作概率
+        - y_i：專家動作（one-hot 編碼）
+        - π(a|s)：模型預測的動作概率
         - 預訓練可以讓模型學習專家行為，減少早期隨機探索的低效性。
 
         Args:
@@ -237,25 +249,34 @@ class DQNAgent:
         """
         print(f"Starting pretraining with {len(expert_data)} expert samples for {pretrain_steps} steps...")
         self.model.train()
+        scaler = GradScaler("cuda" if self.device.type == "cuda" else "cpu")
         for step in range(pretrain_steps):
-            # 隨機抽樣
             batch = random.sample(expert_data, min(self.batch_size, len(expert_data)))
             states, actions = zip(*batch)
             states = torch.FloatTensor(np.array(states)).to(self.device)
             actions = torch.LongTensor(actions).to(self.device).squeeze()
-            # 計算 Q 值並預測動作
-            q_values = self.model(states)
-            # 計算交叉熵損失
-            loss = F.cross_entropy(q_values, actions)
+            if self.device.type == "cuda":
+                with autocast("cuda"):
+                    q_values, _ = self.model(states)  # 只取 Q 值，忽略 noise_metrics
+                    loss = F.cross_entropy(q_values, actions)
+            else:
+                q_values, _ = self.model(states)  # 只取 Q 值，忽略 noise_metrics
+                loss = F.cross_entropy(q_values, actions)
             self.optimizer.zero_grad()
-            loss.backward()
-            # 梯度裁剪，防止梯度爆炸
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
-            self.optimizer.step()
+            if self.device.type == "cuda":
+                scaler.scale(loss).backward()
+                scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
+                scaler.step(self.optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
+                self.optimizer.step()
             if (step + 1) % 100 == 0:
                 print(f"Pretrain step {step + 1}/{pretrain_steps}, Loss: {loss.item():.4f}")
         print("Pretraining completed")
-
+    
     def learn(self, expert_action=False):
         """
         執行一次學習步驟，更新模型參數。
@@ -281,23 +302,37 @@ class DQNAgent:
         self.update_expert_prob()
         # 採樣數據
         states, actions, rewards, next_states, dones, weights, indices = self.sample()
-        # 計算當前 Q 值
-        q_values = self.model(states).gather(1, actions)
-        with torch.no_grad():
-            # 使用主模型選擇動作，目標模型計算 Q 值（Double DQN）
-            next_actions = self.model(next_states).max(1, keepdim=True)[1]
-            next_q_values = self.target_model(next_states).gather(1, next_actions)
-            # 計算目標 Q 值
-            target_q_values = rewards + (1 - dones) * (self.gamma ** self.n_step) * next_q_values
-        # 計算 TD 誤差
-        td_errors = (q_values - target_q_values).abs()
-        # 計算加權損失
-        loss = (td_errors * weights).mean()
+        if states is None:  # 檢查採樣是否失敗
+            return None
+        
+        # 初始化 AMP 縮放器
+        scaler = GradScaler("cuda")
+        self.model.train()  # 確保模型處於訓練模式
+        # 使用混合精度訓練
+        with autocast("cuda"):
+            # 計算當前 Q 值
+            q_values, _ = self.model(states)  # 只取 Q 值，忽略 noise_metrics
+            q_values = q_values.gather(1, actions)
+            with torch.no_grad():
+                # 使用主模型選擇動作，目標模型計算 Q 值（Double DQN）
+                next_actions = self.model(next_states)[0].max(1, keepdim=True)[1]  # 取 Q 值
+                next_q_values = self.target_model(next_states)[0].gather(1, next_actions)  # 取 Q 值
+                # 計算目標 Q 值
+                target_q_values = rewards + (1 - dones) * (self.gamma ** self.n_step) * next_q_values
+            # 計算 TD 誤差
+            td_errors = (q_values - target_q_values).abs()
+            # 計算加權損失
+            loss = (td_errors * weights).mean()
+
+        # 優化步驟
         self.optimizer.zero_grad()
-        loss.backward()
-        # 梯度裁剪
+        scaler.scale(loss).backward()  # 縮放梯度
+        scaler.unscale_(self.optimizer)  # 反縮放以便裁剪
+        # 梯度裁剪，防止梯度爆炸
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10.0)
-        self.optimizer.step()
+        scaler.step(self.optimizer)  # 更新參數
+        scaler.update()  # 更新縮放器狀態
+        
         # 更新優先級
         for i, idx in enumerate(indices):
             priority = td_errors[i].detach().cpu().numpy()[0] + 1e-6
@@ -305,7 +340,7 @@ class DQNAgent:
             self.max_priority = max(self.max_priority, priority)
         # 定期軟更新目標網絡
         if self.steps % self.target_update_freq == 0:
-            tau = 0.005  # 軟更新係數
+            tau = 0.001  # 軟更新係數
             for target_param, param in zip(self.target_model.parameters(), self.model.parameters()):
                 target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
         return loss.item()

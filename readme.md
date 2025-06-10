@@ -208,20 +208,59 @@ python main.py
   - 方向鍵（↑↓←→）：控制 Pac-Man 移動。
   - ESC：暫停遊戲。
 
-### **訓練 DQN 代理**
+### 訓練 DQN 代理
+
+執行 `train.py` 以訓練 Pac-Man DQN 代理，支援模仿學習預訓練、混合精度訓練（AMP）和早期停止機制。
+
+#### 執行命令
 ```bash
 python .\ai\train.py
-python .\ai\train.py --resume --episodes=9000 --early_stop_reward=4000 --pretrain_episodes=100
+python .\ai\train.py --resume --episodes 9000 --early_stop_reward 4000 --pretrain_episodes 100 --lr 5e-4 --sigma 0.8 --use_lr_scheduler
 ```
 
-- 選項：
-  - `--resume`：從先前模型繼續訓練
-  - `--episodes`：訓練回合數（預設`9000`）
-  - `--early_stop_reward`：早期停止的獎勵閾值
-  - `--pretrain_episodes`：預訓練的專家採樣回合數
-- - 輸出：
-  - TensorBoard 記錄儲存於 `runs/`。
-  - 模型與記憶緩衝儲存為 `pacman_dqn_final.pth` 與 `replay_buffer_final.pkl`。
+#### 選項
+- `--resume`: 從先前模型繼續訓練（預設：False）。
+- `--episodes`: 訓練回合數（預設：5000）。
+- `--early_stop_reward`: 早期停止的平均獎勵閾值（預設：4000）。
+- `--pretrain_episodes`: 預訓練的專家採樣回合數（預設：100）。
+- `--lr`: 學習率（預設：1e-3）。
+- `--batch_size`: 批量大小（預設：64）。
+- `--target_update_freq`: 目標網絡更新頻率（預設：10）。
+- `--sigma`: NoisyLinear 初始噪聲標準差（預設：0.5）。
+- `--n_step`: n-step 學習步數（預設：8）。
+- `--gamma`: 折扣因子（預設：0.95）。
+- `--expert_prob_start`: 初始專家概率（預設：0.3）。
+- `--expert_prob_end`: 最終專家概率（預設：0.01）。
+- `--expert_prob_decay_steps`: 專家概率衰減步數（預設：500000）。
+- `--expert_random_prob`: 專家數據隨機動作概率（預設：0.1）。
+- `--max_expert_data`: 最大專家數據量（預設：10000）。
+- `--use_lr_scheduler`: 是否使用學習率調度器（預設：False）。
+
+#### 輸出
+- **TensorBoard 記錄**：儲存於 `runs/`，包含以下指標：
+  - `Reward`：每回合總獎勵。
+  - `Mean_Q_Value`：平均 Q 值。
+  - `Loss`：訓練損失。
+  - `Lives_Lost`：每回合生命損失次數。
+  - `Action_i_Ratio`：動作分佈比例（上、下、左、右）。
+  - `Expert_Probability`：當前專家概率。
+  - NoisyLinear 噪聲指標（例如 `FC1_Weight_Sigma_Mean`）。
+- **模型與記憶緩衝**：儲存為 `pacman_dqn_final.pth` 和 `replay_buffer_final.pkl`。
+- **回合數據**：每回合的獎勵儲存於 `episode_rewards.json`，生命損失儲存於 `episode_lives_lost.json`。
+
+#### 範例
+- 基礎訓練（使用默認參數）：
+  ```bash
+  python .\ai\train.py --episodes 3000 --early_stop_reward 4000
+  ```
+- 優化躲避鬼魂（降低學習率，增加噪聲，延長專家指導）：
+  ```bash
+  python .\ai\train.py --episodes 3000 --lr 5e-4 --sigma 0.8 --expert_prob_decay_steps 1000000 --use_lr_scheduler
+  ```
+- 繼續訓練（從現有模型繼續）：
+  ```bash
+  python .\ai\train.py --resume --episodes 2000 --early_stop_reward 5000 --lr 2e-4 --target_update_freq 5
+  ```
 
 ### **可視化訓練結果**
 生成訓練圖表：
