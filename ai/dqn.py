@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-
+from config import *
 class NoisyLinear(nn.Module):
-    def __init__(self, in_features, out_features, sigma=0.3):
+    def __init__(self, in_features, out_features, sigma=SIGMA):
         """
         Initialize Noisy Linear Layer.
         """

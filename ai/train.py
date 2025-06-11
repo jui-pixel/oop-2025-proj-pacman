@@ -7,11 +7,11 @@ import json
 from torch.utils.tensorboard import SummaryWriter
 from environment import PacManEnv
 from agent import DQNAgent
-from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, CELL_SIZE
+from config import *
 import random
 import optuna
 
-def collect_expert_data(env, agent, num_episodes=100, max_steps_per_episode=200, expert_random_prob=0.1, max_expert_data=10000):
+def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_episode=EXPERT_MAX_STEPS_PER_EPISODE, expert_random_prob=EXPERT_RANDOM_PROB, max_expert_data=MAX_EXPERT_DATA):
     """
     收集專家數據用於預訓練。
     """
@@ -37,8 +37,8 @@ def collect_expert_data(env, agent, num_episodes=100, max_steps_per_episode=200,
         print(f"專家回合 {episode + 1}/{num_episodes}，步數：{steps}，數據量：{len(expert_data)}")
     return expert_data[:max_expert_data]
 
-def train(trial=None, resume=False, model_path="pacman_dqn.pth", memory_path="replay_buffer.pkl",
-          episodes=1000, early_stop_reward=10000, pretrain_episodes=100):
+def train(trial=None, resume=False, model_path=MODEL_PATH, memory_path=MEMORY_PATH,
+          episodes=TRAIN_EPISODES, early_stop_reward=EARLY_STOP_REWARD, pretrain_episodes=PRETRAIN_EPISODES):
     """
     訓練 DQN 代理，支援 Optuna 超參數優化。
     """

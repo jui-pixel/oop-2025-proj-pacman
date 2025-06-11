@@ -11,14 +11,14 @@ from collections import deque, namedtuple
 from ai.dqn import DQN, NoisyLinear
 from ai.sumtree import SumTree
 from torch.amp import autocast, GradScaler
-
+from config import *
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=100000, batch_size=128, 
-                 lr=1e-3, gamma=0.95, target_update_freq=10, n_step=8, alpha=0.8, beta=0.6, 
-                 beta_increment=0.001, expert_prob_start=0.3, expert_prob_end=0.01, 
-                 expert_prob_decay_steps=500000):
+    def __init__(self, state_dim, action_dim, device="cpu", buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE, 
+                 lr=LEARNING_RATE, gamma=GAMMA, target_update_freq=TARGET_UPDATE_FREQ, n_step=N_STEP, alpha=ALPHA, beta=BETA, 
+                 beta_increment=BETA_INCREMENT, expert_prob_start=EXPERT_PROB_START, expert_prob_end=EXPERT_PROB_END, 
+                 expert_prob_decay_steps=EXPERT_PROB_DECAY_STEPS):
         """
         初始化 DQN 代理。
         """
