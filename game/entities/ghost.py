@@ -8,7 +8,7 @@ from ..maze_generator import Map
 from typing import Tuple, List, Optional
 from collections import deque
 import random
-from config import RED, PINK, CYAN, LIGHT_BLUE, TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN, GHOST_DEFAULT_SPEED, GHOST_RETURN_SPEED, GHOST_WAIT_TIME, GHOST1_SPEED, GHOST2_SPEED, GHOST3_SPEED, GHOST4_SPEED
+from config import RED, PINK, CYAN, LIGHT_BLUE, TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN, GHOST_DEFAULT_SPEED, GHOST_RETURN_SPEED, GHOST_WAIT_TIME, GHOST1_SPEED, GHOST2_SPEED, GHOST3_SPEED, GHOST4_SPEED, PACMAN_AI_SPEED
 
 class Ghost(Entity):
     def __init__(self, x: int, y: int, name: str = "Ghost", color: Tuple[int, int, int] = RED):
@@ -70,7 +70,7 @@ class Ghost(Entity):
             self.wait_timer -= 1
             if self.wait_timer <= 0:
                 self.waiting = False
-                self.speed = self.default_speed * (1.1 ** self.death_count)  # 加速公式
+                self.speed = min(self.default_speed * (1.1 ** self.death_count), PACMAN_AI_SPEED)  # 加速公式
             return
 
         if self.edible:
@@ -198,30 +198,63 @@ class Ghost(Entity):
 
     def escape_from_pacman(self, pacman, maze):
         """
-        在可食用狀態下逃離 Pac-Man，選擇與 Pac-Man 距離最大的方向。
+        在可食用狀態下逃離 Pac-Man，選擇遠離 Pac-Man 並優先通往高連通性路口的路徑。
 
         原理：
-        - 當鬼魂可食用時，選擇使距離 Pac-Man 最遠的方向移動，距離公式：dist = √((x - pacman.x)^2 + (y - pacman.y)^2)。
-        - 若無有效方向，則隨機移動。
+        - 優先選擇與 Pac-Man 曼哈頓距離最遠的方向，考慮 Pac-Man 的移動方向以避開其預測路徑。
+        - 若多個方向距離相近，優先選擇通往路口（連通性 > 2 的格子）的方向。
+        - 若無有效方向，執行安全的隨機移動，優先避免靠近 Pac-Man。
+        - 使用曼哈頓距離以降低計算開銷，適合網格迷宮。
 
         Args:
-            pacman: PacMan 物件。
-            maze: 迷宮物件。
+            pacman: PacMan 物件，包含位置 (x, y) 和目標 (target_x, target_y)。
+            maze: 迷宮物件，提供 xy_valid 和 get_tile 方法。
         """
         directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # 下、上、右、左
+        valid_tiles = {TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR}
+        
+        # 預測 Pac-Man 的未來位置（基於目標方向）
+        pacman_dx = pacman.target_x - pacman.x if pacman.target_x != pacman.x else 0
+        pacman_dy = pacman.target_y - pacman.y if pacman.target_y != pacman.y else 0
+        pacman_future = (pacman.x + pacman_dx * 2, pacman.y + pacman_dy * 2)
+
         best_direction = None
-        max_distance = -1
+        max_score = -float('inf')
+        valid_directions = []
 
         for dx, dy in directions:
             new_x, new_y = self.x + dx, self.y + dy
-            if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in [TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR]:
-                distance = ((new_x - pacman.x) ** 2 + (new_y - pacman.y) ** 2) ** 0.5
-                if distance > max_distance:
-                    max_distance = distance
+            if (maze.xy_valid(new_x, new_y) and 
+                maze.get_tile(new_x, new_y) in valid_tiles and
+                not (new_x == self.last_x and new_y == self.last_y and random.random() < 0.9)):
+                # 計算曼哈頓距離到 Pac-Man 未來位置
+                distance = abs(new_x - pacman_future[0]) + abs(new_y - pacman_future[1])
+                # 計算連通性分數（可通行方向數）
+                connectivity = sum(
+                    maze.xy_valid(new_x + ddx, new_y + ddy) and 
+                    maze.get_tile(new_x + ddx, new_y + ddy) in valid_tiles
+                    for ddx, ddy in directions
+                )
+                # 綜合評分：距離 + 連通性加權
+                score = distance + connectivity * 2  # 連通性權重可調整
+                valid_directions.append((dx, dy, score))
+                if score > max_score:
+                    max_score = score
                     best_direction = (dx, dy)
 
         if best_direction and self.set_new_target(best_direction[0], best_direction[1], maze):
+            self.last_x, self.last_y = self.x, self.y
             return
+
+        # 安全隨機移動：從有效方向中選擇，避免靠近 Pac-Man
+        if valid_directions:
+            valid_directions.sort(key=lambda x: x[2], reverse=True)  # 按分數排序
+            for dx, dy, _ in valid_directions:
+                if self.set_new_target(dx, dy, maze):
+                    self.last_x, self.last_y = self.x, self.y
+                    return
+
+        # 若無有效方向，保持靜止或隨機移動
         self.move_random(maze)
 
     def move_random(self, maze):
@@ -364,24 +397,21 @@ class Ghost1(Ghost):
 
     def chase_pacman(self, pacman, maze, ghosts: List['Ghost'] = None):
         """
-        領頭追逐策略：預測 Pac-Man 未來 3 步位置，優先使用 BFS 追逐，若無路徑則協調其他鬼魂。
+        領頭追逐策略：預測 Pac-Man 未來 1 步位置，優先使用 BFS 追逐，若無路徑則協調其他鬼魂。
 
         原理：
-        - 預測 Pac-Man 的移動方向，計算未來 2 步位置：target_x = pacman.x + dx * 2
+        - 預測 Pac-Man 的移動方向，計算未來 1 步位置：target_x = pacman.target_x
         - 使用 BFS 尋找最短路徑，若失敗則追蹤記憶位置或隨機移動。
         - 與其他鬼魂協作，通知最近的鬼魂進行包抄。
         """
-        dx, dy = 0, 0
-        if pacman.target_x != pacman.x or pacman.target_y != pacman.y:
-            dx = pacman.target_x - pacman.x
-            dy = pacman.target_y - pacman.y
-        target_x = pacman.x + dx * 2  # 預測 2 步
-        target_y = pacman.y + dy * 2
-        target_x = max(0, min(maze.width - 1, target_x))
-        target_y = max(0, min(maze.height - 1, target_y))
-        if self.move_to_target(target_x, target_y, maze):
-            self.memory_x, self.memory_y = pacman.x, pacman.y
-            return
+        if pacman.target_x and pacman.target_y:
+            target_x = pacman.target_x
+            target_y = pacman.target_y
+            target_x = max(0, min(maze.width - 1, target_x))
+            target_y = max(0, min(maze.height - 1, target_y))
+            if self.move_to_target(target_x, target_y, maze):
+                self.memory_x, self.memory_y = pacman.x, pacman.y
+                return
 
         if self.move_to_target(self.memory_x, self.memory_y, maze):
             return
@@ -430,7 +460,18 @@ class Ghost2(Ghost):
                 return
             self.move_random(maze)
             return
-
+        
+        distance = ((self.x - pacman.x) ** 2 + (self.y - pacman.y) ** 2) ** 0.5
+        threshold = 4
+        if distance <= threshold:
+            if pacman.target_x and pacman.target_y:
+                target_x = pacman.target_x
+                target_y = pacman.target_y
+                target_x = max(0, min(maze.width - 1, target_x))
+                target_y = max(0, min(maze.height - 1, target_y))
+                if self.move_to_target(target_x, target_y, maze):
+                    return
+                
         dx = pacman.x - ghost1.x
         dy = pacman.y - ghost1.y
         target_x = pacman.x + dx * 2
@@ -446,7 +487,7 @@ class Ghost2(Ghost):
             maze.get_tile(pacman.x + dx, pacman.y + dy) in [TILE_PATH, TILE_DOOR, TILE_POWER_PELLET, TILE_GHOST_SPAWN]
         ]
         if nearby_points:
-            target = min(nearby_points, key=lambda p: ((p[0] - pacman.x) ** 2 + (p[1] - pacman.y) ** 2) ** 0.5)
+            target = max(nearby_points, key=lambda p: ((p[0] - pacman.target_x) ** 2 + (p[1] - pacman.target_y) ** 2) ** 0.5)
             if self.move_to_target(target[0], target[1], maze):
                 return
         self.move_random(maze)
