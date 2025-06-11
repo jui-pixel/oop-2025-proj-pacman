@@ -37,6 +37,35 @@ GHOST4_SPEED = 80
 MAX_STUCK_FRAMES = 10
 GHOST_WAIT_TIME = 10.0
 
+# DQN Training Parameters
+# 訓練設置
+TRAIN_EPISODES = 1000  # 訓練回合數
+PRETRAIN_EPISODES = 100  # 預訓練回合數
+EARLY_STOP_REWARD = 10000  # 早期停止的獎勵閾值
+MODEL_PATH = "pacman_dqn.pth"  # 模型保存路徑
+MEMORY_PATH = "replay_buffer.pkl"  # 回放緩衝區保存路徑
+
+# DQN 模型參數
+BUFFER_SIZE = 100000
+LEARNING_RATE = 1e-3  # 學習率
+BATCH_SIZE = 128  # 批量大小
+TARGET_UPDATE_FREQ = 10  # 目標網絡更新頻率
+SIGMA = 0.3  # Noisy DQN 的噪聲因子
+N_STEP = 8  # n 步回報
+GAMMA = 0.95  # 折扣因子
+ALPHA = 0.8  # 優先級經驗回放的 alpha 參數
+BETA = 0.6  # 優先級經驗回放的 beta 參數
+BETA_INCREMENT = 1e-4  # beta 增量
+EXPERT_PROB_START = 0.3  # 專家行動概率初始值
+EXPERT_PROB_END = 0.01  # 專家行動概率終值
+EXPERT_PROB_DECAY_STEPS = 500000  # 專家概率衰減步數
+GHOST_PENALTY_WEIGHT = 3.0
+# 專家數據收集參數
+EXPERT_EPISODES = 100  # 專家數據收集回合數
+EXPERT_MAX_STEPS_PER_EPISODE = 200  # 每個回合的最大步數
+EXPERT_RANDOM_PROB = 0.1  # 專家數據收集的隨機行動概率
+MAX_EXPERT_DATA = 10000  # 最大專家數據量
+
 # 顏色
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)

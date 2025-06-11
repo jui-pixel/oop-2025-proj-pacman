@@ -223,7 +223,7 @@ class PacManEnv(Game):
             "lives_lost": self.pacman.lives < 3
         }
         self.frame_count += 1
-        return next_state, reward, terminated, truncated, info
+        return next_state, reward, terminated, info
 
     def close(self):
         """

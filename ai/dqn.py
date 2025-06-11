@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-
+from config import *
 class NoisyLinear(nn.Module):
-    def __init__(self, in_features, out_features, sigma=0.3):
+    def __init__(self, in_features, out_features, sigma=SIGMA):
         """
         Initialize Noisy Linear Layer.
         """
@@ -54,7 +54,7 @@ class NoisyLinear(nn.Module):
         return x @ weight.transpose(0, 1) + bias, {"weight_sigma_mean": weight_sigma_mean, "bias_sigma_mean": bias_sigma_mean}
 
 class DQN(nn.Module):
-    def __init__(self, state_dim, action_dim, num_conv_layers=3):
+    def __init__(self, state_dim, action_dim, num_conv_layers=3, sigma = SIGMA):
         """
         Initialize DQN network.
         """
@@ -75,9 +75,9 @@ class DQN(nn.Module):
             in_channels = out_channels
         self.conv = nn.Sequential(*conv_layers)
         conv_out_size = in_channels * h * w
-        self.fc1 = NoisyLinear(conv_out_size, 256)
-        self.fc2_value = NoisyLinear(256, 1)
-        self.fc2_advantage = NoisyLinear(256, action_dim)
+        self.fc1 = NoisyLinear(conv_out_size, 256, sigma)
+        self.fc2_value = NoisyLinear(256, 1, sigma)
+        self.fc2_advantage = NoisyLinear(256, action_dim, sigma)
 
     def forward(self, x):
         """
