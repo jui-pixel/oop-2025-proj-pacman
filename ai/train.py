@@ -169,8 +169,8 @@ def train(trial=None, resume=False,
             writer.add_scalar('Value_Bias_Sigma', noise_metrics['value_bias_sigma_mean'], agent.steps)
             writer.add_scalar('Advantage_Weight_Sigma', noise_metrics['advantage_weight_sigma_mean'], agent.steps)
             writer.add_scalar('Advantage_Bias_Sigma', noise_metrics['advantage_bias_sigma_mean'], agent.steps)
-            next_state, reward, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
+            next_state, reward, done, info = env.step(action)
+            # done = terminated or truncated
             if info.get('valid_step', False):
                 agent.store_transition(state, action, reward, next_state, done)
                 loss = agent.learn(expert_action=expert_action)
