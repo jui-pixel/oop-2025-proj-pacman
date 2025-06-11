@@ -18,7 +18,7 @@ class DQNAgent:
     def __init__(self, state_dim, action_dim, device="cpu", buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE, 
                  lr=LEARNING_RATE, gamma=GAMMA, target_update_freq=TARGET_UPDATE_FREQ, n_step=N_STEP, alpha=ALPHA, beta=BETA, 
                  beta_increment=BETA_INCREMENT, expert_prob_start=EXPERT_PROB_START, expert_prob_end=EXPERT_PROB_END, 
-                 expert_prob_decay_steps=EXPERT_PROB_DECAY_STEPS):
+                 expert_prob_decay_steps=EXPERT_PROB_DECAY_STEPS, sigma = SIGMA):
         """
         初始化 DQN 代理。
         """
@@ -38,8 +38,8 @@ class DQNAgent:
         self.beta = beta
         self.beta_increment = beta_increment
         self.steps = 0
-        self.model = DQN(state_dim, action_dim).to(self.device)
-        self.target_model = DQN(state_dim, action_dim).to(self.device)
+        self.model = DQN(state_dim, action_dim, 3, sigma).to(self.device)
+        self.target_model = DQN(state_dim, action_dim, 3, sigma).to(self.device)
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=1e-5)

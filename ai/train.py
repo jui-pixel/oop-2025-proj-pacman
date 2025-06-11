@@ -37,23 +37,29 @@ def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_
         print(f"專家回合 {episode + 1}/{num_episodes}，步數：{steps}，數據量：{len(expert_data)}")
     return expert_data[:max_expert_data]
 
-def train(trial=None, resume=False, model_path=MODEL_PATH, memory_path=MEMORY_PATH,
-          episodes=TRAIN_EPISODES, early_stop_reward=EARLY_STOP_REWARD, pretrain_episodes=PRETRAIN_EPISODES):
+def train(trial=None, resume=False,
+    model_path=MODEL_PATH, memory_path=MEMORY_PATH, episodes=TRAIN_EPISODES,
+    early_stop_reward=EARLY_STOP_REWARD, pretrain_episodes=PRETRAIN_EPISODES,
+    lr=LEARNING_RATE, batch_size=BATCH_SIZE, target_update_freq=TARGET_UPDATE_FREQ,
+    sigma=SIGMA, n_step=N_STEP, gamma=GAMMA, alpha=ALPHA, beta=BETA,
+    beta_increment=BETA_INCREMENT, expert_prob_start=EXPERT_PROB_START,
+    expert_prob_end=EXPERT_PROB_END, expert_prob_decay_steps=EXPERT_PROB_DECAY_STEPS,
+    expert_random_prob=EXPERT_RANDOM_PROB, max_expert_data=MAX_EXPERT_DATA):
     """
     訓練 DQN 代理，支援 Optuna 超參數優化。
     """
-    lr = trial.suggest_float("lr", 1e-4, 1e-2, log=True) if trial else 1e-3
-    batch_size = trial.suggest_int("batch_size", 32, 128, step=32) if trial else 64
-    target_update_freq = trial.suggest_int("target_update_freq", 5, 50) if trial else 10
-    sigma = trial.suggest_float("sigma", 0.1, 2.0) if trial else 0.5
-    n_step = trial.suggest_int("n_step", 3, 10) if trial else 8
-    gamma = trial.suggest_float("gamma", 0.9, 0.99) if trial else 0.95
-    alpha = trial.suggest_float("alpha", 0.6, 1.0) if trial else 0.8
-    beta = trial.suggest_float("beta", 0.4, 0.8) if trial else 0.6
-    beta_increment = trial.suggest_float("beta_increment", 1e-5, 1e-2, log=True) if trial else 1e-4
-    expert_prob_start = trial.suggest_float("expert_prob_start", 0.2, 0.5) if trial else 0.3
-    expert_prob_end = trial.suggest_float("expert_prob_end", 0.01, 0.1) if trial else 0.01
-    expert_prob_decay_steps = trial.suggest_int("expert_prob_decay_steps", 100000, 1000000) if trial else 500000
+    lr = trial.suggest_float("lr", 1e-4, 1e-2, log=True) if trial else LEARNING_RATE
+    batch_size = trial.suggest_int("batch_size", 32, 128, step=32) if trial else BATCH_SIZE
+    target_update_freq = trial.suggest_int("target_update_freq", 5, 50) if trial else TARGET_UPDATE_FREQ
+    sigma = trial.suggest_float("sigma", 0.1, 2.0) if trial else SIGMA
+    n_step = trial.suggest_int("n_step", 3, 10) if trial else N_STEP
+    gamma = trial.suggest_float("gamma", 0.9, 0.99) if trial else GAMMA
+    alpha = trial.suggest_float("alpha", 0.6, 1.0) if trial else ALPHA
+    beta = trial.suggest_float("beta", 0.4, 0.8) if trial else BETA
+    beta_increment = trial.suggest_float("beta_increment", 1e-5, 1e-2, log=True) if trial else BETA_INCREMENT
+    expert_prob_start = trial.suggest_float("expert_prob_start", 0.2, 0.5) if trial else EXPERT_PROB_START
+    expert_prob_end = trial.suggest_float("expert_prob_end", 0.01, 0.1) if trial else EXPERT_PROB_END
+    expert_prob_decay_steps = trial.suggest_int("expert_prob_decay_steps", 100000, 1000000) if trial else EXPERT_PROB_DECAY_STEPS
     expert_random_prob = trial.suggest_float("expert_random_prob", 0.05, 0.2) if trial else 0.1
     max_expert_data = trial.suggest_int("max_expert_data", 5000, 20000) if trial else 10000
     ghost_penalty_weight = trial.suggest_float("ghost_penalty_weight", 2.0, 10.0) if trial else 3.0
@@ -102,7 +108,8 @@ def train(trial=None, resume=False, model_path=MODEL_PATH, memory_path=MEMORY_PA
         beta_increment=beta_increment,
         expert_prob_start=expert_prob_start,
         expert_prob_end=expert_prob_end,
-        expert_prob_decay_steps=expert_prob_decay_steps
+        expert_prob_decay_steps=expert_prob_decay_steps,
+        sigma=sigma
     )
 
     if resume and os.path.exists(model_path):
@@ -227,10 +234,32 @@ def objective(trial):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Pac-Man DQN Agent")
     parser.add_argument('--resume', action='store_true', help='Resume training from previous model')
-    parser.add_argument('--episodes', type=int, default=5000, help='Number of episodes')
-    parser.add_argument('--early_stop', type=float, default=10000, help='Early stopping reward threshold')
-    parser.add_argument('--pretrain_episodes', type=int, default=50, help='Number of pretraining episodes')
     parser.add_argument('--optuna', action='store_true', help='Use Optuna for hyperparameter optimization')
+    # 訓練設置
+    parser.add_argument('--episodes', type=int, default=TRAIN_EPISODES, help='Number of training episodes')
+    parser.add_argument('--pretrain_episodes', type=int, default=PRETRAIN_EPISODES, help='Number of pretraining episodes')
+    parser.add_argument('--early_stop_reward', type=float, default=EARLY_STOP_REWARD, help='Early stopping reward threshold')
+    parser.add_argument('--model_path', type=str, default=MODEL_PATH, help='Path to save/load model')
+    parser.add_argument('--memory_path', type=str, default=MEMORY_PATH, help='Path to save/load replay buffer')
+    # DQN 模型參數
+    parser.add_argument('--lr', type=float, default=LEARNING_RATE, help='Learning rate')
+    parser.add_argument('--batch_size', type=int, default=BATCH_SIZE, help='Batch size')
+    parser.add_argument('--target_update_freq', type=int, default=TARGET_UPDATE_FREQ, help='Target network update frequency')
+    parser.add_argument('--sigma', type=float, default=SIGMA, help='Noisy DQN sigma factor')
+    parser.add_argument('--n_step', type=int, default=N_STEP, help='N-step return')
+    parser.add_argument('--gamma', type=float, default=GAMMA, help='Discount factor')
+    parser.add_argument('--alpha', type=float, default=ALPHA, help='Prioritized replay alpha')
+    parser.add_argument('--beta', type=float, default=BETA, help='Prioritized replay beta')
+    parser.add_argument('--beta_increment', type=float, default=BETA_INCREMENT, help='Beta increment per step')
+    parser.add_argument('--expert_prob_start', type=float, default=EXPERT_PROB_START, help='Starting expert probability')
+    parser.add_argument('--expert_prob_end', type=float, default=EXPERT_PROB_END, help='Ending expert probability')
+    parser.add_argument('--expert_prob_decay_steps', type=int, default=EXPERT_PROB_DECAY_STEPS, help='Expert probability decay steps')
+    # 專家數據收集參數
+    parser.add_argument('--expert_episodes', type=int, default=EXPERT_EPISODES, help='Number of expert data collection episodes')
+    parser.add_argument('--expert_max_steps_per_episode', type=int, default=EXPERT_MAX_STEPS_PER_EPISODE, help='Max steps per expert episode')
+    parser.add_argument('--expert_random_prob', type=float, default=EXPERT_RANDOM_PROB, help='Expert random action probability')
+    parser.add_argument('--max_expert_data', type=int, default=MAX_EXPERT_DATA, help='Maximum expert data size')
+
     args = parser.parse_args()
     if args.optuna:
         study = optuna.create_study(direction="maximize", storage="sqlite:///optuna.db")
@@ -240,7 +269,23 @@ if __name__ == "__main__":
     else:
         train(
             resume=args.resume,
+            model_path=args.model_path,
+            memory_path=args.memory_path,
             episodes=args.episodes,
-            early_stop_reward=args.early_stop,
-            pretrain_episodes=args.pretrain_episodes
+            early_stop_reward=args.early_stop_reward,
+            pretrain_episodes=args.pretrain_episodes,
+            lr=args.lr,
+            batch_size=args.batch_size,
+            target_update_freq=args.target_update_freq,
+            sigma=args.sigma,
+            n_step=args.n_step,
+            gamma=args.gamma,
+            alpha=args.alpha,
+            beta=args.beta,
+            beta_increment=args.beta_increment,
+            expert_prob_start=args.expert_prob_start,
+            expert_prob_end=args.expert_prob_end,
+            expert_prob_decay_steps=args.expert_prob_decay_steps,
+            expert_random_prob=args.expert_random_prob,
+            max_expert_data=args.max_expert_data,
         )
