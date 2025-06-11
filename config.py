@@ -59,7 +59,7 @@ BETA_INCREMENT = 1e-4  # beta 增量
 EXPERT_PROB_START = 0.3  # 專家行動概率初始值
 EXPERT_PROB_END = 0.01  # 專家行動概率終值
 EXPERT_PROB_DECAY_STEPS = 500000  # 專家概率衰減步數
-
+GHOST_PENALTY_WEIGHT = 3.0
 # 專家數據收集參數
 EXPERT_EPISODES = 100  # 專家數據收集回合數
 EXPERT_MAX_STEPS_PER_EPISODE = 200  # 每個回合的最大步數

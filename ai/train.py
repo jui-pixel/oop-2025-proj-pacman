@@ -44,25 +44,26 @@ def train(trial=None, resume=False,
     sigma=SIGMA, n_step=N_STEP, gamma=GAMMA, alpha=ALPHA, beta=BETA,
     beta_increment=BETA_INCREMENT, expert_prob_start=EXPERT_PROB_START,
     expert_prob_end=EXPERT_PROB_END, expert_prob_decay_steps=EXPERT_PROB_DECAY_STEPS,
-    expert_random_prob=EXPERT_RANDOM_PROB, max_expert_data=MAX_EXPERT_DATA):
+    expert_random_prob=EXPERT_RANDOM_PROB, max_expert_data=MAX_EXPERT_DATA, ghost_penalty_weight=GHOST_PENALTY_WEIGHT):
     """
     訓練 DQN 代理，支援 Optuna 超參數優化。
     """
-    lr = trial.suggest_float("lr", 1e-4, 1e-2, log=True) if trial else LEARNING_RATE
-    batch_size = trial.suggest_int("batch_size", 32, 128, step=32) if trial else BATCH_SIZE
-    target_update_freq = trial.suggest_int("target_update_freq", 5, 50) if trial else TARGET_UPDATE_FREQ
-    sigma = trial.suggest_float("sigma", 0.1, 2.0) if trial else SIGMA
-    n_step = trial.suggest_int("n_step", 3, 10) if trial else N_STEP
-    gamma = trial.suggest_float("gamma", 0.9, 0.99) if trial else GAMMA
-    alpha = trial.suggest_float("alpha", 0.6, 1.0) if trial else ALPHA
-    beta = trial.suggest_float("beta", 0.4, 0.8) if trial else BETA
-    beta_increment = trial.suggest_float("beta_increment", 1e-5, 1e-2, log=True) if trial else BETA_INCREMENT
-    expert_prob_start = trial.suggest_float("expert_prob_start", 0.2, 0.5) if trial else EXPERT_PROB_START
-    expert_prob_end = trial.suggest_float("expert_prob_end", 0.01, 0.1) if trial else EXPERT_PROB_END
-    expert_prob_decay_steps = trial.suggest_int("expert_prob_decay_steps", 100000, 1000000) if trial else EXPERT_PROB_DECAY_STEPS
-    expert_random_prob = trial.suggest_float("expert_random_prob", 0.05, 0.2) if trial else 0.1
-    max_expert_data = trial.suggest_int("max_expert_data", 5000, 20000) if trial else 10000
-    ghost_penalty_weight = trial.suggest_float("ghost_penalty_weight", 2.0, 10.0) if trial else 3.0
+    # Optuna 超參數建議（若啟用）
+    lr = trial.suggest_float("lr", 1e-4, 1e-2, log=True) if trial else lr
+    batch_size = trial.suggest_int("batch_size", 32, 128, step=32) if trial else batch_size
+    target_update_freq = trial.suggest_int("target_update_freq", 5, 50) if trial else target_update_freq
+    sigma = trial.suggest_float("sigma", 0.1, 2.0) if trial else sigma
+    n_step = trial.suggest_int("n_step", 3, 10) if trial else n_step
+    gamma = trial.suggest_float("gamma", 0.9, 0.99) if trial else gamma
+    alpha = trial.suggest_float("alpha", 0.6, 1.0) if trial else alpha
+    beta = trial.suggest_float("beta", 0.4, 0.8) if trial else beta
+    beta_increment = trial.suggest_float("beta_increment", 1e-5, 1e-2, log=True) if trial else beta_increment
+    expert_prob_start = trial.suggest_float("expert_prob_start", 0.2, 0.5) if trial else expert_prob_start
+    expert_prob_end = trial.suggest_float("expert_prob_end", 0.01, 0.1) if trial else expert_prob_end
+    expert_prob_decay_steps = trial.suggest_int("expert_prob_decay_steps", 100000, 1000000) if trial else expert_prob_decay_steps
+    expert_random_prob = trial.suggest_float("expert_random_prob", 0.05, 0.2) if trial else expert_random_prob
+    max_expert_data = trial.suggest_int("max_expert_data", 5000, 20000) if trial else max_expert_data
+    ghost_penalty_weight = trial.suggest_float("ghost_penalty_weight", 2.0, 10.0) if trial else ghost_penalty_weight
 
     # 參數驗證
     for param, valid, name, desc in [
@@ -254,6 +255,7 @@ if __name__ == "__main__":
     parser.add_argument('--expert_prob_start', type=float, default=EXPERT_PROB_START, help='Starting expert probability')
     parser.add_argument('--expert_prob_end', type=float, default=EXPERT_PROB_END, help='Ending expert probability')
     parser.add_argument('--expert_prob_decay_steps', type=int, default=EXPERT_PROB_DECAY_STEPS, help='Expert probability decay steps')
+    parser.add_argument('--ghost_penalty_weight', type=float, default=GHOST_PENALTY_WEIGHT, help='Ghost penalty weight')
     # 專家數據收集參數
     parser.add_argument('--expert_episodes', type=int, default=EXPERT_EPISODES, help='Number of expert data collection episodes')
     parser.add_argument('--expert_max_steps_per_episode', type=int, default=EXPERT_MAX_STEPS_PER_EPISODE, help='Max steps per expert episode')
@@ -288,4 +290,5 @@ if __name__ == "__main__":
             expert_prob_decay_steps=args.expert_prob_decay_steps,
             expert_random_prob=args.expert_random_prob,
             max_expert_data=args.max_expert_data,
+            ghost_penalty_weight=args.ghost_penalty_weight
         )
