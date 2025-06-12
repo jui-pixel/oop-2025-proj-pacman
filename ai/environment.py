@@ -196,10 +196,10 @@ class PacManEnv(Game):
             raise RuntimeError(f"遊戲更新失敗：{str(e)}")
         if moved:
             self.current_score = self.pacman.score
-        reward = self.current_score - self.old_score
+        reward = (self.current_score - self.old_score) * 5
         self.old_score = self.current_score
         if wall_collision:
-            reward -= 1
+            reward -= 5
         ghost_penalty = 0
         for ghost in self.ghosts:
             dist = ((self.pacman.current_x - ghost.current_x) ** 2 + 
