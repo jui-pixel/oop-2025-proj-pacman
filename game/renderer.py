@@ -83,16 +83,14 @@ class Renderer:
             CELL_SIZE // 2, CELL_SIZE // 2)
         
         direction_angle = 0
-        direction = [pacman.target_x, pacman.target_y]
         while True:
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_RIGHT]: 
+            if pacman.target_x == 1: 
                 direction_angle = 0
-            elif keys[pygame.K_LEFT]:
+            elif pacman.target_x == -1:
                 direction_angle = 180
-            elif keys[pygame.K_UP]:
+            elif pacman.target_y == 1:
                 direction_angle = 90
-            elif keys[pygame.K_DOWN]:
+            elif pacman.target_y == -1:
                 direction_angle = 270
             break
         direction_rad = math.radians(direction_angle)
