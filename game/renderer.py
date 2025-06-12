@@ -84,13 +84,13 @@ class Renderer:
         
         direction_angle = 0
         while True:
-            if pacman.target_x == 1: 
+            if pacman.target_x == 1 and pacman.target_y == 0: 
                 direction_angle = 0
-            elif pacman.target_x == -1:
+            elif pacman.target_x == -1 and pacman.target_y == 0:
                 direction_angle = 180
-            elif pacman.target_y == 1:
+            elif pacman.target_y == 1 and pacman.target_x == 0:
                 direction_angle = 90
-            elif pacman.target_y == -1:
+            elif pacman.target_y == -1 and pacman.target_x == 0:
                 direction_angle = 270
             break
         direction_rad = math.radians(direction_angle)
@@ -99,18 +99,18 @@ class Renderer:
 
         point1 = (pacman.current_x, pacman.current_y)
         point2 = (
-            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad),
-            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad)
+            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad)*1.5,
+            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad)*1.5
         )
         point3 = (
-            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad + math.pi / 2),
-            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad + math.pi / 2)
+            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad + math.pi / 4),
+            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad + math.pi / 4)
         )
         point4 = (
-            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad - math.pi / 2),
-            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad - math.pi / 2)
+            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad - math.pi / 4),
+            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad - math.pi / 4)
         )
-        pygame.draw.polygon(self.screen, BLACK, [point1, point2, point3])
+        pygame.draw.polygon(self.screen, GRAY, [point1, point4, point2, point3])
 
             
 
