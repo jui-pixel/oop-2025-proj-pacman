@@ -85,13 +85,14 @@ class Renderer:
         direction_angle = 0
         direction = [pacman.target_x, pacman.target_y]
         while True:
-            if direction == [1, 0]: 
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_RIGHT]: 
                 direction_angle = 0
-            elif direction == [-1, 0]:
+            elif keys[pygame.K_LEFT]:
                 direction_angle = 180
-            elif direction == [0, 1]:
+            elif keys[pygame.K_UP]:
                 direction_angle = 90
-            elif direction == [0, -1]:
+            elif keys[pygame.K_DOWN]:
                 direction_angle = 270
             break
         direction_rad = math.radians(direction_angle)
@@ -106,6 +107,10 @@ class Renderer:
         point3 = (
             pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad + math.pi / 2),
             pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad + math.pi / 2)
+        )
+        point4 = (
+            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad - math.pi / 2),
+            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad - math.pi / 2)
         )
         pygame.draw.polygon(self.screen, BLACK, [point1, point2, point3])
 
