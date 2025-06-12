@@ -81,7 +81,36 @@ class Renderer:
             pacman.current_x - CELL_SIZE // 4,
             pacman.current_y - CELL_SIZE // 4,
             CELL_SIZE // 2, CELL_SIZE // 2)
-        pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)
+        
+        direction_angle = 0
+        direction = [pacman.target_x, pacman.target_y]
+        while True:
+            if direction == [1, 0]: 
+                direction_angle = 0
+            elif direction == [-1, 0]:
+                direction_angle = 180
+            elif direction == [0, 1]:
+                direction_angle = 90
+            elif direction == [0, -1]:
+                direction_angle = 270
+            break
+        direction_rad = math.radians(direction_angle)
+
+        pygame.draw.circle(self.screen, YELLOW, (pacman.current_x, pacman.current_y), CELL_SIZE // 4)
+
+        point1 = (pacman.current_x, pacman.current_y)
+        point2 = (
+            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad),
+            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad)
+        )
+        point3 = (
+            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad + math.pi / 2),
+            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad + math.pi / 2)
+        )
+        pygame.draw.polygon(self.screen, BLACK, [point1, point2, point3])
+
+            
+
 
         # 渲染鬼魂
         for ghost in game.get_ghosts():
