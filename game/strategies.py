@@ -226,16 +226,19 @@ class DQNAIControl(ControlStrategy):
         if pacman.move_towards_target(FPS):  # 若到達當前目標格子
             # 生成狀態，6 通道迷宮表示
             state = np.zeros((6, maze.height, maze.width), dtype=np.float32)
-            walls = np.array([[1.0 if maze.get_tile(x, y) in [TILE_WALL, TILE_BOUNDARY] else 0.0 
-                             for x in range(maze.width)] for y in range(maze.height)])
-            state[5] = walls
+            for y in range(maze.height):
+                for x in range(maze.width):
+                    if maze.get_tile(x, y) in [TILE_BOUNDARY,TILE_WALL]:
+                        state[5, y, x] = 1.0
             state[0, pacman.y, pacman.x] = 1.0  # Pac-Man 位置
             for pellet in power_pellets:
                 state[1, pellet.y, pellet.x] = 1.0  # 能量球位置
             for pellet in score_pellets:
                 state[2, pellet.y, pellet.x] = 1.0  # 分數球位置
             for ghost in ghosts:
-                if ghost.edible and ghost.edible_timer > 3 and not ghost.returning_to_spawn:
+                if ghost.returning_to_spawn or ghost.waiting:
+                    continue
+                elif ghost.edible:
                     state[3, ghost.y, ghost.x] = 1.0  # 可食用鬼魂位置
                 else:
                     state[4, ghost.y, ghost.x] = 1.0  # 危險鬼魂位置
