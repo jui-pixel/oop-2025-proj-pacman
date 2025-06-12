@@ -239,9 +239,9 @@ class DQNAIControl(ControlStrategy):
                 if ghost.returning_to_spawn or ghost.waiting:
                     continue
                 elif ghost.edible:
-                    state[3, ghost.y, ghost.x] = 1.0  # 可食用鬼魂位置
+                    state[3, ghost.target_y, ghost.target_x] = 1.0  # 可食用鬼魂位置
                 else:
-                    state[4, ghost.y, ghost.x] = 1.0  # 危險鬼魂位置
+                    state[4, ghost.target_y, ghost.target_x] = 1.0  # 危險鬼魂位置
             with autocast(self.device.type):
                 self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲（探索策略）
                 action = self.agent.choose_action(state)  # 選擇動作

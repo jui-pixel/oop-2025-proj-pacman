@@ -68,9 +68,9 @@ class PacManEnv(Game):
             if ghost.returning_to_spawn or ghost.waiting:
                     continue
             elif ghost.edible:
-                state[3, ghost.y, ghost.x] = 1.0
+                state[3, ghost.target_y, ghost.target_x] = 1.0
             else:
-                state[4, ghost.y, ghost.x] = 1.0
+                state[4, ghost.target_y, ghost.target_x] = 1.0
         return state
 
     def get_expert_action(self):
@@ -196,10 +196,10 @@ class PacManEnv(Game):
             raise RuntimeError(f"遊戲更新失敗：{str(e)}")
         if moved:
             self.current_score = self.pacman.score
-        reward = self.current_score - self.old_score
+        reward = (self.current_score - self.old_score) * 5
         self.old_score = self.current_score
         if wall_collision:
-            reward -= 1
+            reward -= 5
         ghost_penalty = 0
         for ghost in self.ghosts:
             dist = ((self.pacman.current_x - ghost.current_x) ** 2 + 
