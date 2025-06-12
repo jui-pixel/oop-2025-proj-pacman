@@ -60,7 +60,7 @@ oop-2025-proj-pacman/
 ### **環境要求**
 - Python 3.13.2（或 3.8 以上）
 - Pygame 2.6.1
-- PyTorch（支援 CUDA 可選，DQN AI 必須）
+- PyTorch（請根據 GPU (CUDA) 選擇版本）
 - NumPy
 - Matplotlib
 - TensorBoard
@@ -95,6 +95,7 @@ python main.py
 python .\ai\train.py 
 python .\ai\train.py --resume
 python .\ai\train.py --optuna
+python .\ai\train.py --lr=0.0002508174045981659 --batch_size=32 --target_update_freq=16 --sigma=1.729094637096922 --n_step=4 --gamma=0.9692851354067678 --alpha=0.7348860970883 --beta=0.486157045831763 --beta_increment=0.002912893141237 --expert_prob_start=0.21334503709248 --expert_prob_end=0.02939906261627297 --expert_prob_decay_steps=913713 --expert_random_prob=0.1258641892374785 --max_expert_data=14188 --ghost_penalty_weight=3.44364709228557
 ```
 
 ## 選項
@@ -122,11 +123,11 @@ python .\ai\train.py --optuna
 ### DQN 模型參數
 - **`--lr`**（浮點數，預設：`0.001`）  
   學習率，控制模型參數更新的步長。
-- **`--batch_size`**（整數，預設：`64`）  
+- **`--batch_size`**（整數，預設：`128`）  
   每次訓練的批量大小。
 - **`--target_update_freq`**（整數，預設：`10`）  
   目標網絡更新的回合頻率。
-- **`--sigma`**（浮點數，預設：`0.5`）  
+- **`--sigma`**（浮點數，預設：`0.3`）  
   Noisy DQN 層的噪聲因子，用於探索。
 - **`--n_step`**（整數，預設：`8`）  
   n 步回報的步數，影響長期獎勵計算。
@@ -192,7 +193,6 @@ python ai/test_cuda.py
 ## 🐛 已知問題
 - **DQN AI** : 會主動尋找能量球，小機率吃鬼，但躲避鬼魂的能力不足。
 - **預計改進**：
-  - 增強選單功能（排行榜篩選、設定自訂選項）。
   - 添加動畫效果，改善視覺體驗。
   - 優化 PacmanEnv 的獎勵機制。(加強躲鬼策略試驗中)
 
@@ -206,6 +206,10 @@ python ai/test_cuda.py
     - 迷宮生成設計靈感來源
 - [Human-level control through deep reinforcement learning](https://www.nature.com/articles/nature14236?wm=book_wap_0005)
     - 基礎 DQN 架構
+- [Noisy Networks for Exploration](https://arxiv.org/abs/1706.10295)
+    - 加強DQN
+- [Dueling Network Architectures for Deep Reinforcement Learning](https://arxiv.org/abs/1511.06581)
+    - 加強DQN
 - [Rainbow: Combining Improvements in Deep Reinforcement Learning](https://arxiv.org/abs/1710.02298)
     - 加強DQN
 - [PyTorch Offical Website](https://pytorch.org/)
