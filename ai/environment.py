@@ -68,9 +68,9 @@ class PacManEnv(Game):
             if ghost.returning_to_spawn or ghost.waiting:
                     continue
             elif ghost.edible:
-                state[3, ghost.y, ghost.x] = 1.0
+                state[3, ghost.target_y, ghost.target_x] = 1.0
             else:
-                state[4, ghost.y, ghost.x] = 1.0
+                state[4, ghost.target_y, ghost.target_x] = 1.0
         return state
 
     def get_expert_action(self):
