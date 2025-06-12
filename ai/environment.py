@@ -65,7 +65,9 @@ class PacManEnv(Game):
             state[2, pellet.y, pellet.x] = 1.0
         # 設置鬼魂
         for ghost in self.ghosts:
-            if ghost.edible and ghost.edible_timer > 3 and not ghost.returning_to_spawn:
+            if ghost.returning_to_spawn or ghost.waiting:
+                    continue
+            elif ghost.edible:
                 state[3, ghost.y, ghost.x] = 1.0
             else:
                 state[4, ghost.y, ghost.x] = 1.0
@@ -192,25 +194,29 @@ class PacManEnv(Game):
             self.update(FPS, move_pacman)
         except Exception as e:
             raise RuntimeError(f"遊戲更新失敗：{str(e)}")
-        self.old_score = self.current_score
         if moved:
             self.current_score = self.pacman.score
         reward = self.current_score - self.old_score
+        self.old_score = self.current_score
         if wall_collision:
             reward -= 1
         ghost_penalty = 0
         for ghost in self.ghosts:
-            if ghost.edible or ghost.returning_to_spawn or ghost.waiting:
-                continue
             dist = ((self.pacman.current_x - ghost.current_x) ** 2 + 
-                    (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
-            if dist < 3 * CELL_SIZE:
-                ghost_penalty += self.ghost_penalty_weight / (dist / CELL_SIZE + 0.1)
+                        (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
+            if ghost.returning_to_spawn or ghost.waiting:
+                continue
+            elif ghost.edible:
+                if dist < 8 * CELL_SIZE:
+                    ghost_penalty -= (self.ghost_penalty_weight / (dist / CELL_SIZE + 0.1) / 2)
+            else:
+                if dist < 5 * CELL_SIZE:
+                    ghost_penalty += self.ghost_penalty_weight / (dist / CELL_SIZE + 0.1)
         reward -= ghost_penalty
         if not self.game_over:
             reward += 0.1  # 存活獎勵
         if not self.power_pellets and not self.score_pellets:
-            reward += 500
+            reward += 5000
         truncated = self.game_over
         terminated = self.game_over
         next_state = np.array(self._get_state(), dtype=np.float32)

@@ -88,7 +88,7 @@ class PacMan(Entity):
                 if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
                     dist = ((pacman.x - ghost.x) ** 2 + (pacman.y - ghost.y) ** 2) ** 0.5
                     min_danger_dist = min(min_danger_dist, dist)
-            return min_danger_dist < 2
+            return min_danger_dist <= 1
 
         def is_threat_nearby(pacman, maze, power_pellets, score_pellets, ghosts):
             min_danger_dist = float('inf')
@@ -116,7 +116,7 @@ class PacMan(Entity):
             for ghost in ghosts:
                 if ghost.edible and ghost.edible_timer > 3 and not ghost.returning_to_spawn and not ghost.waiting:
                     dist = ((ghost.x - pacman.x) ** 2 + (ghost.y - pacman.y) ** 2) ** 0.5
-                    if dist < 100:
+                    if dist < 10:
                         return True
             return False
 
@@ -413,8 +413,8 @@ class PacMan(Entity):
                 for ghost in ghosts:
                     if not ghost.returning_to_spawn and not ghost.waiting and not ghost.edible:
                         dist = ((neighbor[0] - ghost.x) ** 2 + (neighbor[1] - ghost.y) ** 2) ** 0.5
-                        if dist < 3:
-                            danger_cost += 1000 / max(1, dist)  # 靠近鬼魂加重成本
+                        if dist < 4:
+                            danger_cost += 1500 / max(1, dist)  # 靠近鬼魂加重成本
                         elif neighbor in predicted_danger:
                             danger_cost += 2000  # 預測鬼魂位置加重成本
                 

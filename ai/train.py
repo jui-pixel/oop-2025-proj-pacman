@@ -27,8 +27,8 @@ def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_
                 action = np.random.randint(0, env.action_space.n)
             else:
                 action = env.get_expert_action()
-            next_state, reward, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
+            next_state, reward, done, info = env.step(action)
+            # done = terminated or truncated
             if info.get('valid_step', False):
                 expert_data.append((state, action))
                 agent.store_transition(state, action, reward, next_state, done)
@@ -122,7 +122,7 @@ def train(trial=None, resume=False,
         expert_data = collect_expert_data(
             env, agent, pretrain_episodes, max_steps_per_episode=200,
             expert_random_prob=expert_random_prob, max_expert_data=max_expert_data)
-        agent.pretrain(expert_data, pretrain_steps=1000)
+        agent.pretrain(expert_data, pretrain_steps=5000)
 
     writer = SummaryWriter()
     episode_rewards = []
@@ -153,13 +153,16 @@ def train(trial=None, resume=False,
             q_values, noise_metrics = agent.model(torch.FloatTensor(state).unsqueeze(0).to(device))
             q_values_list.append(q_values.detach().cpu().numpy().mean())
             # 計算鬼魂距離
-            min_ghost_dist = np.min([
-                np.sqrt(
-                    (np.argmax(state[0].max(axis=1)) - np.argmax(g, axis=1))**2 +
-                    (np.argmax(state[0].max(axis=0)) - np.argmax(g, axis=0))**2
-                )
-                for g in state[3:5] if np.any(g)
-            ])
+            ghost_distances = []
+            for i in range(3, 5):  # 索引 3 和 4 是鬼魂通道
+                if i < len(state) and np.any(state[i]):
+                    pacman_x = np.argmax(state[0].max(axis=1))  # Pac-Man x 座標
+                    pacman_y = np.argmax(state[0].max(axis=0))  # Pac-Man y 座標
+                    ghost_x = np.argmax(state[i].max(axis=1))  # 鬼魂 x 座標
+                    ghost_y = np.argmax(state[i].max(axis=0))  # 鬼魂 y 座標
+                    dist = np.sqrt((pacman_x - ghost_x)**2 + (pacman_y - ghost_y)**2)
+                    ghost_distances.append(dist)
+            min_ghost_dist = min(ghost_distances) if ghost_distances else MAZE_WIDTH + MAZE_HEIGHT  # 預設最大距離
             total_ghost_dist += min_ghost_dist
             if min_ghost_dist < 2.0:
                 encounter_count += 1
