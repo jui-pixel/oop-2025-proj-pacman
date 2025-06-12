@@ -27,8 +27,8 @@ def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_
                 action = np.random.randint(0, env.action_space.n)
             else:
                 action = env.get_expert_action()
-            next_state, reward, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
+            next_state, reward, done, info = env.step(action)
+            # done = terminated or truncated
             if info.get('valid_step', False):
                 expert_data.append((state, action))
                 agent.store_transition(state, action, reward, next_state, done)
