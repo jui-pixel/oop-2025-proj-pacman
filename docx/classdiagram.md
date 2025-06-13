@@ -172,6 +172,7 @@ classDiagram
         +List[MenuButton] buttons
         +int selected_index
         +str current_menu
+        +List[ScoreRecord] leaderboard
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
