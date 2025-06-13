@@ -53,7 +53,7 @@ class Renderer:
                 elif tile == TILE_PATH:
                     pygame.draw.rect(self.screen, GRAY, rect)  # 繪製路徑（灰色）
                 elif tile == TILE_POWER_PELLET:
-                    pygame.draw.rect(self.screen, GREEN, rect)  # 繪製能量球位置（綠色）
+                    pygame.draw.rect(self.screen, GRAY, rect)  # 繪製能量球位置（綠色）
                 elif tile == TILE_GHOST_SPAWN:
                     pygame.draw.rect(self.screen, PINK, rect)  # 繪製鬼魂重生點（粉紅色）
                 elif tile == TILE_DOOR:
@@ -65,7 +65,7 @@ class Renderer:
                 pellet.x * CELL_SIZE + CELL_SIZE // 4,
                 pellet.y * CELL_SIZE + CELL_SIZE // 4,
                 CELL_SIZE // 2, CELL_SIZE // 2)  # 計算能量球矩形（居中，半格大小）
-            pygame.draw.ellipse(self.screen, BLUE, pellet_rect)  # 繪製藍色圓形能量球
+            pygame.draw.ellipse(self.screen, ORANGE, pellet_rect)  # 繪製藍色圓形能量球
 
         # 渲染分數球
         for score_pellet in game.get_score_pellets():
