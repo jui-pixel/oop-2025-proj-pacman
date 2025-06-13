@@ -210,7 +210,7 @@ classDiagram
         +torch.device device
         +bool model_available
         +__init__(maze_width: int, maze_height: int) void
-        +move(...) bool
+        +move(pacman: PacMan, maze: Map, ghosts: List[Ghost], fps: int) bool
     }
     DQNAIControl --|> ControlStrategy
     DQNAIControl --> DQNAgent
