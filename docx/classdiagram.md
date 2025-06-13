@@ -162,6 +162,7 @@ classDiagram
         +bool is_hovered
         +__init__(text: str, x: int, y: int, width: int, height: int, font: pygame.Font, inactive_color: Tuple[int,int,int], active_color: Tuple[int,int,int])
         +draw(screen: pygame.Surface) void
+        +check_hover(mouse_pos: Tuple[int,int]) void
     }
 
     class ControlStrategy~abstract~ {
