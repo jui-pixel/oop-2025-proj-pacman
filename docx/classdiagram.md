@@ -176,6 +176,7 @@ classDiagram
         +int current_seed
         +__init__(screen: pygame.Surface, font: pygame.Font, screen_width: int, screen_height: int)
         +show_menu() str
+        +show_leaderboard() void
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
