@@ -82,35 +82,52 @@ class Renderer:
             pacman.current_y - CELL_SIZE // 4,
             CELL_SIZE // 2, CELL_SIZE // 2)
         
-        direction_angle = 180
-        while True :
-            if (pacman.target_x - pacman.x) > 0: 
-                direction_angle = 0
-            elif (pacman.target_x - pacman.x) < 0:
-                direction_angle = 180
-            elif (pacman.target_y - pacman.y) > 0:
-                direction_angle = 90
-            elif (pacman.target_y - pacman.y) < 0:
-                direction_angle = 270
-            break
-        direction_rad = math.radians(direction_angle)
+        if game.is_death_animation_playing():
+            # 死亡動畫：縮小 Pac-Man
+            progress = game.get_death_animation_progress()  # 動畫進度（0 到 1）
+            scale = 1.0 - progress  # 縮放比例，從 1 減小到 0
+            radius = int(CELL_SIZE // 2 * scale)  # 計算縮放後的圓半徑
+            pacman_center = (
+                pacman.current_x,
+                pacman.current_y,
+                )  # Pac-Man 當前中心坐標
+            if radius > 0:
+                pygame.draw.circle(self.screen, YELLOW, pacman_center, radius)  # 繪製縮小的黃色圓形
+        else:
+            # 正常繪製 Pac-Man
+            pacman_rect = pygame.Rect(
+                pacman.current_x - CELL_SIZE // 4,
+                pacman.current_y - CELL_SIZE // 4,
+                CELL_SIZE // 2, CELL_SIZE // 2)  # 計算 Pac-Man 矩形（居中，半格大小）
+            pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)  # 繪製黃色圓形 Pac-Man
 
-        pygame.draw.circle(self.screen, YELLOW, (pacman.current_x, pacman.current_y), CELL_SIZE // 4)
+            direction_angle = 180
+            while True :
+                if (pacman.target_x - pacman.x) > 0: 
+                    direction_angle = 0
+                elif (pacman.target_x - pacman.x) < 0:
+                    direction_angle = 180
+                elif (pacman.target_y - pacman.y) > 0:
+                    direction_angle = 90
+                elif (pacman.target_y - pacman.y) < 0:
+                    direction_angle = 270
+                break
+            direction_rad = math.radians(direction_angle)
 
-        point1 = (pacman.current_x, pacman.current_y)
-        point2 = (
-            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad),
-            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad)
-        )
-        point3 = (
-            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad + math.pi / 4),
-            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad + math.pi / 4)
-        )
-        point4 = (
-            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad - math.pi / 4),
-            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad - math.pi / 4)
-        )
-        pygame.draw.polygon(self.screen, GRAY, [point1, point4, point2, point3])
+            point1 = (pacman.current_x, pacman.current_y)
+            point2 = (
+                pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad)*1.3,
+                pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad)*1.3
+            )
+            point3 = (
+                pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad + math.pi / 4),
+                pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad + math.pi / 4)
+            )
+            point4 = (
+                pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad - math.pi / 4),
+                pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad - math.pi / 4)
+            )
+            pygame.draw.polygon(self.screen, GRAY, [point1, point4, point2, point3])
 
             
 
