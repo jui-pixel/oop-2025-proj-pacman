@@ -211,6 +211,7 @@ classDiagram
         +bool model_available
         +__init__(maze_width: int, maze_height: int) void
         +move(pacman: PacMan, maze: Map, ghosts: List[Ghost], fps: int) bool
+        +check_model_availability() bool
     }
     DQNAIControl --|> ControlStrategy
     DQNAIControl --> DQNAgent
