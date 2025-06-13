@@ -222,6 +222,7 @@ classDiagram
         +DQNAIControl dqn_ai
         +ControlStrategy current_strategy
         +bool moving
+        +bool paused
         +switch_mode() void
         +handle_event(event: Any) void
         +move(...) bool
