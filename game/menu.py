@@ -20,6 +20,7 @@ except ImportError:
 BACKGROUND = pygame.Surface((500, 500))
 BACKGROUND.fill(DARK_GRAY_BLUE)
 for x in range(0, 500, 10):
+    for y in range(0, 500, 10):
 class MenuButton:
     """
     定義選單按鈕類，包含位置、文字和樣式。
