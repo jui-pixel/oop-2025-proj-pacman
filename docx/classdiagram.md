@@ -117,6 +117,7 @@ classDiagram
         +int seed
         +float time
         +__init__(name: str, score: int, seed: int, time: float)
+        +to_dict() Dict[str, Any]
     }
     class Game {
         +Map maze
