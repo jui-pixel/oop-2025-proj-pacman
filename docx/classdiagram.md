@@ -160,6 +160,7 @@ classDiagram
         +Tuple[int,int,int] inactive_color
         +Tuple[int,int,int] active_color
         +bool is_hovered
+        +__init__(text: str, x: int, y: int, width: int, height: int, font: pygame.Font, inactive_color: Tuple[int,int,int], active_color: Tuple[int,int,int])
     }
 
     class ControlStrategy~abstract~ {
