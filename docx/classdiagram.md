@@ -109,6 +109,7 @@ classDiagram
         +extend_walls(extend_prob: float) void
         +narrow_paths() int
         +place_power_pellets() int
+        +set_seed(seed: int) void
     }
 
     class Game {
