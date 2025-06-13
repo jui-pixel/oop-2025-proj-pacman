@@ -111,7 +111,9 @@ classDiagram
         +place_power_pellets() int
         +set_seed(seed: int) void
     }
-
+    class ScoreRecord {
+        
+    }
     class Game {
         +Map maze
         +PacMan pacman
