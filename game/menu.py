@@ -22,6 +22,7 @@ BACKGROUND.fill(DARK_GRAY_BLUE)
 for x in range(0, 500, 10):
     for y in range(0, 500, 10):
         if (x // 10 + y // 10) % 2 == 0:
+            pygame.draw.rect(BACKGROUND, (255, 255, 255, 50), (x, y, 10, 10))
 class MenuButton:
     """
     定義選單按鈕類，包含位置、文字和樣式。
