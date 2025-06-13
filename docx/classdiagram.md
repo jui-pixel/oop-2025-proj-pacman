@@ -175,6 +175,7 @@ classDiagram
         +List[ScoreRecord] leaderboard
         +int current_seed
         +__init__(screen: pygame.Surface, font: pygame.Font, screen_width: int, screen_height: int)
+        +show_menu() str
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
