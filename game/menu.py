@@ -18,7 +18,7 @@ except ImportError:
     CUDA_AVAILABLE = False
     CUDA_DEVICE = "N/A"
 BACKGROUND = pygame.Surface((500, 500))
-
+BACKGROUND.fill(DARK_GRAY_BLUE)
 class MenuButton:
     """
     定義選單按鈕類，包含位置、文字和樣式。
