@@ -227,6 +227,7 @@ classDiagram
         +handle_event(event: pygame.Event) void
         +move(pacman: PacMan, maze: Map, ghosts: List[Ghost], fps: int) bool
         +get_mode_name() str
+        +handle_pause() bool
     }
     ControlManager *--> "1" PlayerControl
     ControlManager *--> "1" RuleBasedAIControl
