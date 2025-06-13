@@ -144,6 +144,7 @@ classDiagram
         +show_game_result(won: bool, score: int) str
         +show_pause_menu() str
         +save_score(record: ScoreRecord) void
+        +toggle_pause() void
     }
     Game *--> "1" Map
     Game *--> "1" PacMan
