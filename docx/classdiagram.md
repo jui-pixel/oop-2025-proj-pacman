@@ -208,6 +208,7 @@ classDiagram
     class DQNAIControl {
         +DQNAgent agent
         +torch.device device
+        +bool model_available
         +__init__(maze_width: int, maze_height: int) void
         +move(...) bool
     }
