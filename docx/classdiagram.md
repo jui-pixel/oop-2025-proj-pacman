@@ -185,6 +185,7 @@ classDiagram
         +load_leaderboard() List[ScoreRecord]
         +update_seed(new_seed: int) void
     }
+    MenuManager *--> "0..*" MenuButton
     class ControlStrategy~abstract~ {
         +move(...) bool
     }
