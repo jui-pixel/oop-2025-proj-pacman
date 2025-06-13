@@ -194,7 +194,8 @@ class DQNAIControl(ControlStrategy):
             beta_increment=0.003,  # beta 增量
             expert_prob_start=0.0,  # 初始專家策略概率
             expert_prob_end=0.0,  # 最終專家策略概率
-            expert_prob_decay_steps=1  # 專家策略衰減步數
+            expert_prob_decay_steps=1,  # 專家策略衰減步數
+            sigma=0.5,
         )
         try:
             self.agent.load(model_path)  # 載入模型
