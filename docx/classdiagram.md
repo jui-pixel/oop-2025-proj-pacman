@@ -242,7 +242,7 @@ classDiagram
         +int frame_count
         +Discrete action_space
         +Box observation_space
-        +reset(...) ndarray
+        +reset(seed: int) ndarray
         +step(action: int) Tuple
         +_get_state() ndarray
         +close() void
