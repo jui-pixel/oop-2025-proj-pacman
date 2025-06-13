@@ -156,6 +156,7 @@ classDiagram
     class MenuButton {
         +str text
         +pygame.Rect rect
+        +pygame.Font font
     }
 
     class ControlStrategy~abstract~ {
