@@ -115,6 +115,7 @@ classDiagram
         +str name
         +int score
         +int seed
+        +float time
     }
     class Game {
         +Map maze
