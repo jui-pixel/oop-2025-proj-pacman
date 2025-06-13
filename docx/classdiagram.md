@@ -267,6 +267,7 @@ classDiagram
         +Tuple[int] input_dim
         +nn.Sequential conv
         +nn.Sequential fc
+        +NoisyLinear noisy_layers
         +_get_conv_out(shape: Tuple[int]) int
         +forward(x: Tensor) Tensor
         +reset_noise() void
