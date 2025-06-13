@@ -67,7 +67,6 @@ class MenuButton:
         scale = 1.05 if self.is_hovered else 1.0
         scaled_rect = self.rect.copy()
         scaled_rect.inflate_ip(int(self.rect.width * (scale - 1)), int(self.rect.height * (scale - 1)))
-
         pygame.draw.rect(screen, color, scaled_rect, border_radius=10)  # 繪製圓角矩形
         pygame.draw.rect(screen, WHITE, scaled_rect, width=2, border_radius=10)
         text_surface = self.font.render(self.text, True, WHITE)  # 渲染文字
