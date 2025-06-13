@@ -278,6 +278,7 @@ classDiagram
         +int capacity
         +ndarray tree
         +ndarray data
+        +int data_pointer
     }
 
     class DQNAgent {
