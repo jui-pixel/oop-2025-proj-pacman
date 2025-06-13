@@ -287,7 +287,7 @@ classDiagram
     }
 
     class DQNAgent {
-        +Tuple[int] state_dim
+        +Tuple[int,int,int] state_dim
         +int action_dim
         +torch.device device
         +SumTree memory
