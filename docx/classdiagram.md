@@ -151,6 +151,8 @@ classDiagram
     Game *--> "0..*" Ghost
     Game *--> "0..*" PowerPellet
     Game *--> "0..*" ScorePellet
+    Game *--> "0..*" ScoreRecord
+    
 
     class ControlStrategy~abstract~ {
         +move(...) bool
