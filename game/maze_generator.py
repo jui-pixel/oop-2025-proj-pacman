@@ -47,7 +47,7 @@ class Map:
             self.set_tile(x, self.height - 1, TILE_BOUNDARY)  # 底部邊界
         for y in range(self.height):
             self.set_tile(0, y, TILE_BOUNDARY)  # 左側邊界
-            self.set_tile(self.width - 1, y, TILE_BOUNDARY)  # 右側邊界
+            self.set_tile(self.width// 2 + 1, y, TILE_BOUNDARY)  # 右側邊界
 
     def add_central_room(self):
         """
@@ -66,11 +66,11 @@ class Map:
             SystemExit: 若迷宮尺寸不足以容納中央房間。
         """
         room = [
-            f"{TILE_POWER_PELLET}{TILE_PATH}{TILE_PATH}{TILE_PATH}{TILE_POWER_PELLET}",  # 第一行：能量球-路徑-路徑-路徑-能量球
+            f"{TILE_PATH}{TILE_PATH}{TILE_PATH}{TILE_PATH}{TILE_PATH}",  # 第一行：能量球-路徑-路徑-路徑-能量球
             f"{TILE_PATH}{TILE_WALL}{TILE_DOOR}{TILE_WALL}{TILE_PATH}",  # 第二行：路徑-牆壁-門-牆壁-路徑
             f"{TILE_PATH}{TILE_DOOR}{TILE_GHOST_SPAWN}{TILE_DOOR}{TILE_PATH}",  # 第三行：路徑-門-重生點-門-路徑
             f"{TILE_PATH}{TILE_WALL}{TILE_DOOR}{TILE_WALL}{TILE_PATH}",  # 第四行：路徑-牆壁-門-牆壁-路徑
-            f"{TILE_POWER_PELLET}{TILE_PATH}{TILE_PATH}{TILE_PATH}{TILE_POWER_PELLET}"  # 第五行：能量球-路徑-路徑-路徑-能量球
+            f"{TILE_PATH}{TILE_PATH}{TILE_PATH}{TILE_PATH}{TILE_PATH}"  # 第五行：能量球-路徑-路徑-路徑-能量球
         ]
         room_w, room_h = 5, 5
         start_x = (self.width - room_w) // 2  # 房間左上角 x 坐標
@@ -220,7 +220,7 @@ class Map:
                     count += 1
         return count, visited
 
-    def _check_surrounding_paths(self, x, y):
+    def _check_if_surrounding_all_wall_type(self, x, y, wall_type):
         """
         檢查 (x, y) 周圍九宮格是否全為路徑（不包括自己）。
 
@@ -240,35 +240,60 @@ class Map:
                 if dx == 0 and dy == 0:
                     continue
                 nx, ny = x + dx, y + dy
-                if self.xy_valid(nx, ny) and self.get_tile(nx, ny) != TILE_PATH:
+                if self.xy_valid(nx, ny) and self.get_tile(nx, ny) not in wall_type:
                     return False
         return True
 
-    def _check_dead_end_in_neighborhood(self, x, y):
-        """
-        檢查 (x, y) 九宮格內是否有不連通的牆壁，可能導致死路。
-
-        原理：
-        - 檢查 (x, y) 周圍的 3x3 區域，確保新生成的牆壁不會形成死路（三面或以上被牆壁包圍的路徑）。
-        - 若區域內已有死路或牆壁，則認為不適合生成新牆壁。
-
-        Args:
-            x (int): x 坐標。
-            y (int): y 坐標。
-
-        Returns:
-            bool: 是否可能形成死路（True 表示安全，False 表示可能形成死路）。
-        """
+    def _check_if_four_edges_all_wall_type(self, x, y, wall_type):
+        for dx, dy in self.directions:
+            nx, ny = x + dx, y + dy
+            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) not in wall_type:
+                return False
+        return True
+    
+    def _check_if_four_corners_all_wall_type(self, x, y, wall_type):
+        corners = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+        for dx, dy in corners:
+            nx, ny = x + dx, y + dy
+            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) not in wall_type:
+                return False
+        return True
+                
+    def _check_if_surrounding_has_wall_type(self, x, y, wall_type):
         for dx in range(-1, 2):
             for dy in range(-1, 2):
                 if dx == 0 and dy == 0:
                     continue
                 nx, ny = x + dx, y + dy
-                if self.xy_valid(nx, ny):
-                    if self.if_dead_end(nx, ny) or self.get_tile(nx, ny) == TILE_WALL:
-                        return False
-        return True
+                if self.xy_valid(nx, ny) and self.get_tile(nx, ny) in wall_type:
+                    return True
+        return False
 
+    def _check_if_four_edges_has_wall_type(self, x, y, wall_type):
+        for dx, dy in self.directions:
+            nx, ny = x + dx, y + dy
+            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) in wall_type:
+                return False
+        return True
+    
+    def _check_if_four_corners_has_wall_type(self, x, y, wall_type):
+        corners = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+        for dx, dy in corners:
+            nx, ny = x + dx, y + dy
+            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) in wall_type:
+                return False
+        return True
+    
+    def _check_if_five_square_has_wall_type(self, x, y, wall_type):
+        for dx in range(-2, 3):
+            for dy in range(-2, 3):
+                if dx == 0 and dy == 0:
+                    continue
+                nx, ny = x + dx, y + dy
+                if self.xy_valid(nx, ny) and self.get_tile(nx, ny) in wall_type:
+                    return True
+        return False
+        
     def _get_connected_wall_size(self, x, y):
         """
         計算 (x, y) 所在連通牆壁組的大小。
@@ -287,24 +312,6 @@ class Map:
         size, _ = self._flood_fill(x, y, TILE_TEMP_WALL)
         return size
 
-    def valid_wall_spawnpoint(self, x, y):
-        """
-        檢查 (x, y) 是否為有效的牆壁生成點。
-
-        原理：
-        - 確保 (x, y) 是路徑格子，且其周圍九宮格全為路徑。
-        - 用於選擇適合生成新牆壁的位置，防止破壞迷宮連通性。
-
-        Args:
-            x (int): x 坐標。
-            y (int): y 坐標。
-
-        Returns:
-            bool: 是否為有效生成點。
-        """
-        return (self.xy_valid(x, y) and self._check_surrounding_paths(x, y) and 
-                self.get_tile(x, y) == TILE_PATH)
-
     def convert_all_T_and_A_to_wall(self):
         """
         將所有臨時圖塊（TILE_TEMP_WALL 和 TILE_TEMP_MARKER）轉換為牆壁。
@@ -317,7 +324,33 @@ class Map:
             for x in range(self.width):
                 if self.get_tile(x, y) in [TILE_TEMP_WALL, TILE_TEMP_MARKER]:
                     self.set_tile(x, y, TILE_WALL)
+    
+    def if_dead_end(self, x, y):
+        """
+        檢查 (x, y) 是否為死路（三面或以上被牆壁包圍）。
 
+        原理：
+        - 檢查 (x, y) 格子是否為路徑，且其四個方向（上下左右）中至少有三個方向被非路徑格子（牆壁、邊界等）阻擋。
+        - 死路影響遊戲體驗，因此在牆壁生成時避免創建。
+
+        Args:
+            x (int): x 坐標。
+            y (int): y 坐標。
+
+        Returns:
+            bool: 是否為死路。
+        """
+        if not self.xy_valid(x, y) or self.get_tile(x, y) != TILE_PATH:
+            return False
+        return sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) in [TILE_BOUNDARY, TILE_WALL]) >= 3
+
+    def check_if_surrounding_no_dead_end(self, x, y):
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                if self.if_dead_end(x+dx, y+dy):
+                    return False
+        return True
+    
     def extend_walls(self, extend_prob=0.99):
         """
         以指定概率在現有牆壁的上下左右生成新牆壁，確保不產生死路。
@@ -338,58 +371,43 @@ class Map:
         while attempts < max_attempts:
             attempts += 1
             wall_positions = [(x, y) for y in range(1, self.height - 1) 
-                             for x in range(1, half_width + 1) if self.valid_wall_spawnpoint(x, y)]
+                             for x in range(1, half_width + 1) if self._check_if_surrounding_all_wall_type(x, y, [TILE_PATH]) and self._check_if_five_square_has_wall_type(x, y, [TILE_BOUNDARY, TILE_WALL])]
             if not wall_positions:
                 break
             
             x, y = random.choice(wall_positions)
-            self.set_tile(x, y, TILE_WALL)
+            self.set_tile(x, y, TILE_TEMP_WALL)
+            connected_size = 1
             if random.random() > extend_prob:
                 continue
             direction = random.choice(self.directions)
             new_x, new_y = x + direction[0], y + direction[1]
             tries = 1
-            connected_size = 1
             while True:
                 self.set_tile(new_x, new_y, TILE_TEMP_WALL)
-                if self._check_dead_end_in_neighborhood(new_x, new_y):
+                if not self._check_if_surrounding_has_wall_type(new_x, new_y, [TILE_WALL, TILE_BOUNDARY]) and self.check_if_surrounding_no_dead_end(new_x, new_y):
                     connected_size += 1
                     if connected_size > 3:  # 限制連續牆壁長度
                         break
-                    if random.random() < (extend_prob / (1 + (tries)/10)):  # 隨著嘗試次數增加降低擴展概率
+                    if random.random() < (extend_prob / max(1, 1 + tries / 10.0)):  # 隨著嘗試次數增加降低擴展概率
                         direction = random.choice(self.directions)
-                        new_x, new_y = new_x + direction[0], new_y + direction[1]
+                        x, y = new_x, new_y
+                        new_x, new_y = x + direction[0], y + direction[1]
                         tries += 1
                     else:
                         break
-                elif tries <= 10:
+                elif tries <= 20:
                     self.set_tile(new_x, new_y, TILE_PATH)  # 回退為路徑
+                    random.seed(tries + self.seed if self.seed else 0)
                     direction = random.choice(self.directions)
+                    random.seed(self.seed if self.seed else 0)
                     new_x, new_y = x + direction[0], y + direction[1]
                     tries += 1
                 else:
                     self.set_tile(new_x, new_y, TILE_PATH)  # 回退為路徑
                     break
-
-    def if_dead_end(self, x, y):
-        """
-        檢查 (x, y) 是否為死路（三面或以上被牆壁包圍）。
-
-        原理：
-        - 檢查 (x, y) 格子是否為路徑，且其四個方向（上下左右）中至少有三個方向被非路徑格子（牆壁、邊界等）阻擋。
-        - 死路影響遊戲體驗，因此在牆壁生成時避免創建。
-
-        Args:
-            x (int): x 坐標。
-            y (int): y 坐標。
-
-        Returns:
-            bool: 是否為死路。
-        """
-        if not self.xy_valid(x, y) or self.get_tile(x, y) != TILE_PATH:
-            return False
-        return sum(1 for dx, dy in self.directions if self.get_tile(x + dx, y + dy) != TILE_PATH) >= 3
-
+            self.convert_all_T_and_A_to_wall()
+    
     def _check_connectivity(self, area, blocked_cell=None):
         """
         檢查區域內格子是否連通，允許臨時阻擋一個格子。
@@ -417,14 +435,38 @@ class Map:
             self.set_tile(*blocked_cell, original_tile)
         return all(pos in reachable for pos in area)
 
+    def _check_if_suitable_narrow(self, x, y):
+        # 確認 (x, y) 為牆壁
+        if not self.xy_valid(x, y) or self.get_tile(x, y) != TILE_WALL:
+            return False
+
+        # 獲取 (x, y) 所在的連通牆壁組
+        _, current_wall_group = self._flood_fill(x, y, TILE_WALL)
+
+        # 定義四個對角方向
+        corners = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+
+        # 檢查每個對角格子
+        for dx, dy in corners:
+            nx, ny = x + dx, y + dy
+            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == TILE_WALL:
+                # 獲取對角格子的連通牆壁組
+                _, neighbor_wall_group = self._flood_fill(nx, ny, TILE_WALL)
+                # 若對角格子不屬於同一組，則不適合縮窄
+                if (nx, ny) not in current_wall_group:
+                    return False
+
+        return True
+    
     def narrow_paths(self):
         """
-        縮窄 2x2 的路徑區域，隨機嘗試在四個點放置牆壁，檢查是否在九宮格內形成死路。
+        縮窄 2x2 的路徑區域，隨機選擇一個 2x2 路徑塊進行處理。
 
         原理：
-        - 遍歷迷宮，尋找 2x2 的路徑區域（四個格子均為 TILE_PATH）。
-        - 隨機選擇其中一個格子，設置為臨時牆壁（TILE_TEMP_MARKER）。
-        - 檢查是否在 3x3 九宮格內形成死路，若無則保留牆壁，否則回退。
+        - 遍歷迷宮，找出所有 2x2 的路徑區域（四個格子均為 TILE_PATH）。
+        - 將所有符合條件的 2x2 塊收集到列表，隨機選擇一個進行處理。
+        - 對選定的 2x2 塊，隨機嘗試在四個點放置牆壁，檢查是否在 3x3 九宮格內形成死路。
+        - 若無死路且 connectednum <= 5，則保留牆壁，否則回退。
         - 重複執行直到無法縮窄更多路徑。
         - 增加迷宮複雜度，減少寬敞的路徑區域。
 
@@ -432,41 +474,43 @@ class Map:
             int: 成功放置的牆壁數量。
         """
         count = 0
-        S = TILE_TEMP_MARKER  # 臨時牆壁標記，後續統一轉換為牆壁
+        max_attempts = 1000  # 防止無限循環
+        attempts = 0
 
-        for y in range(1, self.height - 2):
-            for x in range(1, self.width - 2):
-                if not (self.get_tile(x, y) == TILE_PATH and self.get_tile(x + 1, y) == TILE_PATH and
-                        self.get_tile(x, y + 1) == TILE_PATH and self.get_tile(x + 1, y + 1) == TILE_PATH):
-                    continue
+        while attempts < max_attempts:
+            attempts += 1
+            # 收集所有 2x2 路徑區域
+            blocks = []
+            for y in range(1, self.height - 2):
+                for x in range(1, self.width - 2):
+                    if (self.get_tile(x, y) == TILE_PATH and
+                        self.get_tile(x + 1, y) == TILE_PATH and
+                        self.get_tile(x, y + 1) == TILE_PATH and
+                        self.get_tile(x + 1, y + 1) == TILE_PATH):
+                        blocks.append((x, y))
+
+            if not blocks:
+                break
+
+            # 隨機選擇一個 2x2 塊
+            start_x, start_y = random.choice(blocks)
+            block = [(start_x, start_y), (start_x + 1, start_y), (start_x, start_y + 1), (start_x + 1, start_y + 1)]
+            random.shuffle(block)
+
+            placed = False
+            for bx, by in block:
+                self.set_tile(bx, by, TILE_WALL)
+                connected_num, _ = self._flood_fill(bx, by, TILE_WALL)
                 
-                block = [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)]
-                random.shuffle(block)
+                if self.check_if_surrounding_no_dead_end(bx, by) and connected_num <= 5 and self._check_if_suitable_narrow(bx, by):
+                    placed = True
+                    count += 1
+                    break
+                else:
+                    self.set_tile(bx, by, TILE_PATH)
 
-                placed = False
-                for bx, by in block:
-                    self.set_tile(bx, by, S)
-
-                    dead_end_created = False
-                    for dx in range(-1, 2):
-                        for dy in range(-1, 2):
-                            nx, ny = bx + dx, by + dy
-                            if self.xy_valid(nx, ny) and self.get_tile(nx, ny) == TILE_PATH:
-                                if self.if_dead_end(nx, ny):
-                                    dead_end_created = True
-                                    break
-                        if dead_end_created:
-                            break
-
-                    if not dead_end_created:
-                        placed = True
-                        count += 1
-                        break
-                    else:
-                        self.set_tile(bx, by, TILE_PATH)
-
-                if not placed:
-                    continue
+            if not placed:
+                continue
 
         return count
 
@@ -607,15 +651,17 @@ class Map:
         - 最後將左半部分（x < width // 2）的格子鏡像到右半部分，實現左右對稱。
         - 對稱性公式：右半部分格子 (width - 1 - x, y) = 左半部分格子 (x, y)。
         """
-        self.extend_walls()  # 生成左半部分牆壁
         self.add_central_room()  # 添加中央房間
+        self.extend_walls()  # 生成左半部分牆壁
+        
         while self.narrow_paths():  # 縮窄路徑直到無法繼續
             pass
+        # self.add_central_room()
         self.convert_all_T_and_A_to_wall()  # 轉換臨時牆壁
         self.place_power_pellets()  # 放置能量球
         half_width = self.width // 2
         for y in range(self.height):
-            for x in range(1, half_width):
+            for x in range(0, half_width):
                 self.set_tile(self.width - 1 - x, y, self.get_tile(x, y))  # 鏡像到右半部分
 
 if __name__ == "__main__":
@@ -630,3 +676,4 @@ if __name__ == "__main__":
     maze.generate_maze()
     print(f"生成的 Pac-Man 迷宮（種子大小：{seed if seed is not None else '無'}）")
     print(f"尺寸：{width}x{height}")
+    print(maze)

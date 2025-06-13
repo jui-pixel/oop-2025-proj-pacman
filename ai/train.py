@@ -122,7 +122,7 @@ def train(trial=None, resume=False,
         expert_data = collect_expert_data(
             env, agent, pretrain_episodes, max_steps_per_episode=200,
             expert_random_prob=expert_random_prob, max_expert_data=max_expert_data)
-        agent.pretrain(expert_data, pretrain_steps=5000)
+        agent.pretrain(expert_data, pretrain_steps=10000)
 
     writer = SummaryWriter()
     episode_rewards = []
