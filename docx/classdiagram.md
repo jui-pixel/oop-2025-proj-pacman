@@ -281,6 +281,7 @@ classDiagram
         +int data_pointer
         +int n_entries
         +add(p: float, data: Any) void
+        +update(idx: int, p: float) void
     }
 
     class DQNAgent {
