@@ -118,6 +118,7 @@ classDiagram
         +float time
         +__init__(name: str, score: int, seed: int, time: float)
         +to_dict() Dict[str, Any]
+        +from_dict(data: Dict[str, Any]) ScoreRecord
     }
     class Game {
         +Map maze
