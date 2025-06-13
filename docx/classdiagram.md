@@ -274,6 +274,10 @@ classDiagram
     }
     DQN *--> NoisyLinear
 
+    class SumTree {
+        
+    }
+
     class DQNAgent {
         +Tuple[int] state_dim
         +int action_dim
