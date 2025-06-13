@@ -62,7 +62,9 @@ class MenuButton:
         """
         shadow_rect = self.rect.copy()
         shadow_rect.move_ip(3, 3)
+        pygame.draw.rect(screen, (50, 50, 50, 100), shadow_rect, border_radius=10)
         color = self.active_color if self.is_hovered else self.inactive_color
+        
         pygame.draw.rect(screen, color, self.rect, border_radius=10)  # 繪製圓角矩形
         text_surface = self.font.render(self.text, True, WHITE)  # 渲染文字
         screen.blit(text_surface, text_surface.get_rect(center=self.rect.center))  # 置中顯示文字
