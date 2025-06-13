@@ -142,6 +142,7 @@ classDiagram
         +get_player_name(default_name: str) str
         +show_loading_screen() void
         +show_game_result(won: bool, score: int) str
+        +show_pause_menu() str
     }
     Game *--> "1" Map
     Game *--> "1" PacMan
