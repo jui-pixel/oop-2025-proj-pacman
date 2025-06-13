@@ -38,6 +38,7 @@ class PacManEnv(Game):
         self.state_shape = (self.state_channels, self.height, self.width)
         self.action_space = Discrete(4)
         self.observation_space = Box(low=0, high=1, shape=self.state_shape, dtype=np.float32)
+        self.last_shape = None
         np.random.seed(seed)
         print(f"初始化 PacManEnv：寬度={width}，高度={height}，種子={seed}，鬼魂數=4")
 
@@ -201,12 +202,19 @@ class PacManEnv(Game):
             self.update(FPS, move_pacman)
         except Exception as e:
             raise RuntimeError(f"遊戲更新失敗：{str(e)}")
+        
         if moved:
             self.current_score = self.pacman.score
         reward = (self.current_score - self.old_score) * 100
         self.old_score = self.current_score
         if wall_collision:
             reward -= 5
+        if not self.game_over:
+            reward -= 1  # 時間懲罰
+        if not self.power_pellets and not self.score_pellets:
+            reward += 5000
+            
+        shape = 0
         for ghost in self.ghosts:
             dist = ((self.pacman.x - ghost.x) ** 2 + 
                         (self.pacman.y - ghost.y) ** 2) ** 0.5
@@ -214,25 +222,25 @@ class PacManEnv(Game):
                 continue
             elif ghost.edible:
                 if dist < 10:
-                    reward += (self.ghost_penalty_weight / max(1, dist) / 5.0)
+                    shape += (self.ghost_penalty_weight / max(1, dist) / 5.0)
             else:
                 if dist < 6:
-                    reward -= self.ghost_penalty_weight / max(1, dist)
+                    shape -= self.ghost_penalty_weight / max(1, dist)
         for pellet in self.power_pellets:
             dist = ((self.pacman.x - pellet.x) ** 2 + 
                         (self.pacman.y - pellet.y) ** 2) ** 0.5
-            reward += self.ghost_penalty_weight / max(1, dist) / 100.0
+            shape += self.ghost_penalty_weight / max(1, dist) / 100.0
         for pellet in self.score_pellets:
             dist = ((self.pacman.x - pellet.x) ** 2 + 
                         (self.pacman.y - pellet.y) ** 2) ** 0.5
-            reward += self.ghost_penalty_weight / max(1, dist) / 50.0
-
+            shape += self.ghost_penalty_weight / max(1, dist) / 50.0
+            
+        if self.last_shape:
+            reward += shape - self.last_shape
+        self.last_shape = shape
         
-        if not self.game_over:
-            reward -= 1  # 時間懲罰
-        if not self.power_pellets and not self.score_pellets:
-            reward += 5000
         reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
+        
         truncated = self.game_over
         terminated = self.game_over
         next_state = np.array(self._get_state(), dtype=np.float32)
