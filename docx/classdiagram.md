@@ -187,6 +187,7 @@ classDiagram
     }
     MenuManager *--> "0..*" MenuButton
     MenuManager *--> "0..*" ScoreRecord
+    MenuManager --> Map
     class ControlStrategy~abstract~ {
         +move(...) bool
     }
