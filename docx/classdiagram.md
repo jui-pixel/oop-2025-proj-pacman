@@ -155,6 +155,7 @@ classDiagram
     Game --> MenuManager
     class MenuButton {
         +str text
+        +pygame.Rect rect
     }
 
     class ControlStrategy~abstract~ {
