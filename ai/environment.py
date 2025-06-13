@@ -208,15 +208,16 @@ class PacManEnv(Game):
                 continue
             elif ghost.edible:
                 if dist < 8 * CELL_SIZE:
-                    ghost_penalty -= (self.ghost_penalty_weight / (dist / CELL_SIZE + 0.1) / 2)
+                    ghost_penalty -= (self.ghost_penalty_weight / (dist / CELL_SIZE + 0.1) / 5)
             else:
-                if dist < 5 * CELL_SIZE:
+                if dist < 6 * CELL_SIZE:
                     ghost_penalty += self.ghost_penalty_weight / (dist / CELL_SIZE + 0.1)
         reward -= ghost_penalty
         if not self.game_over:
             reward += 0.1  # 存活獎勵
         if not self.power_pellets and not self.score_pellets:
             reward += 5000
+        reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
         truncated = self.game_over
         terminated = self.game_over
         next_state = np.array(self._get_state(), dtype=np.float32)

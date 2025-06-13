@@ -186,12 +186,12 @@ class DQNAIControl(ControlStrategy):
             buffer_size=100000,  # 經驗回放緩衝區大小
             batch_size=64,  # 訓練批次大小
             lr=5e-4,  # 學習率
-            gamma=0.90,  # 折扣因子
-            target_update_freq=1000,  # 目標網絡更新頻率
+            gamma=0.97,  # 折扣因子
+            target_update_freq=4,  # 目標網絡更新頻率
             n_step=4,  # n 步回報
-            alpha=0.6,  # 優先經驗回放的 alpha 參數
-            beta=0.4,  # 優先經驗回放的 beta 參數
-            beta_increment=0.001,  # beta 增量
+            alpha=0.73,  # 優先經驗回放的 alpha 參數
+            beta=0.486,  # 優先經驗回放的 beta 參數
+            beta_increment=0.003,  # beta 增量
             expert_prob_start=0.0,  # 初始專家策略概率
             expert_prob_end=0.0,  # 最終專家策略概率
             expert_prob_decay_steps=1  # 專家策略衰減步數
