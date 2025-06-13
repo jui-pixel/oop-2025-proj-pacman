@@ -169,6 +169,7 @@ classDiagram
         +pygame.Font font
         +int screen_width
         +int screen_height
+        +List[MenuButton] buttons
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
