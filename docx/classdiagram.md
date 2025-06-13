@@ -275,7 +275,7 @@ classDiagram
     DQN *--> NoisyLinear
 
     class SumTree {
-        
+        +int capacity
     }
 
     class DQNAgent {
