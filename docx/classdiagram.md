@@ -153,7 +153,9 @@ classDiagram
     Game *--> "0..*" ScorePellet
     Game *--> "0..*" ScoreRecord
     Game --> MenuManager
-    
+    class MenuButton {
+        
+    }
 
     class ControlStrategy~abstract~ {
         +move(...) bool
