@@ -139,6 +139,7 @@ classDiagram
         +show_menu() str
         +show_leaderboard() void
         +show_settings() void
+        +get_player_name(default_name: str) str
     }
     Game *--> "1" Map
     Game *--> "1" PacMan
