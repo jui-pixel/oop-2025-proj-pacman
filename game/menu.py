@@ -17,6 +17,7 @@ except ImportError:
     PYTORCH_VERSION = "Not Installed"
     CUDA_AVAILABLE = False
     CUDA_DEVICE = "N/A"
+BACKGROUND = pygame.Surface((500, 500))
 
 class MenuButton:
     """
