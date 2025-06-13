@@ -282,6 +282,7 @@ classDiagram
         +int n_entries
         +add(p: float, data: Any) void
         +update(idx: int, p: float) void
+        +get(s: float) Tuple[int,float,Any]
     }
 
     class DQNAgent {
