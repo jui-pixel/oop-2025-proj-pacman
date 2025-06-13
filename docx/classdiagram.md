@@ -223,7 +223,7 @@ classDiagram
         +ControlStrategy current_strategy
         +bool moving
         +bool paused
-        +switch_mode() void
+        +switch_mode(mode: str) void
         +handle_event(event: Any) void
         +move(...) bool
         +get_mode_name() str
