@@ -166,6 +166,7 @@ classDiagram
     }
     class MenuManager {
         +pygame.Surface screen
+        +pygame.Font font
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
