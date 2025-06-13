@@ -82,15 +82,15 @@ class Renderer:
             pacman.current_y - CELL_SIZE // 4,
             CELL_SIZE // 2, CELL_SIZE // 2)
         
-        direction_angle = 0
-        while True:
-            if pacman.target_x == 1 and pacman.target_y == 0: 
+        direction_angle = 180
+        while True :
+            if (pacman.target_x - pacman.current_x) > 0: 
                 direction_angle = 0
-            elif pacman.target_x == -1 and pacman.target_y == 0:
+            elif (pacman.target_x - pacman.current_x) < 0:
                 direction_angle = 180
-            elif pacman.target_y == 1 and pacman.target_x == 0:
+            elif (pacman.target_y - pacman.current_y) > 0:
                 direction_angle = 90
-            elif pacman.target_y == -1 and pacman.target_x == 0:
+            elif (pacman.target_y - pacman.current_y) < 0:
                 direction_angle = 270
             break
         direction_rad = math.radians(direction_angle)
@@ -99,8 +99,8 @@ class Renderer:
 
         point1 = (pacman.current_x, pacman.current_y)
         point2 = (
-            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad)*1.5,
-            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad)*1.5
+            pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad),
+            pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad)
         )
         point3 = (
             pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad + math.pi / 4),
