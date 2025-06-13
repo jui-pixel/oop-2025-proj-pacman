@@ -165,7 +165,7 @@ classDiagram
         +check_hover(mouse_pos: Tuple[int,int]) void
     }
     class MenuManager {
-        
+        +pygame.Surface screen
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
