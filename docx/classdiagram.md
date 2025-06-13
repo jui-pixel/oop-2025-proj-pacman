@@ -186,6 +186,7 @@ classDiagram
         +update_seed(new_seed: int) void
     }
     MenuManager *--> "0..*" MenuButton
+    MenuManager *--> "0..*" ScoreRecord
     class ControlStrategy~abstract~ {
         +move(...) bool
     }
