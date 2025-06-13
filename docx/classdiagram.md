@@ -112,7 +112,7 @@ classDiagram
         +set_seed(seed: int) void
     }
     class ScoreRecord {
-        
+        +str name
     }
     class Game {
         +Map maze
