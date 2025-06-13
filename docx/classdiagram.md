@@ -305,7 +305,7 @@ classDiagram
         +update_epsilon() void
         +choose_action(state: ndarray) int
         +store_transition(state: ndarray, action: int, reward: float, next_state: ndarray, done: bool) void
-        +sample() Tuple
+        +sample() Tuple[Tensor,Tensor,Tensor,Tensor,Tensor]
         +learn() float
         +save(path: str, memory_path: str) void
         +load(path: str, memory_path: str) void
