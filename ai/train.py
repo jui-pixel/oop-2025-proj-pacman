@@ -19,7 +19,7 @@ def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_
     for episode in range(num_episodes):
         if len(expert_data) >= max_expert_data:
             break
-        state, _ = env.reset(random_spawn_seed=episode)
+        state, _ = env.reset(random_spawn_seed=episode, random_maze_seed=episode)
         done = False
         steps = 0
         while not done and steps < max_steps_per_episode:
@@ -138,7 +138,7 @@ def train(trial=None, resume=False,
         total_ghost_dist = 0
         encounter_count = 0
         done = False
-        state, _ = env.reset(random_spawn_seed=episode)
+        state, _ = env.reset(random_spawn_seed=episode, random_maze_seed=episode)
         agent.model.reset_noise()
         action_counts = np.zeros(action_dim)
         q_values_list = []
