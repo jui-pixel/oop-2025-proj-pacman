@@ -113,6 +113,7 @@ classDiagram
     }
     class ScoreRecord {
         +str name
+        +int score
     }
     class Game {
         +Map maze
