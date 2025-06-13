@@ -70,9 +70,9 @@ class Renderer:
         # 渲染分數球
         for score_pellet in game.get_score_pellets():
             score_pellet_rect = pygame.Rect(
-                score_pellet.x * CELL_SIZE + CELL_SIZE // 4,
-                score_pellet.y * CELL_SIZE + CELL_SIZE // 4,
-                CELL_SIZE // 2, CELL_SIZE // 2)  # 計算分數球矩形（居中，半格大小）
+                score_pellet.x * CELL_SIZE + CELL_SIZE * 3 // 8,
+                score_pellet.y * CELL_SIZE + CELL_SIZE * 3 // 8,
+                CELL_SIZE // 4, CELL_SIZE // 4)  # 計算分數球矩形（居中，半格大小）
             pygame.draw.ellipse(self.screen, ORANGE, score_pellet_rect)  # 繪製橙色圓形分數球
 
         # 渲染 Pac-Man
