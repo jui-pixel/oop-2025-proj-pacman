@@ -280,6 +280,7 @@ classDiagram
         +ndarray data
         +int data_pointer
         +int n_entries
+        +add(p: float, data: Any) void
     }
 
     class DQNAgent {
