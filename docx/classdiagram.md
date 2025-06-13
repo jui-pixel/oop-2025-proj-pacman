@@ -276,6 +276,7 @@ classDiagram
 
     class SumTree {
         +int capacity
+        +ndarray tree
     }
 
     class DQNAgent {
