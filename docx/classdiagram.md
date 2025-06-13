@@ -168,6 +168,7 @@ classDiagram
         +pygame.Surface screen
         +pygame.Font font
         +int screen_width
+        +int screen_height
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
