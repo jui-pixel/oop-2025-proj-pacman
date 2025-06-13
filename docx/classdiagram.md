@@ -279,6 +279,7 @@ classDiagram
         +ndarray tree
         +ndarray data
         +int data_pointer
+        +int n_entries
     }
 
     class DQNAgent {
