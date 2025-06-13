@@ -136,6 +136,7 @@ classDiagram
         +end_game() void
         +get_final_score() int
         +did_player_win() bool
+        +show_menu() str
     }
     Game *--> "1" Map
     Game *--> "1" PacMan
