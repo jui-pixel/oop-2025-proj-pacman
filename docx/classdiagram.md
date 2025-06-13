@@ -183,6 +183,7 @@ classDiagram
         +show_game_result(won: bool, score: int) str
         +show_pause_menu(background: pygame.Surface) str
         +load_leaderboard() List[ScoreRecord]
+        +update_seed(new_seed: int) void
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
