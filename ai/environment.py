@@ -8,6 +8,7 @@ from game.game import Game
 from config import MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, CELL_SIZE, FPS, EDIBLE_DURATION, GHOST_SCORES, TILE_PATH, TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN
 import random
 from typing import Callable
+from game.maze_generator import Map
 
 class PacManEnv(Game):
     def __init__(self, width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=MAZE_SEED, ghost_penalty_weight=3.0):
@@ -89,7 +90,7 @@ class PacManEnv(Game):
                           and self.maze.get_tile(self.pacman.x + dx, self.pacman.y + dy) not in [TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN]]
         return random.choice(safe_directions) if safe_directions else 0
 
-    def reset(self, seed=MAZE_SEED, random_spawn_seed=0):
+    def reset(self, seed=MAZE_SEED, random_spawn_seed=0, random_maze_seed = 0):
         """
         重置環境，重新初始化遊戲。
         """
@@ -98,6 +99,12 @@ class PacManEnv(Game):
             random.seed(seed)
             self.seed = seed
         super().__init__(player_name="RL_Agent")  # 固定 4 隻鬼魂
+        if random_maze_seed != 0:
+            self.maze = Map(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=self.seed+random_maze_seed)
+            self.maze.generate_maze()
+            self.pacman, self.ghosts, self.power_pellets, self.score_pellets = self._initialize_entities()
+            self.respawn_points = [(x, y) for y in range(self.maze.height) for x in range(self.maze.width) 
+                               if self.maze.get_tile(x, y) == TILE_GHOST_SPAWN]
         if random_spawn_seed != 0:
             random.seed(self.seed + random_spawn_seed)
             valid_positions = [(x, y) for y in range(1, self.maze.height - 1) for x in range(1, self.maze.width - 1)
@@ -196,7 +203,7 @@ class PacManEnv(Game):
             raise RuntimeError(f"遊戲更新失敗：{str(e)}")
         if moved:
             self.current_score = self.pacman.score
-        reward = (self.current_score - self.old_score) * 5
+        reward = (self.current_score - self.old_score) * 1
         self.old_score = self.current_score
         if wall_collision:
             reward -= 5

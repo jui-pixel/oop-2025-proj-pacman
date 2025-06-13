@@ -115,6 +115,7 @@ class PlayerControl(ControlStrategy):
         if pacman.move_towards_target(FPS):  # 若到達當前目標格子
             if self.dx != 0 or self.dy != 0:  # 若有新輸入方向
                 if pacman.set_new_target(self.dx, self.dy, maze):  # 設置新目標
+                    pacman.last_direction = (self.dx, self.dy)
                     return True
         return moving
 
@@ -248,6 +249,7 @@ class DQNAIControl(ControlStrategy):
                 action = self.agent.choose_action(state)  # 選擇動作
             dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]  # 動作轉換為方向
             if pacman.set_new_target(dx, dy, maze):  # 設置新目標
+                pacman.last_direction = (dx, dy)
                 return True
         return moving
 
