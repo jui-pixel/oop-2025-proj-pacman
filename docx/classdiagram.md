@@ -116,6 +116,7 @@ classDiagram
         +int score
         +int seed
         +float time
+        +__init__(name: str, score: int, seed: int, time: float)
     }
     class Game {
         +Map maze
