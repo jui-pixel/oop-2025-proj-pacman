@@ -246,7 +246,7 @@ classDiagram
         +step(action: int) Tuple
         +_get_state() ndarray
         +close() void
-        +get_expert_action() int
+        +get_expert_action(pacman: PacMan, maze: Map, ghosts: List[Ghost]) int
     }
     PacManEnv --|> Game
 
