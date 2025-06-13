@@ -173,6 +173,7 @@ classDiagram
         +int selected_index
         +str current_menu
         +List[ScoreRecord] leaderboard
+        +int current_seed
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
