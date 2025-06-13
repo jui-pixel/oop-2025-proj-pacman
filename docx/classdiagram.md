@@ -224,7 +224,7 @@ classDiagram
         +bool moving
         +bool paused
         +switch_mode(mode: str) void
-        +handle_event(event: Any) void
+        +handle_event(event: pygame.Event) void
         +move(...) bool
         +get_mode_name() str
     }
