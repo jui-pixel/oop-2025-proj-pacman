@@ -171,6 +171,7 @@ classDiagram
         +int screen_height
         +List[MenuButton] buttons
         +int selected_index
+        +str current_menu
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
