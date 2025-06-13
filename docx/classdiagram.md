@@ -225,7 +225,7 @@ classDiagram
         +bool paused
         +switch_mode(mode: str) void
         +handle_event(event: pygame.Event) void
-        +move(...) bool
+        +move(pacman: PacMan, maze: Map, ghosts: List[Ghost], fps: int) bool
         +get_mode_name() str
     }
     ControlManager *--> "1" PlayerControl
