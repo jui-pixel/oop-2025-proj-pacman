@@ -159,6 +159,7 @@ classDiagram
         +pygame.Font font
         +Tuple[int,int,int] inactive_color
         +Tuple[int,int,int] active_color
+        +bool is_hovered
     }
 
     class ControlStrategy~abstract~ {
