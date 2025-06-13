@@ -152,6 +152,7 @@ classDiagram
     Game *--> "0..*" PowerPellet
     Game *--> "0..*" ScorePellet
     Game *--> "0..*" ScoreRecord
+    Game --> MenuManager
     
 
     class ControlStrategy~abstract~ {
