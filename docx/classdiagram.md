@@ -304,7 +304,7 @@ classDiagram
         +int target_update_freq
         +update_epsilon() void
         +choose_action(state: ndarray) int
-        +store_transition(...) void
+        +store_transition(state: ndarray, action: int, reward: float, next_state: ndarray, done: bool) void
         +sample() Tuple
         +learn() float
         +save(path: str, memory_path: str) void
