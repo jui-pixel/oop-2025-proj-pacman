@@ -154,7 +154,7 @@ classDiagram
     Game *--> "0..*" ScoreRecord
     Game --> MenuManager
     class MenuButton {
-        
+        +str text
     }
 
     class ControlStrategy~abstract~ {
