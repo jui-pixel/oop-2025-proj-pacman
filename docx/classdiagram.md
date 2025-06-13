@@ -283,6 +283,7 @@ classDiagram
         +add(p: float, data: Any) void
         +update(idx: int, p: float) void
         +get(s: float) Tuple[int,float,Any]
+        +total() float
     }
 
     class DQNAgent {
