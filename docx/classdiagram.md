@@ -157,6 +157,7 @@ classDiagram
         +str text
         +pygame.Rect rect
         +pygame.Font font
+        +Tuple[int,int,int] inactive_color
     }
 
     class ControlStrategy~abstract~ {
