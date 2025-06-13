@@ -181,6 +181,7 @@ classDiagram
         +get_player_name(default_name: str) str
         +show_loading_screen() void
         +show_game_result(won: bool, score: int) str
+        +show_pause_menu(background: pygame.Surface) str
     }
     class ControlStrategy~abstract~ {
         +move(...) bool
