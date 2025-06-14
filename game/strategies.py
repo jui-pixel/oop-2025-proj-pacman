@@ -1,28 +1,30 @@
 """
 定義 Pac-Man 的控制策略，包括玩家控制、規則基礎 AI 和 DQN AI。
 提供動態切換控制模式的功能，支援鍵盤輸入和自動化 AI 控制。
+
+這個模組負責管理 Pac-Man 的移動邏輯，允許玩家通過鍵盤控制，或使用基於規則的 AI 或深度學習的 DQN AI 自動控制。
 """
 
-import pygame
-import os
+# 匯入必要的模組
+import pygame  # 用於處理鍵盤輸入和遊戲事件
+import os  # 用於操作文件路徑
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))  # 添加項目根目錄到系統路徑
-
-from abc import ABC, abstractmethod
-from typing import List
-from config import MAZE_WIDTH, MAZE_HEIGHT, CELL_SIZE, FPS
-import pygame
+# 將項目根目錄添加到系統路徑，確保可以匯入其他模組
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+from abc import ABC, abstractmethod  # 用於定義抽象基類
+from typing import List  # 用於型別提示
+# 從 config 檔案匯入常數，例如迷宮尺寸和圖塊類型
+from config import MAZE_WIDTH, MAZE_HEIGHT, CELL_SIZE, FPS, TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN
+# 嘗試匯入 PyTorch 相關模組，用於 DQN AI
 try:
-    from ai.agent import DQNAgent
-    import torch
-    import numpy as np
-    from torch.amp import autocast
+    from ai.agent import DQNAgent  # DQN 代理模組
+    import torch  # PyTorch 主模組
+    import numpy as np  # 用於數值計算
+    from torch.amp import autocast  # 用於自動混合精度計算
     PYTORCH_AVAILABLE = True  # 表示 PyTorch 可用
 except ImportError as e:
     PYTORCH_AVAILABLE = False  # 表示 PyTorch 不可用
     print("PyTorch not found. AI mode will use rule-based AI instead.")
-
-from config import TILE_BOUNDARY, TILE_WALL, TILE_DOOR, TILE_GHOST_SPAWN
 
 class ControlStrategy(ABC):
     """
@@ -115,7 +117,7 @@ class PlayerControl(ControlStrategy):
         if pacman.move_towards_target(FPS):  # 若到達當前目標格子
             if self.dx != 0 or self.dy != 0:  # 若有新輸入方向
                 if pacman.set_new_target(self.dx, self.dy, maze):  # 設置新目標
-                    pacman.last_direction = (self.dx, self.dy)
+                    pacman.last_direction = (self.dx, self.dy)  # 更新最後方向
                     return True
         return moving
 
@@ -179,9 +181,11 @@ class DQNAIControl(ControlStrategy):
         """
         if not PYTORCH_AVAILABLE:
             raise ImportError("PyTorch is required for DQN AI.")
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 選擇計算設備
+        # 選擇計算設備（GPU 或 CPU）
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # 初始化 DQN 代理
         self.agent = DQNAgent(
-            state_dim=(6, maze_height, maze_width),  # 狀態維度：6 通道（圖層）x 高度 x 寬度
+            state_dim=(6, maze_height, maze_width),  # 狀態維度：6 通道 x 高度 x 寬度
             action_dim=4,  # 動作維度：4 個方向（上、下、左、右）
             device=self.device,
             buffer_size=100000,  # 經驗回放緩衝區大小
@@ -196,7 +200,7 @@ class DQNAIControl(ControlStrategy):
             expert_prob_start=0.0,  # 初始專家策略概率
             expert_prob_end=0.0,  # 最終專家策略概率
             expert_prob_decay_steps=1,  # 專家策略衰減步數
-            sigma=0.5,
+            sigma=0.5,  # NoisyLinear 層的噪聲參數
         )
         try:
             self.agent.load(model_path)  # 載入模型
@@ -212,7 +216,7 @@ class DQNAIControl(ControlStrategy):
         - 若 Pac-Man 到達當前目標格子，生成當前遊戲狀態（6 通道迷宮表示）。
         - 使用 DQN 模型選擇最佳動作（0=上, 1=下, 2=左, 3=右）。
         - 將動作轉換為方向 (dx, dy)，並設置新目標。
-        - 狀態生成邏輯與環境的 _get_state 一致，包含 Pac-Man、能量球、分數球、可食用鬼魂、危險鬼魂和牆壁的位置。
+        - 狀態生成邏輯包含 Pac-Man、能量球、分數球、可食用鬼魂、危險鬼魂和牆壁的位置。
 
         Args:
             pacman (PacMan): Pac-Man 物件。
@@ -230,8 +234,8 @@ class DQNAIControl(ControlStrategy):
             state = np.zeros((6, maze.height, maze.width), dtype=np.float32)
             for y in range(maze.height):
                 for x in range(maze.width):
-                    if maze.get_tile(x, y) in [TILE_BOUNDARY,TILE_WALL]:
-                        state[5, y, x] = 1.0
+                    if maze.get_tile(x, y) in [TILE_BOUNDARY, TILE_WALL]:
+                        state[5, y, x] = 1.0  # 牆壁和邊界
             state[0, pacman.target_y, pacman.target_x] = 1.0  # Pac-Man 位置
             for pellet in power_pellets:
                 state[1, pellet.y, pellet.x] = 1.0  # 能量球位置
@@ -244,13 +248,15 @@ class DQNAIControl(ControlStrategy):
                     state[3, ghost.target_y, ghost.target_x] = 1.0  # 可食用鬼魂位置
                 else:
                     state[4, ghost.target_y, ghost.target_x] = 1.0  # 危險鬼魂位置
+            # 使用自動混合精度進行推斷
             with autocast(self.device.type):
-                self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲（探索策略）
+                self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲
                 action = self.agent.choose_action(state)  # 選擇動作
-                print(action)
-            dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]  # 動作轉換為方向
+                print(action)  # 輸出動作（用於調試）
+            # 將動作轉換為方向（0=上, 1=下, 2=左, 3=右）
+            dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
             if pacman.set_new_target(dx, dy, maze):  # 設置新目標
-                pacman.last_direction = (dx, dy)
+                pacman.last_direction = (dx, dy)  # 更新最後方向
                 return True
         return moving
 
@@ -275,11 +281,11 @@ class ControlManager:
         Args:
             maze_width (int): 迷宮寬度（格子數）。
             maze_height (int): 迷宮高度（格子數）。
-            model_path (str): DQN 模型文件路徑（預設為 "pacman_dqn_final.pth"）。(因為目前還沒練出成功的)
+            model_path (str): DQN 模型文件路徑（預設為 "pacman_dqn_final.pth"）。
         """
-        self.player_control = PlayerControl()  # 玩家控制策略
-        self.rule_based_ai = RuleBasedAIControl()  # 規則 AI 策略
-        self.dqn_ai = None  # DQN AI 策略（初始為 None）
+        self.player_control = PlayerControl()  # 初始化玩家控制策略
+        self.rule_based_ai = RuleBasedAIControl()  # 初始化規則 AI 策略
+        self.dqn_ai = None  # DQN AI 策略初始為 None
         if PYTORCH_AVAILABLE:
             try:
                 self.dqn_ai = DQNAIControl(maze_width, maze_height, model_path)  # 嘗試初始化 DQN AI
