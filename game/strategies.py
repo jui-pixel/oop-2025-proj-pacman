@@ -185,7 +185,7 @@ class DQNAIControl(ControlStrategy):
             action_dim=4,  # 動作維度：4 個方向（上、下、左、右）
             device=self.device,
             buffer_size=100000,  # 經驗回放緩衝區大小
-            batch_size=64,  # 訓練批次大小
+            batch_size=32,  # 訓練批次大小
             lr=5e-4,  # 學習率
             gamma=0.97,  # 折扣因子
             target_update_freq=4,  # 目標網絡更新頻率

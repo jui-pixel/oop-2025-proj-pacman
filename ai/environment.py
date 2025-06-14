@@ -208,7 +208,7 @@ class PacManEnv(Game):
         reward = (self.current_score - self.old_score)
         self.old_score = self.current_score
         if wall_collision:
-            reward -= 500
+            reward -= 50
         if not self.game_over:
             reward -= 10  # 時間懲罰
         if not self.power_pellets and not self.score_pellets:
@@ -222,21 +222,21 @@ class PacManEnv(Game):
             if ghost.returning_to_spawn or ghost.waiting:
                 continue
             elif ghost.edible:
-                shape -= self.ghost_penalty_weight * (dist/max_dist)
+                shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.ghosts) / 2
             else:
-                shape -= self.ghost_penalty_weight / max(1, dist)
+                shape -= self.ghost_penalty_weight / max(1, dist**2) / len(self.ghosts)
         for pellet in self.power_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * (dist/max_dist) / len(self.power_pellets)
+            shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.power_pellets) / 10
         for pellet in self.score_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * (dist/max_dist) / len(self.score_pellets)
+            shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.score_pellets) / 10
             
         if self.last_shape:
             reward += shape - self.last_shape
         self.last_shape = shape
         
-        reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
+        # reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
         
         truncated = self.game_over
         terminated = self.game_over
