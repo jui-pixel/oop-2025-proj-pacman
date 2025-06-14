@@ -17,7 +17,12 @@ except ImportError:
     PYTORCH_VERSION = "Not Installed"
     CUDA_AVAILABLE = False
     CUDA_DEVICE = "N/A"
-
+BACKGROUND = pygame.Surface((500, 500))
+BACKGROUND.fill(DARK_GRAY_BLUE)
+for x in range(0, 500, 10):
+    for y in range(0, 500, 10):
+        if (x // 10 + y // 10) % 2 == 0:
+            pygame.draw.rect(BACKGROUND, (255, 255, 255, 50), (x, y, 10, 10))
 class MenuButton:
     """
     定義選單按鈕類，包含位置、文字和樣式。
@@ -60,8 +65,15 @@ class MenuButton:
         Args:
             screen (pygame.Surface): 繪製目標的螢幕表面。
         """
+        shadow_rect = self.rect.copy()
+        shadow_rect.move_ip(3, 3)
+        pygame.draw.rect(screen, (50, 50, 50, 100), shadow_rect, border_radius=10)
         color = self.active_color if self.is_hovered else self.inactive_color
-        pygame.draw.rect(screen, color, self.rect, border_radius=10)  # 繪製圓角矩形
+        scale = 1.05 if self.is_hovered else 1.0
+        scaled_rect = self.rect.copy()
+        scaled_rect.inflate_ip(int(self.rect.width * (scale - 1)), int(self.rect.height * (scale - 1)))
+        pygame.draw.rect(screen, color, scaled_rect, border_radius=10)  # 繪製圓角矩形
+        pygame.draw.rect(screen, WHITE, scaled_rect, width=2, border_radius=10)
         text_surface = self.font.render(self.text, True, WHITE)  # 渲染文字
         screen.blit(text_surface, text_surface.get_rect(center=self.rect.center))  # 置中顯示文字
 
