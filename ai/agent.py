@@ -75,18 +75,19 @@ class DQNAgent:
             raise ValueError(f"無效的下一個狀態形狀：預期 {self.state_dim}，得到 {next_state.shape}")
         if not (0 <= action < self.action_dim):
             raise ValueError(f"無效的動作：{action}")
-        state_pacman_x = np.argmax(np.max(state[0], axis=1))
-        state_pacman_y = np.argmax(np.max(state[0], axis=0))
-        next_state_pacman_x = np.argmax(np.max(next_state[0], axis=1))
-        next_state_pacman_y = np.argmax(np.max(next_state[0], axis=0))
-        position_change = np.sqrt((state_pacman_x - next_state_pacman_x) ** 2 + 
-                                  (state_pacman_y - next_state_pacman_y) ** 2)
-        if reward >= 0 or position_change > 0.1 or done:
-            self.n_step_memory.append((state, action, reward, next_state, done))
-        elif position_change == 0 and random.random() > 0.7:
-            self.n_step_memory.append((state, action, reward, next_state, done))
-        else:
-            return
+        # state_pacman_x = np.argmax(np.max(state[0], axis=1))
+        # state_pacman_y = np.argmax(np.max(state[0], axis=0))
+        # next_state_pacman_x = np.argmax(np.max(next_state[0], axis=1))
+        # next_state_pacman_y = np.argmax(np.max(next_state[0], axis=0))
+        # position_change = np.sqrt((state_pacman_x - next_state_pacman_x) ** 2 + 
+        #                           (state_pacman_y - next_state_pacman_y) ** 2)
+        # if reward >= 0 or position_change != 0 or done:
+        #     self.n_step_memory.append((state, action, reward, next_state, done))
+        # elif position_change == 0 and random.random() > 0.5:
+        #     self.n_step_memory.append((state, action, reward, next_state, done))
+        # else:
+        #     return
+        self.n_step_memory.append((state, action, reward, next_state, done))
         if len(self.n_step_memory) >= self.n_step or done:
             for i in range(len(self.n_step_memory) - (1 if done else 0)):
                 total_reward = 0
@@ -181,10 +182,13 @@ class DQNAgent:
         執行一次學習步驟。
         """
         if self.memory.total_priority == 0 or len(self.memory.data) < self.batch_size:
+            # print(f"跳過學習：緩衝區空或數據不足，步數 {self.steps}")
             return None
         if expert_action:
+            # print(f"跳過學習：專家行動，步數 {self.steps}")
             return None
-        steps = self.steps + 1
+        
+        self.steps = self.steps + 1
         self.update_expert_prob()
         states, actions, rewards, next_states, dones, weights, indices = self.sample()
         if states is None:
@@ -214,6 +218,7 @@ class DQNAgent:
             tau = 0.001
             for target_param, param in zip(self.target_model.parameters(), self.model.parameters()):
                 target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
+        # print(f"學習完成，損失 {loss.item():.4f}，步數 {self.steps}")
         return loss.item()
 
     def save(self, model_path, memory_path):

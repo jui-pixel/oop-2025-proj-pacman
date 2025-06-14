@@ -38,6 +38,7 @@ class PacManEnv(Game):
         self.state_shape = (self.state_channels, self.height, self.width)
         self.action_space = Discrete(4)
         self.observation_space = Box(low=0, high=1, shape=self.state_shape, dtype=np.float32)
+        self.last_shape = None
         np.random.seed(seed)
         print(f"初始化 PacManEnv：寬度={width}，高度={height}，種子={seed}，鬼魂數=4")
 
@@ -58,7 +59,7 @@ class PacManEnv(Game):
                 if self.maze.get_tile(x, y) in [TILE_BOUNDARY,TILE_WALL]:
                     state[5, y, x] = 1.0
         # 設置 Pac-Man
-        state[0, self.pacman.y, self.pacman.x] = 1.0
+        state[0, self.pacman.target_y, self.pacman.target_x] = 1.0
         # 設置能量球和分數球
         for pellet in self.power_pellets:
             state[1, pellet.y, pellet.x] = 1.0
@@ -201,30 +202,42 @@ class PacManEnv(Game):
             self.update(FPS, move_pacman)
         except Exception as e:
             raise RuntimeError(f"遊戲更新失敗：{str(e)}")
+        
         if moved:
             self.current_score = self.pacman.score
-        reward = (self.current_score - self.old_score) * 1
+        reward = (self.current_score - self.old_score)
         self.old_score = self.current_score
         if wall_collision:
-            reward -= 5
-        ghost_penalty = 0
+            reward -= 50
+        if not self.game_over:
+            reward -= 10  # 時間懲罰
+        if not self.power_pellets and not self.score_pellets:
+            reward += 5000
+            
+        shape = 0
+        max_dist = (MAZE_WIDTH ** 2 + MAZE_HEIGHT ** 2) ** 0.5
+        calc_dist = lambda y : max(1, ((self.pacman.x - y.x) ** 2 + (self.pacman.y - y.y) ** 2) ** 0.5)
         for ghost in self.ghosts:
-            dist = ((self.pacman.current_x - ghost.current_x) ** 2 + 
-                        (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
+            dist = calc_dist(ghost)
             if ghost.returning_to_spawn or ghost.waiting:
                 continue
             elif ghost.edible:
-                if dist < 8 * CELL_SIZE:
-                    ghost_penalty -= (self.ghost_penalty_weight / (dist / CELL_SIZE + 0.1) / 5)
+                shape -= self.ghost_penalty_weight * (dist/max_dist)
             else:
-                if dist < 6 * CELL_SIZE:
-                    ghost_penalty += self.ghost_penalty_weight / (dist / CELL_SIZE + 0.1)
-        reward -= ghost_penalty
-        if not self.game_over:
-            reward += 0.1  # 存活獎勵
-        if not self.power_pellets and not self.score_pellets:
-            reward += 5000
+                shape -= self.ghost_penalty_weight / max(1, dist)
+        for pellet in self.power_pellets:
+            dist = calc_dist(pellet)
+            shape -= self.ghost_penalty_weight * (dist/max_dist) / len(self.power_pellets)
+        for pellet in self.score_pellets:
+            dist = calc_dist(pellet)
+            shape -= self.ghost_penalty_weight * (dist/max_dist) / len(self.score_pellets)
+            
+        if self.last_shape:
+            reward += shape - self.last_shape
+        self.last_shape = shape
+        
         reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
+        
         truncated = self.game_over
         terminated = self.game_over
         next_state = np.array(self._get_state(), dtype=np.float32)

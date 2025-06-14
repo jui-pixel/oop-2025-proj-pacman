@@ -232,7 +232,7 @@ class DQNAIControl(ControlStrategy):
                 for x in range(maze.width):
                     if maze.get_tile(x, y) in [TILE_BOUNDARY,TILE_WALL]:
                         state[5, y, x] = 1.0
-            state[0, pacman.y, pacman.x] = 1.0  # Pac-Man 位置
+            state[0, pacman.target_y, pacman.target_x] = 1.0  # Pac-Man 位置
             for pellet in power_pellets:
                 state[1, pellet.y, pellet.x] = 1.0  # 能量球位置
             for pellet in score_pellets:
@@ -247,6 +247,7 @@ class DQNAIControl(ControlStrategy):
             with autocast(self.device.type):
                 self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲（探索策略）
                 action = self.agent.choose_action(state)  # 選擇動作
+                print(action)
             dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]  # 動作轉換為方向
             if pacman.set_new_target(dx, dy, maze):  # 設置新目標
                 pacman.last_direction = (dx, dy)
