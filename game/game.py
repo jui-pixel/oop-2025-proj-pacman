@@ -1,18 +1,22 @@
 # game/game.py
 """
 定義 Pac-Man 遊戲的核心邏輯，包括初始化、更新狀態和碰撞檢測。
+
+這個模組負責管理遊戲的主要邏輯，例如迷宮生成、實體移動、碰撞處理和遊戲結束條件。
 """
 
-from typing import List, Tuple, Optional, Callable
-from .entities.pacman import PacMan
-from .entities.ghost import *
-from .entities.entity_initializer import initialize_entities
-from .entities.pellets import PowerPellet, ScorePellet
-from .maze_generator import Map
+# 匯入必要的模組
+from typing import List, Tuple, Optional, Callable  # 用於型別提示，提升程式碼可讀性
+from .entities.pacman import PacMan  # 匯入 Pac-Man 類，管理玩家角色
+from .entities.ghost import *  # 匯入所有鬼魂類（Ghost, Ghost1, Ghost2 等）
+from .entities.entity_initializer import initialize_entities  # 匯入實體初始化函數
+from .entities.pellets import PowerPellet, ScorePellet  # 匯入能量球和分數球類
+from .maze_generator import Map  # 匯入迷宮類，用於生成和管理迷宮
+# 從 config 檔案匯入常數，例如遊戲設置、瓦片類型和分數
 from config import EDIBLE_DURATION, GHOST_SCORES, MAZE_WIDTH, MAZE_HEIGHT, MAZE_SEED, FPS, CELL_SIZE, TILE_GHOST_SPAWN
-import config
-from collections import deque
-import pygame
+import config  # 匯入 config 模組，獲取全局設置
+from collections import deque  # 用於可能的隊列操作（此處未直接使用）
+import pygame  # 匯入 Pygame，用於時間管理和事件處理
 
 class Game:
     def __init__(self, player_name: str):
@@ -28,19 +32,31 @@ class Game:
         Args:
             player_name (str): 玩家名稱，用於記錄分數。
         """
+        # 設置迷宮種子，確保迷宮生成一致
         self.seed = config.MAZE_SEED
-        self.maze = Map(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=self.seed)  # 初始化迷宮
-        self.maze.generate_maze()  # 生成隨機迷宮
-        self.pacman, self.ghosts, self.power_pellets, self.score_pellets = self._initialize_entities()  # 初始化所有實體
+        # 初始化迷宮物件，指定寬度和高度
+        self.maze = Map(width=MAZE_WIDTH, height=MAZE_HEIGHT, seed=self.seed)
+        # 生成隨機迷宮
+        self.maze.generate_maze()
+        # 初始化所有實體（Pac-Man、鬼魂、能量球、分數球）
+        self.pacman, self.ghosts, self.power_pellets, self.score_pellets = self._initialize_entities()
+        # 收集迷宮中所有鬼魂重生點的坐標（標記為 TILE_GHOST_SPAWN 的格子）
         self.respawn_points = [(x, y) for y in range(self.maze.height) for x in range(self.maze.width) 
-                               if self.maze.get_tile(x, y) == TILE_GHOST_SPAWN]  # 收集鬼魂重生點坐標
-        self.ghost_score_index = 0  # 鬼魂分數索引，追蹤連續吃鬼魂的分數遞增
-        self.running = True  # 遊戲運行狀態
-        self.player_name = player_name  # 玩家名稱
-        self.start_time = pygame.time.get_ticks()  # 記錄遊戲開始時間（毫秒）
-        self.death_animation = False  # 死亡動畫狀態
-        self.death_animation_timer = 0  # 死亡動畫計時器（幀數）
-        self.death_animation_duration = FPS  # 死亡動畫持續時間（預設 60 幀，相當於 1 秒）
+                               if self.maze.get_tile(x, y) == TILE_GHOST_SPAWN]
+        # 初始化鬼魂分數索引，用於追蹤連續吃鬼魂時的分數遞增
+        self.ghost_score_index = 0
+        # 設置遊戲運行狀態，初始為 True
+        self.running = True
+        # 記錄玩家名稱，用於儲存分數
+        self.player_name = player_name
+        # 記錄遊戲開始時間（毫秒）
+        self.start_time = pygame.time.get_ticks()
+        # 初始化死亡動畫狀態，初始為 False
+        self.death_animation = False
+        # 初始化死亡動畫計時器（幀數）
+        self.death_animation_timer = 0
+        # 設置死亡動畫持續時間（預設等於 FPS，相當於 1 秒）
+        self.death_animation_duration = FPS
 
     def _initialize_entities(self) -> Tuple[PacMan, List[Ghost], List[PowerPellet], List[ScorePellet]]:
         """
@@ -58,6 +74,7 @@ class Game:
             - power_pellets: 能量球列表。
             - score_pellets: 分數球列表。
         """
+        # 調用外部模塊的 initialize_entities 函數，傳入迷宮物件
         return initialize_entities(self.maze)
 
     def update(self, fps: int, move_pacman: Callable[[], None]) -> None:
@@ -75,40 +92,49 @@ class Game:
             fps (int): 每秒幀數，用於計算每幀時間。
             move_pacman (Callable[[], None]): 控制 Pac-Man 移動的函數（玩家輸入或 AI）。
         """
+        # 如果正在播放死亡動畫
         if self.death_animation:
+            # 增加動畫計時器
             self.death_animation_timer += 1
+            # 當計時器超過動畫持續時間時，結束動畫
             if self.death_animation_timer >= self.death_animation_duration:
-                self.death_animation = False  # 動畫結束，重置狀態
+                self.death_animation = False
             return
 
-        move_pacman()  # 執行 Pac-Man 移動
+        # 執行 Pac-Man 移動（由外部函數控制，例如玩家輸入或 AI）
+        move_pacman()
 
-        # 檢查是否吃到能量球
+        # 檢查是否吃到能量球，並獲取分數
         score_from_pellet = self.pacman.eat_pellet(self.power_pellets)
         if score_from_pellet > 0:
+            # 如果吃到能量球，設置所有鬼魂為可食用狀態
             for ghost in self.ghosts:
-                ghost.set_edible(EDIBLE_DURATION)  # 設置鬼魂為可食用狀態，持續 EDIBLE_DURATION 幀
+                ghost.set_edible(EDIBLE_DURATION)
 
         # 檢查是否吃到分數球
         self.pacman.eat_score_pellet(self.score_pellets)
 
         # 移動所有鬼魂
         for ghost in self.ghosts:
-            if ghost.move_towards_target(FPS):  # 若鬼魂到達目標格子
+            # 如果鬼魂到達當前目標格子
+            if ghost.move_towards_target(FPS):
+                # 如果鬼魂正在返回重生點且當前位置是重生點
                 if ghost.returning_to_spawn and self.maze.get_tile(ghost.x, ghost.y) == TILE_GHOST_SPAWN:
-                    ghost.set_waiting(fps)  # 到達重生點後進入等待狀態
+                    ghost.set_waiting(fps)  # 進入等待狀態
+                # 如果鬼魂正在返回重生點但尚未到達
                 elif ghost.returning_to_spawn:
                     ghost.return_to_spawn(self.maze)  # 繼續返回重生點
+                # 正常情況下執行鬼魂移動邏輯（追逐或逃跑）
                 else:
-                    ghost.move(self.pacman, self.maze, fps)  # 執行正常移動邏輯（追逐或逃跑）
+                    ghost.move(self.pacman, self.maze, fps)
 
-        # 檢查碰撞
+        # 檢查 Pac-Man 與鬼魂的碰撞
         self._check_collision(fps)
 
-        # 檢查遊戲勝利條件
+        # 檢查遊戲勝利條件：所有能量球和分數球都被吃完
         if not self.power_pellets and not self.score_pellets:
             print(f"遊戲勝利！所有彈丸已收集。最終分數：{self.pacman.score}")
-            self.running = False  # 遊戲結束
+            self.running = False  # 結束遊戲
 
     def _check_collision(self, fps: int) -> None:
         """
@@ -124,23 +150,35 @@ class Game:
         Args:
             fps (int): 每秒幀數，用於設置鬼魂狀態。
         """
+        # 如果遊戲已結束，跳過碰撞檢查
         if not self.running:
             return
         
+        # 檢查每個鬼魂
         for ghost in self.ghosts:
+            # 計算 Pac-Man 與鬼魂的歐幾里得距離
             distance = ((self.pacman.current_x - ghost.current_x) ** 2 + 
                         (self.pacman.current_y - ghost.current_y) ** 2) ** 0.5
-            if distance < CELL_SIZE / 2:  # 碰撞檢測
+            # 如果距離小於半個格子尺寸，認為發生碰撞
+            if distance < CELL_SIZE / 2:
+                # 如果鬼魂可食用且可食用計時器未結束
                 if ghost.edible and ghost.edible_timer > 0:
-                    self.pacman.score += GHOST_SCORES[self.ghost_score_index]  # 增加分數
-                    self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)  # 更新分數索引
-                    ghost.set_returning_to_spawn(fps)  # 鬼魂返回重生點
+                    # 增加 Pac-Man 分數，根據當前鬼魂分數索引
+                    self.pacman.score += GHOST_SCORES[self.ghost_score_index]
+                    # 更新分數索引，確保不超過 GHOST_SCORES 長度
+                    self.ghost_score_index = min(self.ghost_score_index + 1, len(GHOST_SCORES) - 1)
+                    # 設置鬼魂返回重生點
+                    ghost.set_returning_to_spawn(fps)
+                # 如果鬼魂不可食用且不在返回或等待狀態
                 elif not ghost.edible and not ghost.returning_to_spawn and not ghost.waiting:
-                    self.pacman.lose_life(self.maze)  # Pac-Man 損失一條命
-                    for g in self.ghosts:  # 所有鬼魂返回重生點
+                    # Pac-Man 損失一條命，並重置到初始位置
+                    self.pacman.lose_life(self.maze)
+                    # 所有鬼魂返回重生點
+                    for g in self.ghosts:
                         g.set_returning_to_spawn(fps)
+                    # 如果 Pac-Man 生命數為 0
                     if self.pacman.lives <= 0:
-                        self.running = False  # 遊戲結束
+                        self.running = False  # 結束遊戲
                         print(f"遊戲結束！分數：{self.pacman.score}")
                         self.death_animation = True  # 觸發死亡動畫
                         self.death_animation_timer = 0
@@ -303,7 +341,10 @@ class Game:
         - 調用 menu 模塊的 save_score 函數，將玩家名稱、分數、迷宮種子和遊玩時長儲存。
         - 用於記錄玩家表現，生成排行榜或日誌。
         """
-        from game.menu import save_score
-        end_time = pygame.time.get_ticks()  # 獲取結束時間（毫秒）
-        play_time = (end_time - self.start_time) / 1000.0  # 轉換為秒
+        from game.menu import save_score  # 延遲匯入，避免循環依賴
+        # 獲取遊戲結束時間（毫秒）
+        end_time = pygame.time.get_ticks()
+        # 計算遊玩時長（秒）
+        play_time = (end_time - self.start_time) / 1000.0
+        # 儲存遊戲數據
         save_score(self.player_name, self.pacman.score, MAZE_SEED, play_time)

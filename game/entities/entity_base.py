@@ -1,9 +1,13 @@
 # game/entities/entity_base.py
 """
 定義遊戲中實體的基類，提供基本的移動和目標設置功能，適用於 Pac-Man、鬼魂和彈丸等實體。
+
+這個基類為所有遊戲實體提供通用的屬性和方法，確保它們在迷宮中能夠正確移動和定位。
 """
 
+# 匯入型別提示模組
 from typing import Tuple
+# 從 config 檔案匯入常數
 from config import CELL_SIZE, TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR, ENTITY_DEFAULT_SPEED
 
 class Entity:
@@ -22,14 +26,19 @@ class Entity:
             y (int): 迷宮中的 y 坐標（格子坐標）。
             symbol (str): 實體的符號表示（例如 'P' 表示 Pac-Man，'G' 表示鬼魂）。
         """
-        self.x = x  # 格子 x 坐標
-        self.y = y  # 格子 y 坐標
-        self.symbol = symbol  # 實體符號
-        self.target_x = x  # 目標格子 x 坐標
-        self.target_y = y  # 目標格子 y 坐標
-        self.current_x = x * CELL_SIZE + CELL_SIZE // 2  # 像素 x 坐標（格子中心）
-        self.current_y = y * CELL_SIZE + CELL_SIZE // 2  # 像素 y 坐標（格子中心）
-        self.speed = ENTITY_DEFAULT_SPEED  # 移動速度（像素/幀）
+        # 設置格子坐標
+        self.x = x
+        self.y = y
+        # 設置實體符號
+        self.symbol = symbol
+        # 設置初始目標格子坐標（與當前坐標相同）
+        self.target_x = x
+        self.target_y = y
+        # 計算像素坐標（格子中心）
+        self.current_x = x * CELL_SIZE + CELL_SIZE // 2
+        self.current_y = y * CELL_SIZE + CELL_SIZE // 2
+        # 設置移動速度（像素/幀）
+        self.speed = ENTITY_DEFAULT_SPEED
 
     def move_towards_target(self, fps: int) -> bool:
         """
@@ -47,23 +56,31 @@ class Entity:
         Returns:
             bool: 是否到達目標格子。
         """
-        target_pixel_x = self.target_x * CELL_SIZE + CELL_SIZE // 2  # 目標像素 x 坐標
-        target_pixel_y = self.target_y * CELL_SIZE + CELL_SIZE // 2  # 目標像素 y 坐標
-        dx = target_pixel_x - self.current_x  # x 方向距離
-        dy = target_pixel_y - self.current_y  # y 方向距離
-        dist = (dx ** 2 + dy ** 2) ** 0.5  # 歐幾里得距離
+        # 計算目標像素坐標（目標格子中心）
+        target_pixel_x = self.target_x * CELL_SIZE + CELL_SIZE // 2
+        target_pixel_y = self.target_y * CELL_SIZE + CELL_SIZE // 2
+        # 計算當前位置到目標的距離（x 和 y 方向）
+        dx = target_pixel_x - self.current_x
+        dy = target_pixel_y - self.current_y
+        # 計算歐幾里得距離
+        dist = (dx ** 2 + dy ** 2) ** 0.5
 
-        if dist <= self.speed / fps:  # 若距離小於每幀移動距離，則到達目標
+        # 如果距離小於每幀移動距離，表示已到達目標
+        if dist <= self.speed / fps:
+            # 更新像素坐標到目標位置
             self.current_x = target_pixel_x
             self.current_y = target_pixel_y
+            # 更新格子坐標
             self.x = self.target_x
             self.y = self.target_y
             return True
         else:
+            # 如果尚未到達，計算每幀應移動的距離
             if dist != 0:  # 避免除以零
-                move_dist = min(self.speed / fps, dist)  # 每幀移動距離
-                self.current_x += (dx / dist) * move_dist  # 更新 x 坐標
-                self.current_y += (dy / dist) * move_dist  # 更新 y 坐標
+                move_dist = min(self.speed / fps, dist)  # 限制移動距離不超過目標
+                # 按比例更新像素坐標
+                self.current_x += (dx / dist) * move_dist
+                self.current_y += (dy / dist) * move_dist
             return False
 
     def set_new_target(self, dx: int, dy: int, maze) -> bool:
@@ -83,8 +100,11 @@ class Entity:
         Returns:
             bool: 是否成功設置目標。
         """
+        # 計算新目標格子坐標
         new_x, new_y = self.x + dx, self.y + dy
+        # 檢查目標是否有效且為可通行格子
         if maze.xy_valid(new_x, new_y) and maze.get_tile(new_x, new_y) in [TILE_PATH, TILE_POWER_PELLET, TILE_GHOST_SPAWN, TILE_DOOR]:
+            # 更新目標坐標
             self.target_x, self.target_y = new_x, new_y
             return True
         return False
