@@ -208,7 +208,7 @@ class PacManEnv(Game):
         reward = (self.current_score - self.old_score) * 10
         self.old_score = self.current_score
         if wall_collision:
-            reward -= 50
+            reward -= 100
         if not self.game_over and reward <= 0:
             reward -= 10  # 時間懲罰
         if not self.power_pellets and not self.score_pellets:
