@@ -1,8 +1,11 @@
 # game/entities/pellets.py
 """
 定義遊戲中的能量球（PowerPellet）和分數球（ScorePellet），作為 Pac-Man 遊戲中的可收集物體。
+
+這些類負責表示遊戲中 Pac-Man 可以吃掉的道具，分別提供特殊效果（能量球）和分數增量（分數球）。
 """
 
+# 從 entity_base 模組匯入 Entity 基類
 from .entity_base import Entity
 
 class PowerPellet(Entity):
@@ -20,8 +23,10 @@ class PowerPellet(Entity):
             y (int): 迷宮中的 y 坐標（格子坐標）。
             value (int): 能量球的分數值，預設為 10。
         """
-        super().__init__(x, y, 'o')  # 調用基類 Entity 初始化，設置坐標和符號
-        self.value = value  # 設置能量球的分數值
+        # 調用基類 Entity 的初始化方法，設置坐標和符號 'o'
+        super().__init__(x, y, 'o')
+        # 設置能量球的分數值
+        self.value = value
 
 class ScorePellet(Entity):
     def __init__(self, x: int, y: int, value: int = 2):
@@ -38,5 +43,7 @@ class ScorePellet(Entity):
             y (int): 迷宮中的 y 坐標（格子坐標）。
             value (int): 分數球的分數值，預設為 2。
         """
-        super().__init__(x, y, 's')  # 調用基類 Entity 初始化，設置坐標和符號
-        self.value = value  # 設置分數球的分數值
+        # 調用基類 Entity 的初始化方法，設置坐標和符號 's'
+        super().__init__(x, y, 's')
+        # 設置分數球的分數值
+        self.value = value
