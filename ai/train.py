@@ -188,7 +188,7 @@ def train(trial=None, resume=False,
             env, agent, pretrain_episodes, max_steps_per_episode=200,
             expert_random_prob=expert_random_prob, max_expert_data=max_expert_data)
         # 使用專家數據進行預訓練
-        agent.pretrain(expert_data, pretrain_steps=10000)
+        agent.pretrain(expert_data, pretrain_steps=1000)
 
     # 初始化 TensorBoard 記錄器
     writer = SummaryWriter()

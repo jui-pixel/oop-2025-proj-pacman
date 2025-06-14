@@ -61,6 +61,8 @@ class PacManEnv(Game):
         self.observation_space = Box(low=0, high=1, shape=self.state_shape, dtype=np.float32)
         # 用於儲存上一次的形狀獎勵（用於計算獎勵變化）
         self.last_shape = None
+        # 用於儲存上一次的移動方向（用於計算獎勵變化）
+        self.last_action = None
         # 設定隨機種子，確保結果可重現
         np.random.seed(seed)
         # 印出初始化資訊，方便除錯
@@ -330,7 +332,7 @@ class PacManEnv(Game):
         if moved:
             self.current_score = self.pacman.score
         # 計算基礎獎勵（分數變動的 10 倍）
-        reward = (self.current_score - self.old_score) * 10
+        reward = (self.current_score - self.old_score)
         # 更新舊分數
         self.old_score = self.current_score
         # 如果撞牆，給予負獎勵
@@ -374,6 +376,11 @@ class PacManEnv(Game):
             reward += shape - self.last_shape
         # 儲存當前形勢獎勵
         self.last_shape = shape
+        
+         # 如果有上一不的移動方向，且與現在移動方向相反 
+        if self.last_action is not None and action == (self.last_action ^ 1):
+            reward -= 50
+        self.last_action = action
         # 正規化獎勵（對數縮放，保留正負號）
         # reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
         # 縮放獎勵到合理範圍
