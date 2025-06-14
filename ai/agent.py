@@ -236,11 +236,4 @@ class DQNAgent:
         """
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.target_model.load_state_dict(self.model.state_dict())
-        if memory_path and os.path.exists(memory_path):
-            with open(memory_path, 'rb') as f:
-                data = pickle.load(f)
-                for d in data:
-                    if d is not None:
-                        self.memory.add(self.memory_priority, d)
-            print(f"從 {memory_path} 載入記憶")
         print(f"已從 {model_path} 載入模型")
