@@ -222,15 +222,15 @@ class PacManEnv(Game):
             if ghost.returning_to_spawn or ghost.waiting:
                 continue
             elif ghost.edible:
-                shape -= self.ghost_penalty_weight * (dist/max_dist) / 2
+                shape -= self.ghost_penalty_weight * (dist/max_dist)
             else:
                 shape -= self.ghost_penalty_weight / max(1, dist)
         for pellet in self.power_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * (dist/max_dist) / 3
+            shape -= self.ghost_penalty_weight * (dist/max_dist) / len(self.power_pellets)
         for pellet in self.score_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * (dist/max_dist) / 2.5
+            shape -= self.ghost_penalty_weight * (dist/max_dist) / len(self.score_pellets)
             
         if self.last_shape:
             reward += shape - self.last_shape
