@@ -147,8 +147,7 @@ class Renderer:
                 ghost.alpha = 255
 
             load_ghost = pygame.image.load(ghost_img_path).convert_alpha()
-            load_ghost = pygame.transform.scale(load_ghost, (CELL_SIZE // 2, CELL_SIZE // 2))
-            self.screen.blit(load_ghost, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
+            self.screen.blit(load_ghost, (ghost.current_x - CELL_SIZE * 5 // 12, ghost.current_y - CELL_SIZE * 5 // 12))
             
 
             #ghost_surface = pygame.Surface((CELL_SIZE // 2, CELL_SIZE // 2), pygame.SRCALPHA)
