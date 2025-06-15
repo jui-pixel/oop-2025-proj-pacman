@@ -47,24 +47,24 @@ class Renderer:
                 tile = maze.get_tile(x, y)
 
                 # 獲取相鄰格子的資訊
-                tile_up = maze.get_tile(x, y + CELL_SIZE) if y > 0 else None
-                tile_down = maze.get_tile(x, y - CELL_SIZE) if y < maze.height - 1 else None
-                tile_left = maze.get_tile(x - CELL_SIZE, y) if x > 0 else None
-                tile_right = maze.get_tile(x + CELL_SIZE, y) if x < maze.width - 1 else None
+                tile_up = maze.get_tile(x, y + 1)
+                tile_down = maze.get_tile(x, y - 1)
+                tile_left = maze.get_tile(x - 1, y)
+                tile_right = maze.get_tile(x + 1, y)
 
                 # 判斷是否為邊界
-                up_w = tile_up == TILE_WALL
-                down_w = tile_down == TILE_WALL
-                left_w = tile_left == TILE_WALL
-                right_w = tile_right == TILE_WALL
+                up_w = (tile_up == TILE_WALL)
+                down_w = (tile_down == TILE_WALL)
+                left_w = (tile_left == TILE_WALL)
+                right_w = (tile_right == TILE_WALL)
 
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)  # 計算格子矩形
                 if tile == TILE_BOUNDARY:
                     pygame.draw.rect(self.screen, DARK_GRAY, rect)  # 繪製邊界（深灰色）
                 elif tile == TILE_PATH:
-                    pygame.draw.rect(self.screen, GRAY, rect)  # 繪製路徑（灰色）
+                    pygame.draw.rect(self.screen, BLACK, rect)  # 繪製路徑（黑色）
                 elif tile == TILE_POWER_PELLET:
-                    pygame.draw.rect(self.screen, GRAY, rect)  # 繪製能量球位置（綠色）
+                    pygame.draw.rect(self.screen, BLACK, rect)  # 繪製能量球位置（黑色）
                 elif tile == TILE_GHOST_SPAWN:
                     pygame.draw.rect(self.screen, PINK, rect)  # 繪製鬼魂重生點（粉紅色）
                 elif tile == TILE_DOOR:
@@ -78,29 +78,29 @@ class Renderer:
                     elif up_w and down_w and not left_w and right_w:
                         wall_img_path = f"./assert/image/wall/T_r.png"
                     elif up_w and not down_w and left_w and right_w:
-                        wall_img_path = f"./assert/image/wall/T_u.png"
-                    elif not up_w and down_w and left_w and right_w:
                         wall_img_path = f"./assert/image/wall/T_d.png"
+                    elif not up_w and down_w and left_w and right_w:
+                        wall_img_path = f"./assert/image/wall/T_u.png"
                     elif up_w and not down_w and not left_w and right_w:
-                        wall_img_path = f"./assert/image/wall/corner_ur.png"
-                    elif up_w and not down_w and left_w and not right_w:
-                        wall_img_path = f"./assert/image/wall/corner_ul.png"
-                    elif not up_w and down_w and left_w and not right_w:
-                        wall_img_path = f"./assert/image/wall/corner_dl.png"
-                    elif not up_w and down_w and not left_w and right_w:
                         wall_img_path = f"./assert/image/wall/corner_dr.png"
+                    elif up_w and not down_w and left_w and not right_w:
+                        wall_img_path = f"./assert/image/wall/corner_dl.png"
+                    elif not up_w and down_w and left_w and not right_w:
+                        wall_img_path = f"./assert/image/wall/corner_ul.png"
+                    elif not up_w and down_w and not left_w and right_w:
+                        wall_img_path = f"./assert/image/wall/corner_ur.png"
                     elif not up_w and not down_w and left_w and right_w:
                         wall_img_path = f"./assert/image/wall/horizontal.png"
                     elif up_w and down_w and not left_w and not right_w:
                         wall_img_path = f"./assert/image/wall/vertical.png"
                     elif up_w and not down_w and not left_w and not right_w:
-                        wall_img_path = f"./assert/image/wall/cortex_u.png"
+                        wall_img_path = f"./assert/image/wall/convex_u.png"
                     elif not up_w and down_w and not left_w and not right_w:
-                        wall_img_path = f"./assert/image/wall/cortex_d.png"
+                        wall_img_path = f"./assert/image/wall/convex_d.png"
                     elif not up_w and not down_w and left_w and not right_w:
-                        wall_img_path = f"./assert/image/wall/cortex_l.png"
+                        wall_img_path = f"./assert/image/wall/convex_r.png"
                     elif not up_w and not down_w and not left_w and right_w:
-                        wall_img_path = f"./assert/image/wall/cortex_r.png"
+                        wall_img_path = f"./assert/image/wall/convex_l.png"
                     elif not up_w and not down_w and not left_w and not right_w:
                         wall_img_path = f"./assert/image/wall/dot.png"
                         
