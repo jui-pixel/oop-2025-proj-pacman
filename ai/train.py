@@ -37,7 +37,7 @@ def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_
         if len(expert_data) >= max_expert_data:
             break
         # 重置環境，使用隨機出生點種與隨機地圖以增加多樣性
-        state, _ = env.reset(random_spawn_seed=episode, random_maze_seed=episode)
+        state, _ = env.reset(random_spawn_seed=episode, random_maze_seed=0)
         # 初始化回合結束標誌和步數計數器
         done = False
         steps = 0
@@ -213,7 +213,7 @@ def train(trial=None, resume=False,
         encounter_count = 0
         done = False
         # 重置環境，使用隨機出生點種子+隨機地圖
-        state, _ = env.reset(random_spawn_seed=episode, random_maze_seed=episode)
+        state, _ = env.reset(random_spawn_seed=episode, random_maze_seed=0)
         # 重置模型的噪聲（Noisy DQN）
         agent.model.reset_noise()
         # 初始化動作計數器
