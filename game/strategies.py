@@ -236,7 +236,7 @@ class DQNAIControl(ControlStrategy):
                 for x in range(maze.width):
                     if maze.get_tile(x, y) in [TILE_BOUNDARY, TILE_WALL]:
                         state[5, y, x] = 1.0  # 牆壁和邊界
-            state[0, pacman.target_y, pacman.target_x] = 1.0  # Pac-Man 位置
+            state[0, pacman.y, pacman.x] = 1.0  # Pac-Man 位置
             for pellet in power_pellets:
                 state[1, pellet.y, pellet.x] = 1.0  # 能量球位置
             for pellet in score_pellets:
