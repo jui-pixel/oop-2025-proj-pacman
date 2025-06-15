@@ -51,7 +51,7 @@ class Renderer:
                 elif tile == TILE_WALL:
                     pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁（黑色）
                 elif tile == TILE_PATH:
-                    pygame.draw.rect(self.screen, BLACK, rect)  # 繪製路徑（灰色）
+                    pygame.draw.rect(self.screen, GRAY, rect)  # 繪製路徑（灰色）
                 elif tile == TILE_POWER_PELLET:
                     pygame.draw.rect(self.screen, GRAY, rect)  # 繪製能量球位置（綠色）
                 elif tile == TILE_GHOST_SPAWN:
@@ -74,7 +74,22 @@ class Renderer:
                 score_pellet.y * CELL_SIZE + CELL_SIZE * 3 // 8,
                 CELL_SIZE // 4, CELL_SIZE // 4)  # 計算分數球矩形（居中，半格大小）
             pygame.draw.ellipse(self.screen, ORANGE, score_pellet_rect)  # 繪製橙色圓形分數球
+        
+        # 渲染鬼魂
+        for ghost in game.get_ghosts():
+            if ghost.returning_to_spawn:
+                ghost_img_path = f"./assert/image/ghosts/ghost_return.png"
+                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))  # 閃爍效果
+            elif ghost.edible and ghost.edible_timer > 0:
+                ghost_img_path = f"./assert/image/ghosts/ghost_edible.png"
+                ghost.alpha = 255
+            else:
+                ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
+                ghost.alpha = 255
 
+            load_ghost = pygame.image.load(ghost_img_path).convert_alpha()
+            self.screen.blit(load_ghost, (ghost.current_x - CELL_SIZE * 5 // 12, ghost.current_y - CELL_SIZE * 5 // 12))
+            
         # 渲染 Pac-Man
         pacman = game.get_pacman()
         pacman_rect = pygame.Rect(
@@ -95,11 +110,20 @@ class Renderer:
                 pygame.draw.circle(self.screen, YELLOW, pacman_center, radius)  # 繪製縮小的黃色圓形
         else:
             # 正常繪製 Pac-Man
-            pacman_rect = pygame.Rect(
-                pacman.current_x - CELL_SIZE // 4,
-                pacman.current_y - CELL_SIZE // 4,
-                CELL_SIZE // 2, CELL_SIZE // 2)  # 計算 Pac-Man 矩形（居中，半格大小）
-            pygame.draw.ellipse(self.screen, YELLOW, pacman_rect)  # 繪製黃色圓形 Pac-Man
+            pacman_rl_img_path = f"./assert/image/pacman/right_l.png"
+            pacman_rm_img_path = f"./assert/image/pacman/right_m.png"
+            pacman_rs_img_path = f"./assert/image/pacman/right_s.png"
+            pacman_dl_img_path = f"./assert/image/pacman/down_l.png"
+            pacman_dm_img_path = f"./assert/image/pacman/down_m.png"
+            pacman_ds_img_path = f"./assert/image/pacman/down_s.png"
+            pacman_ul_img_path = f"./assert/image/pacman/up_l.png"
+            pacman_um_img_path = f"./assert/image/pacman/up_m.png"
+            pacman_us_img_path = f"./assert/image/pacman/up_s.png"
+            pacman_ll_img_path = f"./assert/image/pacman/left_l.png"
+            pacman_lm_img_path = f"./assert/image/pacman/left_m.png"
+            pacman_ls_img_path = f"./assert/image/pacman/left_s.png"
+            pacman_img_path = f"./assert/image/pacman/closed.png"
+
 
             direction_angle = 180
             while True :
@@ -128,32 +152,6 @@ class Renderer:
                 pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad - math.pi / 4)
             )
             pygame.draw.polygon(self.screen, GRAY, [point1, point4, point2, point3])
-
-            
-
-
-        # 渲染鬼魂
-        for ghost in game.get_ghosts():
-            if ghost.returning_to_spawn:
-                ghost_img_path = f"./assert/image/ghosts/ghost_return.png"
-                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))  # 閃爍效果
-            elif ghost.edible and ghost.edible_timer > 0:
-                ghost_img_path = f"./assert/image/ghosts/ghost_edible.png"
-                ghost.alpha = 255
-            else:
-                ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
-                ghost.alpha = 255
-
-            load_ghost = pygame.image.load(ghost_img_path).convert_alpha()
-            self.screen.blit(load_ghost, (ghost.current_x - CELL_SIZE * 5 // 12, ghost.current_y - CELL_SIZE * 5 // 12))
-            
-
-            #ghost_surface = pygame.Surface((CELL_SIZE // 2, CELL_SIZE // 2), pygame.SRCALPHA)
-            #ghost_surface.fill((0, 0, 0, 0))  # 透明背景 
-            
-            #pygame.draw.ellipse(ghost_surface, (*base_color, ghost.alpha),
-                               #(0, 0, CELL_SIZE // 2, CELL_SIZE // 2))
-            #self.screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
 
         # 渲染分數和控制模式
         score_text = self.font.render(f"Score: {pacman.score}", True, WHITE)
