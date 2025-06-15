@@ -63,6 +63,9 @@ class PacManEnv(Game):
         self.last_shape = None
         # 用於儲存上一次的移動方向（用於計算獎勵變化）
         self.last_action = None
+        # 初始化已訪問格子集合
+        self.visited_positions = set()
+        self.visited_positions.add((self.pacman.x, self.pacman.y))  # 添加初始位置
         # 設定隨機種子，確保結果可重現
         np.random.seed(seed)
         # 印出初始化資訊，方便除錯
@@ -197,8 +200,13 @@ class PacManEnv(Game):
         self.frame_count = 0
         # 重置鬼魂移動計數器
         self.ghost_move_counter = 2
+        # 用於儲存上一次的形狀獎勵（用於計算獎勵變化）
         self.last_shape = None
+        # 用於儲存上一次的移動方向（用於計算獎勵變化）
         self.last_action = None
+        # 初始化已訪問格子集合
+        self.visited_positions = set()
+        self.visited_positions.add((self.pacman.x, self.pacman.y))  # 添加初始位置
         # 獲取初始狀態
         state = self._get_state()
         # 返回初始狀態和空字典
@@ -306,6 +314,10 @@ class PacManEnv(Game):
         # 檢查動作是否合法
         if not 0 <= action < 4:
             raise ValueError(f"無效動作：{action}")
+        
+        # 記錄當前位置
+        prev_position = (self.pacman.x, self.pacman.y)
+        
         # 標記是否成功移動和是否撞到牆
         moved = True
         wall_collision = False
@@ -349,6 +361,11 @@ class PacManEnv(Game):
         # 如果遊戲勝利，給予大額獎勵
         if not self.power_pellets and not self.score_pellets:
             reward += 5000
+        # 檢查是否進入新區域並給予獎勵
+        current_position = (self.pacman.x, self.pacman.y)
+        if moved and current_position != prev_position and current_position not in self.visited_positions:
+            self.visited_positions.add(current_position)
+            reward += 50  # 探索新區域的正向獎勵
         
         # 計算形勢獎勵（根據與鬼魂和豆子的距離）  
         shape = 0
@@ -383,9 +400,9 @@ class PacManEnv(Game):
         self.last_shape = shape
         
          # 如果有上一不的移動方向，且與現在移動方向相反 
-        # if self.last_action is not None and action == (self.last_action ^ 1):
-        #     reward -= 50
-        # self.last_action = action
+        if self.last_action is not None and action == (self.last_action ^ 1):
+            reward -= 50
+        self.last_action = action
         # 正規化獎勵（對數縮放，保留正負號）
         # reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
         # 縮放獎勵到合理範圍

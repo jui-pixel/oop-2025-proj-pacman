@@ -192,7 +192,7 @@ def train(trial=None, resume=False,
             env, agent, pretrain_episodes, max_steps_per_episode=1000,
             expert_random_prob=expert_random_prob, max_expert_data=max_expert_data)
         # 使用專家數據進行預訓練
-        agent.pretrain(expert_data, pretrain_steps=10000)
+        agent.pretrain(expert_data, pretrain_steps=1000)
 
     # 初始化 TensorBoard 記錄器
     writer = SummaryWriter()
@@ -260,6 +260,7 @@ def train(trial=None, resume=False,
             writer.add_scalar('Value_Bias_Sigma', noise_metrics['value_bias_sigma_mean'], agent.steps)
             writer.add_scalar('Advantage_Weight_Sigma', noise_metrics['advantage_weight_sigma_mean'], agent.steps)
             writer.add_scalar('Advantage_Bias_Sigma', noise_metrics['advantage_bias_sigma_mean'], agent.steps)
+
             # 執行動作
             next_state, reward, done, info = env.step(action)
             # 如果這一步有效，則儲存轉換並進行學習
@@ -271,6 +272,7 @@ def train(trial=None, resume=False,
                     writer.add_scalar('Loss', loss, agent.steps)
                 total_reward += reward
                 steps += 1
+                # print(agent.steps)
             # 如果失去生命，記錄一次
             if info.get('lives_lost', False):
                 lives_lost += 1
@@ -303,7 +305,7 @@ def train(trial=None, resume=False,
         writer.add_scalar('Reward', total_reward, episode)
         writer.add_scalar('Expert_Probability', agent.expert_prob, episode)
         # 每 5 回合儲存模型
-        if (episode + 1) % 1 == 0:
+        if (episode + 1) % 5 == 0:
             agent.save(model_path, memory_path)
             print(f"回合 {episode + 1} 保存模型")
         # 如果使用 Optuna 且回合數超過 50，則報告中間結果並檢查是否需要剪枝
