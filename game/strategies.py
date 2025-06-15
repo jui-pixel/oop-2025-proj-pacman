@@ -200,7 +200,7 @@ class DQNAIControl(ControlStrategy):
             expert_prob_start=0.0,  # 初始專家策略概率
             expert_prob_end=0.0,  # 最終專家策略概率
             expert_prob_decay_steps=1,  # 專家策略衰減步數
-            sigma=0.5,  # NoisyLinear 層的噪聲參數
+            sigma=1.0,  # NoisyLinear 層的噪聲參數
         )
         try:
             self.agent.load(model_path)  # 載入模型
@@ -250,7 +250,6 @@ class DQNAIControl(ControlStrategy):
                     state[4, ghost.target_y, ghost.target_x] = 1.0  # 危險鬼魂位置
             # 使用自動混合精度進行推斷
             with autocast(self.device.type):
-                self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲
                 action = self.agent.choose_action(state)  # 選擇動作
                 # print(action)  # 輸出動作（用於調試）
             # 將動作轉換為方向（0=上, 1=下, 2=左, 3=右）

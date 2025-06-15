@@ -348,19 +348,19 @@ class PacManEnv(Game):
         if moved:
             self.current_score = self.pacman.score
         # 計算基礎獎勵（分數變動的 100 倍）
-        reward = (self.current_score - self.old_score) * 100
+        reward = (self.current_score - self.old_score) * 10
         # print(reward)
         # 更新舊分數
         self.old_score = self.current_score
         # 如果撞牆，給予負獎勵
         if wall_collision:
-            reward -= 1000
+            reward -= 1
         # 如果遊戲未結束且無正獎勵，給予時間懲罰
         if not self.game_over and reward <= 0:
             reward -= 10
         # 如果遊戲勝利，給予大額獎勵
         if not self.power_pellets and not self.score_pellets:
-            reward += 50000
+            reward += 500
         # 檢查是否進入新區域並給予獎勵
         current_position = (self.pacman.x, self.pacman.y)
         if moved and current_position != prev_position and current_position not in self.visited_positions:
@@ -401,12 +401,12 @@ class PacManEnv(Game):
         
          # 如果有上一不的移動方向，且與現在移動方向相反 
         if self.last_action is not None and action == (self.last_action ^ 1):
-            reward -= 1000
+            reward -= 1
         self.last_action = action
         # 正規化獎勵（對數縮放，保留正負號）
         # reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
         # 縮放獎勵到合理範圍
-        reward = reward / 100
+        reward = reward / 10
         
         # 設定是否終結或截斷
         # truncated = self.game_over
