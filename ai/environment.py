@@ -335,7 +335,7 @@ class PacManEnv(Game):
         # 如果成功移動，更新當前分數
         if moved:
             self.current_score = self.pacman.score
-        # 計算基礎獎勵（分數變動的 10 倍）
+        # 計算基礎獎勵（分數變動的 100 倍）
         reward = (self.current_score - self.old_score) * 100
         # print(reward)
         # 更新舊分數
@@ -364,28 +364,28 @@ class PacManEnv(Game):
                 continue
             # 可食用鬼魂的距離懲罰
             elif ghost.edible:
-                shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.ghosts)
+                shape -= self.ghost_penalty_weight * (dist / max_dist) / max(1, len(self.ghosts))
             # 普通鬼魂的距離懲罰
             else:
-                shape -= self.ghost_penalty_weight / max(1, dist**2)
+                shape -= self.ghost_penalty_weight * (1 / max(1, dist)) / max(1, len(self.ghosts))
         # 計算與能量豆的距離獎勵
         for pellet in self.power_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.power_pellets) / 50
+            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.power_pellets)
         # 計算與分數豆的距離獎勵
         for pellet in self.score_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.score_pellets) / 10
-        # 如果有上一次形勢獎勵，計算差值加入總獎勵 
+            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets)
+        
         if self.last_shape:
-            reward += shape - self.last_shape
+            reward += shape
         # 儲存當前形勢獎勵
         self.last_shape = shape
         
          # 如果有上一不的移動方向，且與現在移動方向相反 
-        if self.last_action is not None and action == (self.last_action ^ 1):
-            reward -= 50
-        self.last_action = action
+        # if self.last_action is not None and action == (self.last_action ^ 1):
+        #     reward -= 50
+        # self.last_action = action
         # 正規化獎勵（對數縮放，保留正負號）
         # reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
         # 縮放獎勵到合理範圍
