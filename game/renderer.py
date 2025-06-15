@@ -144,12 +144,19 @@ class Renderer:
                         pacman_img_path = pacman_ls_img_path
                     else:
                         pacman_img_path = pacman_c_img_path
-                elif (pacman.target_y - pacman.y) > 0:
-                    direction_angle = 90
                 elif (pacman.target_y - pacman.y) < 0:
-                    direction_angle = 270
+                    if ( frame_count % 4 == 0):
+                        pacman_img_path = pacman_dl_img_path
+                    elif ( frame_count % 4 == 1):
+                        pacman_img_path = pacman_dm_img_path
+                    elif ( frame_count % 4 == 2):   
+                        pacman_img_path = pacman_ds_img_path
+                    else:
+                        pacman_img_path = pacman_c_img_path
+                elif (pacman.target_y - pacman.y) > 0:
+                    
                 break
-            direction_rad = math.radians(direction_angle)
+
 
         # 渲染分數和控制模式
         score_text = self.font.render(f"Score: {pacman.score}", True, WHITE)
