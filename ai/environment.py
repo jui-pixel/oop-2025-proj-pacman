@@ -124,12 +124,18 @@ class PacManEnv(Game):
         # 定義四個方向的移動向量（x, y））
         directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
         # 呼叫 Pac-Man 的規則移動方法，根據迷宮、豆子和鬼魂位置決定移動
+        # print(f"({self.pacman.x}, {self.pacman.y})")
         success = self.pacman.rule_based_ai_move(self.maze, self.power_pellets, self.score_pellets, self.ghosts)
+        # print(f"({self.pacman.x}, {self.pacman.y}) to ({self.pacman.target_x}, {self.pacman.target_y})")
         # 如果移動成功且有上一次的方向，則轉換為動作編號
         if success and self.pacman.last_direction:
             dx, dy = self.pacman.last_direction
+            # print(f"({dx}, {dy})")
+            # print(f"({dx}, {dy}), {self.pacman.lives}")
             for i, (dx_dir, dy_dir) in enumerate(directions):
                 if dx == dx_dir and dy == dy_dir:
+                    # print(i)
+                    # print()
                     return i
         # 找出所有安全的移動方向（不會撞牆或進入禁止區域）
         safe_directions = [i for i, (dx, dy) in enumerate(directions) 
@@ -191,6 +197,8 @@ class PacManEnv(Game):
         self.frame_count = 0
         # 重置鬼魂移動計數器
         self.ghost_move_counter = 2
+        self.last_shape = None
+        self.last_action = None
         # 獲取初始狀態
         state = self._get_state()
         # 返回初始狀態和空字典
@@ -307,21 +315,17 @@ class PacManEnv(Game):
             directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
             # 根據動作選擇移動方向
             dx, dy = directions[action]
-            # 如果 Pac-Man 可以移動到目標位置
-            if self.pacman.move_towards_target(FPS):
-                # 嘗試設定新目標，如果失敗則表示撞牆
-                if not self.pacman.set_new_target(dx, dy, self.maze):
-                    wall_collision = True
-                else:
-                    # 更新 Pac-Man 的像素坐標
-                    self.pacman.current_x = self.pacman.target_x * CELL_SIZE + CELL_SIZE // 2
-                    self.pacman.current_y = self.pacman.target_y * CELL_SIZE + CELL_SIZE // 2
-                    # 更新 Pac-Man 的格子坐標
-                    self.pacman.x = self.pacman.target_x
-                    self.pacman.y = self.pacman.target_y
-            else:
-                # 如果無法移動，記錄失敗
+            if not self.pacman.set_new_target(dx, dy, self.maze):
+                wall_collision = True
                 moved = False
+            else:
+                # 更新 Pac-Man 的像素坐標
+                self.pacman.current_x = self.pacman.target_x * CELL_SIZE + CELL_SIZE // 2
+                self.pacman.current_y = self.pacman.target_y * CELL_SIZE + CELL_SIZE // 2
+                # 更新 Pac-Man 的格子坐標
+                self.pacman.x = self.pacman.target_x
+                self.pacman.y = self.pacman.target_y
+                
         # 執行遊戲更新
         try:
             self.update(FPS, move_pacman)
@@ -332,7 +336,8 @@ class PacManEnv(Game):
         if moved:
             self.current_score = self.pacman.score
         # 計算基礎獎勵（分數變動的 10 倍）
-        reward = (self.current_score - self.old_score)
+        reward = (self.current_score - self.old_score) * 100
+        # print(reward)
         # 更新舊分數
         self.old_score = self.current_score
         # 如果撞牆，給予負獎勵
@@ -359,8 +364,8 @@ class PacManEnv(Game):
                 continue
             # 可食用鬼魂的距離懲罰
             elif ghost.edible:
-                shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.ghosts) / 2
-            # 普通鬼魂的距離懲罰（更嚴重）
+                shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.ghosts)
+            # 普通鬼魂的距離懲罰
             else:
                 shape -= self.ghost_penalty_weight / max(1, dist**2)
         # 計算與能量豆的距離獎勵

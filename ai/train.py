@@ -46,11 +46,15 @@ def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_
             # 以一定概率選擇隨機動作，增加數據多樣性
             if random.random() < expert_random_prob:
                 action = np.random.randint(0, env.action_space.n)
+                # print("random")
             else:
                 # 否則使用環境提供的專家動作（基於規則的 AI）
                 action = env.get_expert_action()
+                # print("expert")
             # 執行動作，獲取下一個狀態、獎勵、結束標誌和資訊
             next_state, reward, done, info = env.step(action)
+            # print(info["valid_step"])
+            # print(done)
             # 如果這一步是有效的（即成功移動且未終結）
             if info.get('valid_step', False):
                 # 將狀態和動作記錄到專家數據中
@@ -185,10 +189,10 @@ def train(trial=None, resume=False,
     if not resume:
         print(f"收集 {pretrain_episodes} 回合的專家數據...")
         expert_data = collect_expert_data(
-            env, agent, pretrain_episodes, max_steps_per_episode=200,
+            env, agent, pretrain_episodes, max_steps_per_episode=2000,
             expert_random_prob=expert_random_prob, max_expert_data=max_expert_data)
         # 使用專家數據進行預訓練
-        agent.pretrain(expert_data, pretrain_steps=1000)
+        agent.pretrain(expert_data, pretrain_steps=100000)
 
     # 初始化 TensorBoard 記錄器
     writer = SummaryWriter()

@@ -192,8 +192,8 @@ class DQNAIControl(ControlStrategy):
             batch_size=32,  # 訓練批次大小
             lr=5e-4,  # 學習率
             gamma=0.97,  # 折扣因子
-            target_update_freq=4,  # 目標網絡更新頻率
-            n_step=4,  # n 步回報
+            target_update_freq=1,  # 目標網絡更新頻率
+            n_step=1,  # n 步回報
             alpha=0.73,  # 優先經驗回放的 alpha 參數
             beta=0.486,  # 優先經驗回放的 beta 參數
             beta_increment=0.003,  # beta 增量
