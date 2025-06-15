@@ -343,7 +343,7 @@ class DQNAgent:
             self.max_priority = max(self.max_priority, priority)
         # 定期更新目標網絡（使用軟更新）
         if self.steps % self.target_update_freq == 0:
-            tau = 0.001
+            tau = 0.01
             for target_param, param in zip(self.target_model.parameters(), self.model.parameters()):
                 target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
         # 返回損失值

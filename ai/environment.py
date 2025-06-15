@@ -66,6 +66,7 @@ class PacManEnv(Game):
         # 初始化已訪問格子集合
         self.visited_positions = set()
         self.visited_positions.add((self.pacman.x, self.pacman.y))  # 添加初始位置
+        self.consecutive_wall_collisions = 0
         # 設定隨機種子，確保結果可重現
         np.random.seed(seed)
         # 印出初始化資訊，方便除錯
@@ -207,6 +208,7 @@ class PacManEnv(Game):
         # 初始化已訪問格子集合
         self.visited_positions = set()
         self.visited_positions.add((self.pacman.x, self.pacman.y))  # 添加初始位置
+        self.consecutive_wall_collisions = 0
         # 獲取初始狀態
         state = self._get_state()
         # 返回初始狀態和空字典
@@ -233,7 +235,8 @@ class PacManEnv(Game):
             for ghost in self.ghosts:
                 ghost.set_edible(EDIBLE_DURATION)
         # 檢查是否吃到分數豆子
-        self.pacman.eat_score_pellet(self.score_pellets)
+        score_from_pellet += self.pacman.eat_score_pellet(self.score_pellets)
+        self.eaten_pellets += score_from_pellet // 2
         # 更新所有鬼魂的狀態
         for ghost in self.ghosts:
             # 如果鬼魂移動到了目標位置
@@ -355,13 +358,16 @@ class PacManEnv(Game):
         self.old_score = self.current_score
         # 如果撞牆，給予負獎勵
         if wall_collision:
-            reward -= 1
+            self.consecutive_wall_collisions += 1
+            reward -= 1 * (1 + 0.5 * self.consecutive_wall_collisions)
+        else:
+            self.consecutive_wall_collisions = 0
         # 如果更專家動作一樣
         if action == expert_action:
-            reward += 10
+            reward += 1
         # 如果遊戲未結束且無正獎勵，給予時間懲罰
         if not self.game_over and reward <= 0:
-            reward -= 10
+            reward -= 10 * (1 - 0.5 * self.eaten_pellets/self.total_pellets)
         # 如果遊戲勝利，給予大額獎勵
         if not self.power_pellets and not self.score_pellets:
             reward += 500
@@ -383,28 +389,29 @@ class PacManEnv(Game):
             # 忽略正在返回或等待的鬼魂
             if ghost.returning_to_spawn or ghost.waiting:
                 continue
-            # 可食用鬼魂的距離懲罰
+            # 可食用鬼魂的距離獎勵
             elif ghost.edible:
-                shape -= self.ghost_penalty_weight * (dist / max_dist) / max(1, len(self.ghosts)) / 3
+                shape += self.ghost_penalty_weight * (1 - dist / max_dist) / max(1, len(self.ghosts)) * 0.5
             # 普通鬼魂的距離懲罰
             else:
                 shape -= self.ghost_penalty_weight * (1 / max(1, dist)) / max(1, len(self.ghosts))
-        # # 計算與能量豆的距離獎勵
-        # for pellet in self.power_pellets:
-        #     dist = calc_dist(pellet)
-        #     shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.power_pellets)
-        # # 計算與分數豆的距離獎勵
-        # for pellet in self.score_pellets:
-        #     dist = calc_dist(pellet)
-        #     shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets) / 2
+        # 計算與能量豆的距離獎勵
+        for pellet in self.power_pellets:
+            dist = calc_dist(pellet)
+            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.power_pellets) * 0.4
+        # 計算與分數豆的距離獎勵
+        for pellet in self.score_pellets:
+            dist = calc_dist(pellet)
+            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets) * 0.3
         
         
         reward += (shape * 0.95 - self.last_shape) if self.last_shape else 0
         # 儲存當前形勢獎勵
         self.last_shape = shape
         
-         # 如果有上一不的移動方向，且與現在移動方向相反 
-        if self.last_action is not None and action == (self.last_action ^ 1):
+        # 如果有上一不的移動方向，且與現在移動方向相反，且附近沒有鬼
+        min_ghost_dist = min([calc_dist(ghost) for ghost in self.ghosts if not (ghost.returning_to_spawn or ghost.waiting)], default=max_dist)
+        if self.last_action is not None and action == (self.last_action ^ 1) and min_ghost_dist > 3:
             reward -= 1
         self.last_action = action
         # 正規化獎勵
