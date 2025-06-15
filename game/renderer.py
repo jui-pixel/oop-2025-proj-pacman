@@ -45,12 +45,18 @@ class Renderer:
         for y in range(maze.height):
             for x in range(maze.width):
                 tile = maze.get_tile(x, y)
-                
+
                 # 獲取相鄰格子的資訊
                 tile_up = maze.get_tile(x, y + CELL_SIZE) if y > 0 else None
                 tile_down = maze.get_tile(x, y - CELL_SIZE) if y < maze.height - 1 else None
                 tile_left = maze.get_tile(x - CELL_SIZE, y) if x > 0 else None
                 tile_right = maze.get_tile(x + CELL_SIZE, y) if x < maze.width - 1 else None
+
+                # 判斷是否為邊界
+                up_w = tile_up == TILE_WALL
+                down_w = tile_down == TILE_WALL
+                left_w = tile_left == TILE_WALL
+                right_w = tile_right == TILE_WALL
 
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)  # 計算格子矩形
                 if tile == TILE_BOUNDARY:
@@ -64,6 +70,8 @@ class Renderer:
                 elif tile == TILE_DOOR:
                     pygame.draw.rect(self.screen, RED, rect)  # 繪製門（紅色）
                 elif tile == TILE_WALL:
+                    if up_w and down_w and left_w and right_w:
+                        wall_img_path = f"./assert/image/wall/center.png"
                     pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁（黑色）
 
         # 渲染能量球
