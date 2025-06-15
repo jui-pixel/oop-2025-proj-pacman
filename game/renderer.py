@@ -134,16 +134,14 @@ class Renderer:
 
         # 渲染鬼魂
         for ghost in game.get_ghosts():
-            ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
-
             if ghost.returning_to_spawn:
-                base_color = DARK_GRAY
+                ghost_img_path = f"./assert/image/ghosts/ghost_return.png"
                 ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))  # 閃爍效果
             elif ghost.edible and ghost.edible_timer > 0:
-                base_color = LIGHT_BLUE
+                ghost_img_path = f"./assert/image/ghosts/ghost_edible.png"
                 ghost.alpha = 255
             else:
-                base_color = ghost.color
+                ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
                 ghost.alpha = 255
 
             load_ghost = pygame.image.load(ghost_img_path).convert_alpha()
