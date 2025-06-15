@@ -321,6 +321,7 @@ class PacManEnv(Game):
         # 標記是否成功移動和是否撞到牆
         moved = True
         wall_collision = False
+        expert_action = self.get_expert_action()
         def move_pacman():
             nonlocal moved, wall_collision
             # 定義四個方向的移動向量
@@ -355,6 +356,9 @@ class PacManEnv(Game):
         # 如果撞牆，給予負獎勵
         if wall_collision:
             reward -= 1
+        # 如果更專家動作一樣
+        if action == expert_action:
+            reward += 10
         # 如果遊戲未結束且無正獎勵，給予時間懲罰
         if not self.game_over and reward <= 0:
             reward -= 10
@@ -392,10 +396,10 @@ class PacManEnv(Game):
         # 計算與分數豆的距離獎勵
         for pellet in self.score_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets)
+            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets) / 2
         
-        if self.last_shape:
-            reward += shape - self.last_shape
+        
+        reward += (shape * 0.95 - self.last_shape) if self.last_shape else 0
         # 儲存當前形勢獎勵
         self.last_shape = shape
         
@@ -403,10 +407,9 @@ class PacManEnv(Game):
         if self.last_action is not None and action == (self.last_action ^ 1):
             reward -= 1
         self.last_action = action
-        # 正規化獎勵（對數縮放，保留正負號）
-        # reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
-        # 縮放獎勵到合理範圍
-        reward = reward / 10
+        # 正規化獎勵
+        reward = np.clip(reward, -500, 500)
+        reward /= 500
         
         # 設定是否終結或截斷
         # truncated = self.game_over
