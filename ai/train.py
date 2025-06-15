@@ -36,8 +36,8 @@ def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_
         # 如果數據量已達上限，則停止收集
         if len(expert_data) >= max_expert_data:
             break
-        # 重置環境，使用隨機出生點種子以增加多樣性
-        state, _ = env.reset(random_spawn_seed=episode)
+        # 重置環境，使用隨機出生點種與隨機地圖以增加多樣性
+        state, _ = env.reset(random_spawn_seed=episode, random_maze_seed=episode)
         # 初始化回合結束標誌和步數計數器
         done = False
         steps = 0
@@ -46,11 +46,15 @@ def collect_expert_data(env, agent, num_episodes=EXPERT_EPISODES, max_steps_per_
             # 以一定概率選擇隨機動作，增加數據多樣性
             if random.random() < expert_random_prob:
                 action = np.random.randint(0, env.action_space.n)
+                # print("random")
             else:
                 # 否則使用環境提供的專家動作（基於規則的 AI）
                 action = env.get_expert_action()
+                # print("expert")
             # 執行動作，獲取下一個狀態、獎勵、結束標誌和資訊
             next_state, reward, done, info = env.step(action)
+            # print(info["valid_step"])
+            # print(done)
             # 如果這一步是有效的（即成功移動且未終結）
             if info.get('valid_step', False):
                 # 將狀態和動作記錄到專家數據中
@@ -185,7 +189,7 @@ def train(trial=None, resume=False,
     if not resume:
         print(f"收集 {pretrain_episodes} 回合的專家數據...")
         expert_data = collect_expert_data(
-            env, agent, pretrain_episodes, max_steps_per_episode=200,
+            env, agent, pretrain_episodes, max_steps_per_episode=1000,
             expert_random_prob=expert_random_prob, max_expert_data=max_expert_data)
         # 使用專家數據進行預訓練
         agent.pretrain(expert_data, pretrain_steps=10000)
@@ -208,8 +212,8 @@ def train(trial=None, resume=False,
         total_ghost_dist = 0
         encounter_count = 0
         done = False
-        # 重置環境，使用隨機出生點種子
-        state, _ = env.reset(random_spawn_seed=episode)
+        # 重置環境，使用隨機出生點種子+隨機地圖
+        state, _ = env.reset(random_spawn_seed=episode, random_maze_seed=episode)
         # 重置模型的噪聲（Noisy DQN）
         agent.model.reset_noise()
         # 初始化動作計數器
@@ -256,6 +260,7 @@ def train(trial=None, resume=False,
             writer.add_scalar('Value_Bias_Sigma', noise_metrics['value_bias_sigma_mean'], agent.steps)
             writer.add_scalar('Advantage_Weight_Sigma', noise_metrics['advantage_weight_sigma_mean'], agent.steps)
             writer.add_scalar('Advantage_Bias_Sigma', noise_metrics['advantage_bias_sigma_mean'], agent.steps)
+
             # 執行動作
             next_state, reward, done, info = env.step(action)
             # 如果這一步有效，則儲存轉換並進行學習
@@ -267,6 +272,7 @@ def train(trial=None, resume=False,
                     writer.add_scalar('Loss', loss, agent.steps)
                 total_reward += reward
                 steps += 1
+                # print(agent.steps)
             # 如果失去生命，記錄一次
             if info.get('lives_lost', False):
                 lives_lost += 1

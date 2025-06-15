@@ -192,8 +192,8 @@ class DQNAIControl(ControlStrategy):
             batch_size=32,  # 訓練批次大小
             lr=5e-4,  # 學習率
             gamma=0.97,  # 折扣因子
-            target_update_freq=4,  # 目標網絡更新頻率
-            n_step=4,  # n 步回報
+            target_update_freq=1,  # 目標網絡更新頻率
+            n_step=1,  # n 步回報
             alpha=0.73,  # 優先經驗回放的 alpha 參數
             beta=0.486,  # 優先經驗回放的 beta 參數
             beta_increment=0.003,  # beta 增量
@@ -252,7 +252,7 @@ class DQNAIControl(ControlStrategy):
             with autocast(self.device.type):
                 self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲
                 action = self.agent.choose_action(state)  # 選擇動作
-                print(action)  # 輸出動作（用於調試）
+                # print(action)  # 輸出動作（用於調試）
             # 將動作轉換為方向（0=上, 1=下, 2=左, 3=右）
             dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
             if pacman.set_new_target(dx, dy, maze):  # 設置新目標

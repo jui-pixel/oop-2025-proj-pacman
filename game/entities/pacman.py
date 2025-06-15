@@ -279,6 +279,7 @@ class PacMan(Entity):
                 dx, dy = direction
                 if pacman.set_new_target(dx, dy, maze):
                     pacman.last_direction = (dx, dy)
+                    # print(pacman.last_direction)
                     pacman.stuck_count = 0
                     return NodeStatus.SUCCESS
             return NodeStatus.FAILURE
@@ -287,6 +288,8 @@ class PacMan(Entity):
             """
             移動到最近的分數球。
             """
+            if not score_pellets:
+                return NodeStatus.FAILURE
             closest_score = min(score_pellets, key=lambda s: (s.x - pacman.x) ** 2 + (s.y - pacman.y) ** 2)
             goal = (closest_score.x, closest_score.y)
             direction = pacman.find_path((pacman.x, pacman.y), goal, maze, ghosts, score_pellets, power_pellets, mode="approach", target_type="score")
@@ -294,6 +297,7 @@ class PacMan(Entity):
                 dx, dy = direction
                 if pacman.set_new_target(dx, dy, maze):
                     pacman.last_direction = (dx, dy)
+                    # print(pacman.last_direction)
                     pacman.stuck_count = 0
                     return NodeStatus.SUCCESS
             return NodeStatus.FAILURE
@@ -312,6 +316,7 @@ class PacMan(Entity):
                 dx, dy = direction
                 if pacman.set_new_target(dx, dy, maze):
                     pacman.last_direction = (dx, dy)
+                    # print(pacman.last_direction)
                     pacman.stuck_count = 0
                     return NodeStatus.SUCCESS
             return NodeStatus.FAILURE
@@ -328,6 +333,7 @@ class PacMan(Entity):
                 dx, dy = random.choice(safe_directions)
                 if pacman.set_new_target(dx, dy, maze):
                     pacman.last_direction = (dx, dy)
+                    # print(pacman.last_direction)
                     pacman.stuck_count = 0
                     return NodeStatus.SUCCESS
             return NodeStatus.FAILURE

@@ -61,6 +61,11 @@ class PacManEnv(Game):
         self.observation_space = Box(low=0, high=1, shape=self.state_shape, dtype=np.float32)
         # 用於儲存上一次的形狀獎勵（用於計算獎勵變化）
         self.last_shape = None
+        # 用於儲存上一次的移動方向（用於計算獎勵變化）
+        self.last_action = None
+        # 初始化已訪問格子集合
+        self.visited_positions = set()
+        self.visited_positions.add((self.pacman.x, self.pacman.y))  # 添加初始位置
         # 設定隨機種子，確保結果可重現
         np.random.seed(seed)
         # 印出初始化資訊，方便除錯
@@ -122,12 +127,18 @@ class PacManEnv(Game):
         # 定義四個方向的移動向量（x, y））
         directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
         # 呼叫 Pac-Man 的規則移動方法，根據迷宮、豆子和鬼魂位置決定移動
+        # print(f"({self.pacman.x}, {self.pacman.y})")
         success = self.pacman.rule_based_ai_move(self.maze, self.power_pellets, self.score_pellets, self.ghosts)
+        # print(f"({self.pacman.x}, {self.pacman.y}) to ({self.pacman.target_x}, {self.pacman.target_y})")
         # 如果移動成功且有上一次的方向，則轉換為動作編號
         if success and self.pacman.last_direction:
             dx, dy = self.pacman.last_direction
+            # print(f"({dx}, {dy})")
+            # print(f"({dx}, {dy}), {self.pacman.lives}")
             for i, (dx_dir, dy_dir) in enumerate(directions):
                 if dx == dx_dir and dy == dy_dir:
+                    # print(i)
+                    # print()
                     return i
         # 找出所有安全的移動方向（不會撞牆或進入禁止區域）
         safe_directions = [i for i, (dx, dy) in enumerate(directions) 
@@ -189,6 +200,13 @@ class PacManEnv(Game):
         self.frame_count = 0
         # 重置鬼魂移動計數器
         self.ghost_move_counter = 2
+        # 用於儲存上一次的形狀獎勵（用於計算獎勵變化）
+        self.last_shape = None
+        # 用於儲存上一次的移動方向（用於計算獎勵變化）
+        self.last_action = None
+        # 初始化已訪問格子集合
+        self.visited_positions = set()
+        self.visited_positions.add((self.pacman.x, self.pacman.y))  # 添加初始位置
         # 獲取初始狀態
         state = self._get_state()
         # 返回初始狀態和空字典
@@ -296,6 +314,10 @@ class PacManEnv(Game):
         # 檢查動作是否合法
         if not 0 <= action < 4:
             raise ValueError(f"無效動作：{action}")
+        
+        # 記錄當前位置
+        prev_position = (self.pacman.x, self.pacman.y)
+        
         # 標記是否成功移動和是否撞到牆
         moved = True
         wall_collision = False
@@ -305,21 +327,17 @@ class PacManEnv(Game):
             directions = [(0, -1), (0, 1), (-1, 0), (1, 0)]
             # 根據動作選擇移動方向
             dx, dy = directions[action]
-            # 如果 Pac-Man 可以移動到目標位置
-            if self.pacman.move_towards_target(FPS):
-                # 嘗試設定新目標，如果失敗則表示撞牆
-                if not self.pacman.set_new_target(dx, dy, self.maze):
-                    wall_collision = True
-                else:
-                    # 更新 Pac-Man 的像素坐標
-                    self.pacman.current_x = self.pacman.target_x * CELL_SIZE + CELL_SIZE // 2
-                    self.pacman.current_y = self.pacman.target_y * CELL_SIZE + CELL_SIZE // 2
-                    # 更新 Pac-Man 的格子坐標
-                    self.pacman.x = self.pacman.target_x
-                    self.pacman.y = self.pacman.target_y
-            else:
-                # 如果無法移動，記錄失敗
+            if not self.pacman.set_new_target(dx, dy, self.maze):
+                wall_collision = True
                 moved = False
+            else:
+                # 更新 Pac-Man 的像素坐標
+                self.pacman.current_x = self.pacman.target_x * CELL_SIZE + CELL_SIZE // 2
+                self.pacman.current_y = self.pacman.target_y * CELL_SIZE + CELL_SIZE // 2
+                # 更新 Pac-Man 的格子坐標
+                self.pacman.x = self.pacman.target_x
+                self.pacman.y = self.pacman.target_y
+                
         # 執行遊戲更新
         try:
             self.update(FPS, move_pacman)
@@ -329,8 +347,9 @@ class PacManEnv(Game):
         # 如果成功移動，更新當前分數
         if moved:
             self.current_score = self.pacman.score
-        # 計算基礎獎勵（分數變動的 10 倍）
-        reward = (self.current_score - self.old_score) * 10
+        # 計算基礎獎勵（分數變動的 100 倍）
+        reward = (self.current_score - self.old_score) * 100
+        # print(reward)
         # 更新舊分數
         self.old_score = self.current_score
         # 如果撞牆，給予負獎勵
@@ -342,6 +361,11 @@ class PacManEnv(Game):
         # 如果遊戲勝利，給予大額獎勵
         if not self.power_pellets and not self.score_pellets:
             reward += 5000
+        # 檢查是否進入新區域並給予獎勵
+        current_position = (self.pacman.x, self.pacman.y)
+        if moved and current_position != prev_position and current_position not in self.visited_positions:
+            self.visited_positions.add(current_position)
+            reward += 50  # 探索新區域的正向獎勵
         
         # 計算形勢獎勵（根據與鬼魂和豆子的距離）  
         shape = 0
@@ -357,23 +381,28 @@ class PacManEnv(Game):
                 continue
             # 可食用鬼魂的距離懲罰
             elif ghost.edible:
-                shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.ghosts) / 2
-            # 普通鬼魂的距離懲罰（更嚴重）
+                shape -= self.ghost_penalty_weight * (dist / max_dist) / max(1, len(self.ghosts))
+            # 普通鬼魂的距離懲罰
             else:
-                shape -= self.ghost_penalty_weight / max(1, dist**2)
+                shape -= self.ghost_penalty_weight * (1 / max(1, dist)) / max(1, len(self.ghosts))
         # 計算與能量豆的距離獎勵
         for pellet in self.power_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.power_pellets) / 50
+            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.power_pellets)
         # 計算與分數豆的距離獎勵
         for pellet in self.score_pellets:
             dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * ((dist/max_dist)**2) / len(self.score_pellets) / 10
-        # 如果有上一次形勢獎勵，計算差值加入總獎勵 
+            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets)
+        
         if self.last_shape:
             reward += shape - self.last_shape
         # 儲存當前形勢獎勵
         self.last_shape = shape
+        
+         # 如果有上一不的移動方向，且與現在移動方向相反 
+        if self.last_action is not None and action == (self.last_action ^ 1):
+            reward -= 50
+        self.last_action = action
         # 正規化獎勵（對數縮放，保留正負號）
         # reward = np.log1p(abs(reward)) * (1 if reward > 0 else -1)
         # 縮放獎勵到合理範圍
