@@ -45,11 +45,16 @@ class Renderer:
         for y in range(maze.height):
             for x in range(maze.width):
                 tile = maze.get_tile(x, y)
+                
+                # 獲取相鄰格子的資訊
+                tile_up = maze.get_tile(x, y + CELL_SIZE) if y > 0 else None
+                tile_down = maze.get_tile(x, y - CELL_SIZE) if y < maze.height - 1 else None
+                tile_left = maze.get_tile(x - CELL_SIZE, y) if x > 0 else None
+                tile_right = maze.get_tile(x + CELL_SIZE, y) if x < maze.width - 1 else None
+
                 rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)  # 計算格子矩形
                 if tile == TILE_BOUNDARY:
                     pygame.draw.rect(self.screen, DARK_GRAY, rect)  # 繪製邊界（深灰色）
-                elif tile == TILE_WALL:
-                    pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁（黑色）
                 elif tile == TILE_PATH:
                     pygame.draw.rect(self.screen, GRAY, rect)  # 繪製路徑（灰色）
                 elif tile == TILE_POWER_PELLET:
@@ -58,6 +63,8 @@ class Renderer:
                     pygame.draw.rect(self.screen, PINK, rect)  # 繪製鬼魂重生點（粉紅色）
                 elif tile == TILE_DOOR:
                     pygame.draw.rect(self.screen, RED, rect)  # 繪製門（紅色）
+                elif tile == TILE_WALL:
+                    pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁（黑色）
 
         # 渲染能量球
         for pellet in game.get_power_pellets():
