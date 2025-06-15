@@ -88,7 +88,10 @@ class Renderer:
                         wall_img_path = f"./assert/image/wall/corner_dl.png"
                     elif not up_w and down_w and not left_w and right_w:
                         wall_img_path = f"./assert/image/wall/corner_dr.png"
-                    
+                    elif not up_w and not down_w and left_w and right_w:
+                        wall_img_path = f"./assert/image/wall/horizontal.png"
+                    elif up_w and not down_w and not left_w and not right_w:
+                        wall_img_path = f"./assert/image/wall/vertical_u.png"
                     pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁（黑色）
 
         # 渲染能量球
