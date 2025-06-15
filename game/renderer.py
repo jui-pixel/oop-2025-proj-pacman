@@ -51,7 +51,7 @@ class Renderer:
                 elif tile == TILE_WALL:
                     pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁（黑色）
                 elif tile == TILE_PATH:
-                    pygame.draw.rect(self.screen, GRAY, rect)  # 繪製路徑（灰色）
+                    pygame.draw.rect(self.screen, BLACK, rect)  # 繪製路徑（灰色）
                 elif tile == TILE_POWER_PELLET:
                     pygame.draw.rect(self.screen, GRAY, rect)  # 繪製能量球位置（綠色）
                 elif tile == TILE_GHOST_SPAWN:
@@ -134,6 +134,8 @@ class Renderer:
 
         # 渲染鬼魂
         for ghost in game.get_ghosts():
+            ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
+
             if ghost.returning_to_spawn:
                 base_color = DARK_GRAY
                 ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))  # 閃爍效果
@@ -143,12 +145,14 @@ class Renderer:
             else:
                 base_color = ghost.color
                 ghost.alpha = 255
+            
 
-            ghost_surface = pygame.Surface((CELL_SIZE // 2, CELL_SIZE // 2), pygame.SRCALPHA)
-            ghost_surface.fill((0, 0, 0, 0))  # 透明背景
-            pygame.draw.ellipse(ghost_surface, (*base_color, ghost.alpha),
-                               (0, 0, CELL_SIZE // 2, CELL_SIZE // 2))
-            self.screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
+            #ghost_surface = pygame.Surface((CELL_SIZE // 2, CELL_SIZE // 2), pygame.SRCALPHA)
+            #ghost_surface.fill((0, 0, 0, 0))  # 透明背景 
+            
+            #pygame.draw.ellipse(ghost_surface, (*base_color, ghost.alpha),
+                               #(0, 0, CELL_SIZE // 2, CELL_SIZE // 2))
+            #self.screen.blit(ghost_surface, (ghost.current_x - CELL_SIZE // 4, ghost.current_y - CELL_SIZE // 4))
 
         # 渲染分數和控制模式
         score_text = self.font.render(f"Score: {pacman.score}", True, WHITE)
