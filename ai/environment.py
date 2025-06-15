@@ -348,7 +348,7 @@ class PacManEnv(Game):
         # 如果成功移動，更新當前分數
         if moved:
             self.current_score = self.pacman.score
-        # 計算基礎獎勵（分數變動的 100 倍）
+        # 計算基礎獎勵（分數變動的 10 倍）
         reward = (self.current_score - self.old_score) * 10
         # print(reward)
         # 更新舊分數
@@ -385,18 +385,18 @@ class PacManEnv(Game):
                 continue
             # 可食用鬼魂的距離懲罰
             elif ghost.edible:
-                shape -= self.ghost_penalty_weight * (dist / max_dist) / max(1, len(self.ghosts))
+                shape -= self.ghost_penalty_weight * (dist / max_dist) / max(1, len(self.ghosts)) / 3
             # 普通鬼魂的距離懲罰
             else:
                 shape -= self.ghost_penalty_weight * (1 / max(1, dist)) / max(1, len(self.ghosts))
-        # 計算與能量豆的距離獎勵
-        for pellet in self.power_pellets:
-            dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.power_pellets)
-        # 計算與分數豆的距離獎勵
-        for pellet in self.score_pellets:
-            dist = calc_dist(pellet)
-            shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets) / 2
+        # # 計算與能量豆的距離獎勵
+        # for pellet in self.power_pellets:
+        #     dist = calc_dist(pellet)
+        #     shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.power_pellets)
+        # # 計算與分數豆的距離獎勵
+        # for pellet in self.score_pellets:
+        #     dist = calc_dist(pellet)
+        #     shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets) / 2
         
         
         reward += (shape * 0.95 - self.last_shape) if self.last_shape else 0

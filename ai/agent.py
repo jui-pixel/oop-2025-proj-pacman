@@ -318,6 +318,7 @@ class DQNAgent:
             q_values = q_values.gather(1, actions)
             # 使用目標模型計算下一個狀態的 Q 值
             with torch.no_grad():
+                # Double DQN：用主模型選擇動作，目標模型計算 Q 值
                 next_actions = self.model(next_states)[0].max(1, keepdim=True)[1]
                 next_q_values = self.target_model(next_states)[0].gather(1, next_actions)
                 # 計算目標 Q 值（N 步回報）
