@@ -378,7 +378,7 @@ class PacManEnv(Game):
             shape -= self.ghost_penalty_weight * (dist / max_dist) / len(self.score_pellets)
         
         if self.last_shape:
-            reward += shape
+            reward += shape - self.last_shape
         # 儲存當前形勢獎勵
         self.last_shape = shape
         
