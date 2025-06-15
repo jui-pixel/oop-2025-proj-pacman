@@ -122,36 +122,34 @@ class Renderer:
             pacman_ll_img_path = f"./assert/image/pacman/left_l.png"
             pacman_lm_img_path = f"./assert/image/pacman/left_m.png"
             pacman_ls_img_path = f"./assert/image/pacman/left_s.png"
-            pacman_img_path = f"./assert/image/pacman/closed.png"
+            pacman_c_img_path = f"./assert/image/pacman/closed.png"
+            pacman_img_path = pacman_rl_img_path
 
-
-            direction_angle = 180
             while True :
                 if (pacman.target_x - pacman.x) > 0: 
-                    direction_angle = 0
+                    if( frame_count % 4 == 0):
+                        pacman_img_path = pacman_rl_img_path
+                    elif( frame_count % 4 == 1):
+                        pacman_img_path = pacman_rm_img_path
+                    elif( frame_count % 4 == 2):
+                        pacman_img_path = pacman_rs_img_path
+                    else:
+                        pacman_img_path = pacman_c_img_path
                 elif (pacman.target_x - pacman.x) < 0:
-                    direction_angle = 180
+                    if ( frame_count % 4 == 0):
+                        pacman_img_path = pacman_ll_img_path
+                    elif ( frame_count % 4 == 1):
+                        pacman_img_path = pacman_lm_img_path
+                    elif ( frame_count % 4 == 2):
+                        pacman_img_path = pacman_ls_img_path
+                    else:
+                        pacman_img_path = pacman_c_img_path
                 elif (pacman.target_y - pacman.y) > 0:
                     direction_angle = 90
                 elif (pacman.target_y - pacman.y) < 0:
                     direction_angle = 270
                 break
             direction_rad = math.radians(direction_angle)
-
-            point1 = (pacman.current_x, pacman.current_y)
-            point2 = (
-                pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad)*1.3,
-                pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad)*1.3
-            )
-            point3 = (
-                pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad + math.pi / 4),
-                pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad + math.pi / 4)
-            )
-            point4 = (
-                pacman.current_x + CELL_SIZE // 4 * math.cos(direction_rad - math.pi / 4),
-                pacman.current_y + CELL_SIZE // 4 * math.sin(direction_rad - math.pi / 4)
-            )
-            pygame.draw.polygon(self.screen, GRAY, [point1, point4, point2, point3])
 
         # 渲染分數和控制模式
         score_text = self.font.render(f"Score: {pacman.score}", True, WHITE)
