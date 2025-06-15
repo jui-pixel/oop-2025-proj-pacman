@@ -189,10 +189,10 @@ def train(trial=None, resume=False,
     if not resume:
         print(f"收集 {pretrain_episodes} 回合的專家數據...")
         expert_data = collect_expert_data(
-            env, agent, pretrain_episodes, max_steps_per_episode=2000,
+            env, agent, pretrain_episodes, max_steps_per_episode=1000,
             expert_random_prob=expert_random_prob, max_expert_data=max_expert_data)
         # 使用專家數據進行預訓練
-        agent.pretrain(expert_data, pretrain_steps=100000)
+        agent.pretrain(expert_data, pretrain_steps=10000)
 
     # 初始化 TensorBoard 記錄器
     writer = SummaryWriter()
