@@ -154,9 +154,19 @@ class Renderer:
                     else:
                         pacman_img_path = pacman_c_img_path
                 elif (pacman.target_y - pacman.y) > 0:
-                    
+                    if ( frame_count % 4 == 0):
+                        pacman_img_path = pacman_ul_img_path
+                    elif ( frame_count % 4 == 1):       
+                        pacman_img_path = pacman_um_img_path
+                    elif ( frame_count % 4 == 2):
+                        pacman_img_path = pacman_us_img_path
+                    else:
+                        pacman_img_path = pacman_c_img_path
+                else:
+                    pacman_img_path = pacman_c_img_path
                 break
-
+            load_pacman = pygame.image.load(pacman_img_path).convert_alpha()
+            self.screen.blit(load_pacman, (ghost.current_x - CELL_SIZE * 5 // 12, ghost.current_y - CELL_SIZE * 5 // 12))
 
         # 渲染分數和控制模式
         score_text = self.font.render(f"Score: {pacman.score}", True, WHITE)
