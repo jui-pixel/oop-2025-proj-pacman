@@ -252,7 +252,7 @@ class DQNAIControl(ControlStrategy):
             with autocast(self.device.type):
                 self.agent.model.reset_noise()  # 重置 NoisyLinear 層的噪聲
                 action = self.agent.choose_action(state)  # 選擇動作
-                print(action)  # 輸出動作（用於調試）
+                # print(action)  # 輸出動作（用於調試）
             # 將動作轉換為方向（0=上, 1=下, 2=左, 3=右）
             dx, dy = [(0, -1), (0, 1), (-1, 0), (1, 0)][action]
             if pacman.set_new_target(dx, dy, maze):  # 設置新目標

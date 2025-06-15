@@ -303,7 +303,7 @@ def train(trial=None, resume=False,
         writer.add_scalar('Reward', total_reward, episode)
         writer.add_scalar('Expert_Probability', agent.expert_prob, episode)
         # 每 5 回合儲存模型
-        if (episode + 1) % 5 == 0:
+        if (episode + 1) % 1 == 0:
             agent.save(model_path, memory_path)
             print(f"回合 {episode + 1} 保存模型")
         # 如果使用 Optuna 且回合數超過 50，則報告中間結果並檢查是否需要剪枝
