@@ -70,6 +70,7 @@ class Renderer:
                 elif tile == TILE_DOOR:
                     pygame.draw.rect(self.screen, RED, rect)  # 繪製門（紅色）
                 elif tile == TILE_WALL:
+                    # 根據相鄰格子的資訊選擇牆壁圖片
                     if up_w and down_w and left_w and right_w:
                         wall_img_path = f"./assert/image/wall/center.png"
                     elif up_w and down_w and left_w and not right_w:
@@ -102,7 +103,9 @@ class Renderer:
                         wall_img_path = f"./assert/image/wall/cortex_r.png"
                     elif not up_w and not down_w and not left_w and not right_w:
                         wall_img_path = f"./assert/image/wall/dot.png"
-                    pygame.draw.rect(self.screen, BLACK, rect)  # 繪製牆壁（黑色）
+                        
+                    load_wall = pygame.image.load(wall_img_path).convert_alpha()
+                    self.screen.blit(load_wall, (x * CELL_SIZE, y * CELL_SIZE))  # 繪製牆壁圖片
 
         # 渲染能量球
         for pellet in game.get_power_pellets():
