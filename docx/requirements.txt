@@ -1,6 +1,8 @@
 --find-links https://download.pytorch.org/whl/torch_stable.html
 pygame==2.6.1
-torch==2.7.0+cu126
+torch
+torchvision
+torchaudio
 numpy==2.2.4
 matplotlib==3.10.3
 tensorboard==2.19.0

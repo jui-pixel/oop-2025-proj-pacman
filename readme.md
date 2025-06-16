@@ -109,7 +109,7 @@ pip install -r docx/requirements.txt
 
 > **若你需要 GPU 支援，請依 [PyTorch 官方安裝指引](https://pytorch.org/get-started/locally/) 選擇對應 CUDA 版本的 wheel，並參考如下命令：**
 > ```bash
-> pip install torch==<版本>+<cuda標籤> -f https://download.pytorch.org/whl/torch_stable.html
+> pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 > ```
 
 或手動安裝其它依賴：
