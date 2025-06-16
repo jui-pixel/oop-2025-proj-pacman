@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+runs/
+optuna.db
+pacman_dqn.pth
+pacman_dqn_final.pth
+replay_buffer.pkl
+replay_buffer_final.pkl
+episode_rewards.json
+.git/
+.gitignore
+.gitattributes
