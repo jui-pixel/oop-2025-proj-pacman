@@ -3,7 +3,7 @@ FROM nvidia/cuda:12.6.1-cudnn-runtime-ubuntu22.04
 
 # 安裝 Python 和必要工具
 RUN apt-get update && apt-get install -y \
-    python3.13 \
+    python3 \
     python3-pip \
     libsdl2-dev \
     libsdl2-image-dev \
