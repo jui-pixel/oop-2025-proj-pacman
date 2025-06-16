@@ -200,7 +200,7 @@ class DQNAIControl(ControlStrategy):
             expert_prob_start=0.0,  # 初始專家策略概率
             expert_prob_end=0.0,  # 最終專家策略概率
             expert_prob_decay_steps=1,  # 專家策略衰減步數
-            sigma=0.01,  # NoisyLinear 層的噪聲參數
+            sigma=10.01,  # NoisyLinear 層的噪聲參數
         )
         try:
             self.agent.load(model_path)  # 載入模型
