@@ -127,7 +127,7 @@ class Renderer:
         for ghost in game.get_ghosts():
             if ghost.returning_to_spawn:
                 ghost_img_path = f"./assert/image/ghosts/ghost_return.png"
-                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.2))  # 閃爍效果
+                ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.5))  # 閃爍效果
             elif ghost.edible and ghost.edible_timer > 0:
                 ghost_img_path = f"./assert/image/ghosts/ghost_edible.png"
                 ghost.alpha = 255
@@ -136,6 +136,7 @@ class Renderer:
                 ghost.alpha = 255
 
             load_ghost = pygame.image.load(ghost_img_path).convert_alpha()
+            load_ghost.set_alpha(ghost.alpha)
             self.screen.blit(load_ghost, (ghost.current_x - CELL_SIZE * 5 // 12, ghost.current_y - CELL_SIZE * 5 // 12))
             
         # 渲染 Pac-Man
