@@ -299,9 +299,9 @@ python ai/test_cuda.py
 ## 📝 文件資源
 
 專案提供詳細的技術說明文件，位於 `docx/` 資料夾：
-- **dqn_agent_explained.markdown**：DQN 代理的運作機制。
-- **ghost_behavior_explained.markdown**：鬼魂行為與策略。
-- **pacman_behavior_explained.markdown**：Pac-Man 的移動與邏輯。
-- **pacman_env_explained.markdown**：強化學習環境詳解。
-- **pacman_maze_generation_explained.markdown**：迷宮生成原理。
-- **train_explained.markdown**：DQN 訓練流程解析。
+- [DQN 代理的運作機制](docx/dqn_agent_explained.markdown)
+- [鬼魂行為與策略](docx/ghost_behavior_explained.markdown)
+- [Pac-Man 的移動與邏輯](docx/pacman_behavior_explained.markdown)
+- [強化學習環境詳解](docx/pacman_env_explained.markdown)
+- [迷宮生成原理](docx/pacman_maze_generation_explained.markdown)
+- [DQN 訓練流程解析](docx/train_explained.markdown)
