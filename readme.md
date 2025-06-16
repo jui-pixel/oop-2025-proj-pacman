@@ -4,6 +4,9 @@
 
 ---
 
+![Pac-Man Gameplay](assert/pacman_dqn_agent_triple_kill.gif)
+
+---
 ## 📂 專案結構
 
 以下是專案的目錄結構與主要模組說明：
