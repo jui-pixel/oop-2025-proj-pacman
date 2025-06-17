@@ -187,10 +187,12 @@ def show_leaderboard(screen, font, screen_width, screen_height):
         load_leaderboard = pygame.transform.scale(load_leaderboard, (screen_width, screen_height))  # 調整圖片大小
         screen.blit(load_leaderboard, (0, 0))
 
+        small_font = pygame.font.SysFont(None,29)  # 使用較小的字體顯示排行榜
         for i, record in enumerate(records):
-            text = font.render(f"{record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
-            screen.blit(text, (screen_width // 6, 140 + i * 33.5))  # 顯示每條記錄
+            text = small_font.render(f"{record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
+            screen.blit(text, (screen_width // 6, 142 + i * 33.5))  # 顯示每條記錄
         pygame.display.flip()
+
 def update_config_seed(new_seed):
     """
     更新 config.py 中的 MAZE_SEED 值並儲存到檔案，然後重新加載 config 模組。
@@ -490,8 +492,10 @@ def show_game_result(screen, font, screen_width, screen_height, won, score):
                     if button.rect.collidepoint(mouse_pos):
                         return ["menu", "restart", "exit"][i]  # 滑鼠點擊選擇
         screen.fill(BLACK)
-        result_text = font.render("You Win!" if won else "Game Over!", True, GREEN if won else RED)
-        screen.blit(result_text, (screen_width // 2 - result_text.get_width() // 2, screen_height // 2 - 100))  # 顯示結果
+        winnig_image = pygame.image.load(f"./assert/image/win.png").convert_alpha()
+        losing_image = pygame.image.load(f"./assert/image/lose.png").convert_alpha()
+        result_image = winnig_image if won else losing_image
+        screen.blit(result_image, (0, 0))  # 繪製結果
         score_text = font.render(f"Score: {score}", True, WHITE)
         screen.blit(score_text, (screen_width // 2 - score_text.get_width() // 2, screen_height // 2 - 50))  # 顯示分數
         for button in buttons:
@@ -560,8 +564,10 @@ def show_pause_menu(screen, font, screen_width, screen_height):
         
         # 繪製定格的背景
         screen.blit(background, (0, 0))
-        pause_text = font.render("Paused", True, YELLOW)
-        screen.blit(pause_text, (screen_width // 2 - pause_text.get_width() // 2, screen_height // 2 - 100))  # 顯示暫停標題
+
+        paused_image = pygame.image.load(f"./assert/image/paused.png").convert_alpha()  # 加載暫停圖片
+        paused_image = pygame.transform.scale(paused_image, (screen_width, screen_height))
+        screen.blit(paused_image, (0, 0))  # 繪製暫停背景圖片
         for button in buttons:
             button.draw(screen)  # 繪製按鈕
         pygame.display.flip()
