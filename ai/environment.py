@@ -259,6 +259,8 @@ class PacManEnv(Game):
                         # 更新鬼魂的格子坐標
                         ghost.x = ghost.target_x
                         ghost.y = ghost.target_y
+                    else:
+                        ghost.move(self.pacman, self.maze, FPS)
         # 檢查碰撞
         self._check_collision(FPS)
         # 如果所有豆子都被吃完，則遊戲勝利
