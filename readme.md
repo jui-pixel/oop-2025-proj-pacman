@@ -93,24 +93,38 @@ oop-2025-proj-pacman/
 ## 🚀 快速開始
 
 ### **環境要求**
-- **Python**：3.13.2（或 3.8 以上）
+- **重要**：由於 PyTorch 官方並沒有釋出 torch==2.7.0+cu126 這個 wheel ，目前docker不可用
+- **Python**：建議 3.10 以上（3.8 以上亦可，若需 3.13 請自行安裝）
 - **依賴套件**：
   - Pygame 2.6.1
-  - PyTorch（支援 CPU 或 GPU，需根據 CUDA 版本選擇）
+  - PyTorch（CPU 或 GPU，請依據自己的 CUDA 版本選擇安裝）
   - NumPy
   - Matplotlib
   - TensorBoard
   - Optuna
 
 **安裝依賴**：
+
+最推薦方式（自動安裝 requirements.txt 內所有依賴）：
 ```bash
 pip install -r docx/requirements.txt
 ```
 
-或手動安裝：
+> **若你需要 GPU 支援，請依 [PyTorch 官方安裝指引](https://pytorch.org/get-started/locally/) 選擇對應 CUDA 版本的 wheel，並參考如下命令：**
+> ```bash
+> pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+> ```
+
+或手動安裝其它依賴：
 ```bash
-pip install pygame torch numpy matplotlib tensorboard optuna
+pip install pygame numpy matplotlib tensorboard optuna
 ```
+
+如只需 CPU 版 PyTorch，可直接：
+```bash
+pip install torch
+```
+如需 GPU 版，請確認你的 CUDA 驅動版本，並參考官方指引安裝對應版本的 PyTorch。
 
 ### **運行遊戲**
 執行以下命令啟動遊戲：
@@ -142,7 +156,7 @@ python ai/train.py --optuna
 
 **自訂超參數訓練**（範例）：
 ```bash
-python ai/train.py --lr=0.00001 --batch_size=32 --target_update_freq=2 --sigma=0.05 --n_step=4 --gamma=0.97 --alpha=0.5 --beta=0.3 --beta_increment=0.002912893141237 --expert_prob_start=0.05 --expert_prob_end=0.03 --expert_prob_decay_steps=100000 --expert_random_prob=0.125 --max_expert_data=10000 --ghost_penalty_weight=10 --pretrain_episodes=100 --episodes=10000
+python ai/train.py --lr=0.00001 --batch_size=32 --target_update_freq=2 --sigma=0.05 --n_step=4 --gamma=0.97 --alpha=0.5 --beta=0.3 --beta_increment=0.002 --expert_prob_start=0.05 --expert_prob_end=0.03 --expert_prob_decay_steps=100000 --expert_random_prob=0.125 --max_expert_data=100000 --ghost_penalty_weight=10 --pretrain_episodes=100 --episodes=10000
 ```
 
 ---
