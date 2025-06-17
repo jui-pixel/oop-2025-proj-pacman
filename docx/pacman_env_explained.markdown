@@ -232,7 +232,7 @@ PacManEnv 的狀態是一個 **6 通道的三維陣列**，形狀為 `(6, height
 
 5. **形勢獎勵（Shape Reward）**：
    - 根據 Pac-Man 與鬼魂、豆子的距離計算，鼓勵好的位置：
-     - **可食用鬼魂**：靠近可食用鬼魂加分（`+ghost_penalty_weight * (1 - dist/max_dist) * 0.5`）。
+     - **可食用鬼魂**：遠離可食用鬼魂扣分（`-ghost_penalty_weight * (dist/max_dist) * 0.5`）。
      - **普通鬼魂**：靠近普通鬼魂扣分（`-ghost_penalty_weight / dist`）。
      - **能量豆**：遠離能量豆扣分（`-ghost_penalty_weight * (dist/max_dist) * 0.4`）。
      - **分數豆**：遠離分數豆扣分（`-ghost_penalty_weight * (dist/max_dist) * 0.3`）。
