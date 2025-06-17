@@ -436,7 +436,7 @@ def show_loading_screen(screen, font, screen_width, screen_height):
     loading0_image = pygame.image.load(f"./assert/image/loading/loading0.png").convert_alpha()  # 加載加載圖片
     screen.blit(loading0_image, (0, 0))  # 繪製背景圖片
     pygame.display.flip()
-    pygame.time.wait(400)  # 延遲 0.4 秒
+    pygame.time.wait(200)  # 延遲 0.2 秒
 
 def show_game_result(screen, font, screen_width, screen_height, won, score):
     """
