@@ -248,6 +248,7 @@ class DQNAIControl(ControlStrategy):
                     state[3, ghost.target_y, ghost.target_x] = 1.0  # 可食用鬼魂位置
                 else:
                     state[4, ghost.target_y, ghost.target_x] = 1.0  # 危險鬼魂位置
+                    state[4, ghost.y, ghost.x] = 1.0
             # 使用自動混合精度進行推斷
             with autocast(self.device.type):
                 action = self.agent.choose_action(state)  # 選擇動作

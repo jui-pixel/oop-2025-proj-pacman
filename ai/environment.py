@@ -114,6 +114,7 @@ class PacManEnv(Game):
             # 否則是普通鬼魂，則在第 4 通道設為 1
             else:
                 state[4, ghost.target_y, ghost.target_x] = 1.0
+                state[4, ghost.y, ghost.x] = 1.0
         return state
 
     def get_expert_action(self):
