@@ -143,8 +143,8 @@ def show_menu(screen, font, screen_width, screen_height):
         screen.fill(BLACK)  # 清空螢幕
         title = font.render("Pac-Man Menu", True, YELLOW)  # 渲染標題
         screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))  # 置中顯示標題
-        
-        load_menu = pygame.image.load(f"./assert/image/menu/Pacman_menu.png").convert_alpha()  # 加載選單背景圖片
+
+        load_menu = pygame.image.load(f"./assert/image/menu.png").convert_alpha()  # 加載選單背景圖片
         load_menu = pygame.transform.scale(load_menu, (screen_width, screen_height))  # 調整圖片大小
         screen.blit(load_menu, (0, 0))  # 繪製背景
         for button in buttons:
