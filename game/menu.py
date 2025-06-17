@@ -397,13 +397,13 @@ def get_player_name(screen, font, screen_width, screen_height, default_name="Pla
                 elif event.key == pygame.K_ESCAPE:
                     return name  # 取消輸入
         screen.fill(BLACK)
-        prompt = font.render("Enter your name:", True, YELLOW)
-        screen.blit(prompt, (screen_width // 2 - prompt.get_width() // 2, screen_height // 2 - 50))  # 顯示提示
+        player_name_image = pygame.image.load(f"./assert/image/player_name.png").convert_alpha()  # 加載玩家名稱圖片
+        player_name_image = pygame.transform.scale(player_name_image, (screen_width, screen_height))  # 調整圖片大小
+        screen.blit(player_name_image, (0, 0))  # 繪製背景圖片
+
         pygame.draw.rect(screen, WHITE, input_rect, 2)  # 繪製輸入框邊框
         name_surface = font.render(name, True, WHITE)
         screen.blit(name_surface, (input_rect.x + 5, input_rect.y + 5))  # 顯示輸入文字
-        instruction = font.render("Press Enter to confirm, ESC to skip", True, WHITE)
-        screen.blit(instruction, (screen_width // 2 - instruction.get_width() // 2, screen_height // 2 + 60))  # 顯示操作說明
         pygame.display.flip()
 
 def show_loading_screen(screen, font, screen_width, screen_height):
