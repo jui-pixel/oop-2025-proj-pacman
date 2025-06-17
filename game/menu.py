@@ -185,6 +185,10 @@ def show_leaderboard(screen, font, screen_width, screen_height):
         screen.fill(BLACK)
         title = font.render("Leaderboard", True, YELLOW)
         screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))  # 置中顯示標題
+        load_leaderboard = pygame.image.load(f"./assert/image/leaderboard.png").convert_alpha()  # 加載排行榜背景圖片
+        load_leaderboard = pygame.transform.scale(load_leaderboard, (screen_width, screen_height))  # 調整圖片大小
+        screen.blit(load_leaderboard, (0, 0))
+
         for i, record in enumerate(records):
             text = font.render(f"{i+1}. {record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
             screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100 + i * 40))  # 顯示每條記錄
