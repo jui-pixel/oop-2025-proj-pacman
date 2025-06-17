@@ -171,7 +171,7 @@ def show_leaderboard(screen, font, screen_width, screen_height):
     try:
         with open("scores.json", "r") as f:
             records = json.load(f)
-            records = sorted(records, key=lambda x: x["score"], reverse=True)[:10]  # 按分數降序取前 10
+            records = sorted(records, key=lambda x: x["score"], reverse=True)[:6]  # 按分數降序取前 10
     except FileNotFoundError:
         pass  # 若檔案不存在，顯示空排行榜
 
@@ -190,8 +190,8 @@ def show_leaderboard(screen, font, screen_width, screen_height):
         screen.blit(load_leaderboard, (0, 0))
 
         for i, record in enumerate(records):
-            text = font.render(f"{i+1}. {record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
-            screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100 + i * 40))  # 顯示每條記錄
+            text = font.render(f"    {record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
+            screen.blit(text, (screen_width // 5, 150 + i * 50))  # 顯示每條記錄
         back_text = font.render("Press ESC to return", True, WHITE)
         screen.blit(back_text, (screen_width // 2 - back_text.get_width() // 2, screen_height - 50))  # 提示返回
         pygame.display.flip()
