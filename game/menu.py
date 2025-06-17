@@ -560,8 +560,10 @@ def show_pause_menu(screen, font, screen_width, screen_height):
         
         # 繪製定格的背景
         screen.blit(background, (0, 0))
-        pause_text = font.render("Paused", True, YELLOW)
-        screen.blit(pause_text, (screen_width // 2 - pause_text.get_width() // 2, screen_height // 2 - 100))  # 顯示暫停標題
+
+        paused_image = pygame.image.load(f"./assert/image/paused.png").convert_alpha()  # 加載暫停圖片
+        paused_image = pygame.transform.scale(paused_image, (screen_width, screen_height))
+        screen.blit(paused_image, (0, 0))  # 繪製暫停背景圖片
         for button in buttons:
             button.draw(screen)  # 繪製按鈕
         pygame.display.flip()
