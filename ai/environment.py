@@ -252,14 +252,14 @@ class PacManEnv(Game):
                 else:
                     # 每隔兩幀更新一次鬼魂位置
                     if self.frame_count % self.ghost_move_counter == 0:
+                        ghost.move(self.pacman, self.maze, FPS)
                         # 更新鬼魂的實際像素坐標
                         ghost.current_x = ghost.target_x * CELL_SIZE + CELL_SIZE // 2
                         ghost.current_y = ghost.target_y * CELL_SIZE + CELL_SIZE // 2
                         # 更新鬼魂的格子坐標
                         ghost.x = ghost.target_x
                         ghost.y = ghost.target_y
-                    else:
-                        ghost.move(self.pacman, self.maze, FPS)
+
         # 檢查碰撞
         self._check_collision(FPS)
         # 如果所有豆子都被吃完，則遊戲勝利
