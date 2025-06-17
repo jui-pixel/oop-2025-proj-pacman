@@ -421,10 +421,22 @@ def show_loading_screen(screen, font, screen_width, screen_height):
         screen_height (int): 螢幕高度。
     """
     screen.fill(BLACK)
-    loading_text = font.render("Loading...", True, YELLOW)
-    screen.blit(loading_text, (screen_width // 2 - loading_text.get_width() // 2, screen_height // 2))  # 置中顯示
+    loading3_image = pygame.image.load(f"./assert/image/loading/loading3.png").convert_alpha()  # 加載加載圖片
+    screen.blit(loading3_image, (0, 0))  # 繪製背景圖片
     pygame.display.flip()
-    pygame.time.wait(1000)  # 延遲 1 秒
+    pygame.time.wait(400)  # 延遲 0.4 秒
+    loading2_image = pygame.image.load(f"./assert/image/loading/loading2.png").convert_alpha()  # 加載加載圖片
+    screen.blit(loading2_image, (0, 0))  # 繪製背景圖片
+    pygame.display.flip()
+    pygame.time.wait(400)  # 延遲 0.4 秒
+    loading1_image = pygame.image.load(f"./assert/image/loading/loading1.png").convert_alpha()  # 加載加載圖片
+    screen.blit(loading1_image, (0, 0))  # 繪製背景圖片
+    pygame.display.flip()
+    pygame.time.wait(400)  # 延遲 0.4 秒
+    loading0_image = pygame.image.load(f"./assert/image/loading/loading0.png").convert_alpha()  # 加載加載圖片
+    screen.blit(loading0_image, (0, 0))  # 繪製背景圖片
+    pygame.display.flip()
+    pygame.time.wait(400)  # 延遲 0.4 秒
 
 def show_game_result(screen, font, screen_width, screen_height, won, score):
     """
