@@ -391,7 +391,7 @@ class PacManEnv(Game):
                 continue
             # 可食用鬼魂的距離獎勵
             elif ghost.edible:
-                shape += self.ghost_penalty_weight * (1 - dist / max_dist) / max(1, len(self.ghosts)) * 0.5
+                shape -= self.ghost_penalty_weight * (dist / max_dist) / max(1, len(self.ghosts)) * 0.5
             # 普通鬼魂的距離懲罰
             else:
                 shape -= self.ghost_penalty_weight * (1 / max(1, dist)) / max(1, len(self.ghosts))
