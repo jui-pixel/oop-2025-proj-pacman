@@ -109,7 +109,7 @@ def show_menu(screen, font, screen_width, screen_height):
     Returns:
         str: 選擇的模式（"player", "rule_ai", "dqn_ai", "leaderboard", "settings", "exit"）。
     """
-    buttons = [MenuButton(mode, screen_width // 2 - 100, 100 + i * 60, 200, 50, font, GRAY, LIGHT_BLUE) 
+    buttons = [MenuButton(mode, screen_width // 2 - 100, 120 + i * 60, 200, 50, font, GRAY, LIGHT_BLUE) 
                for i, mode in enumerate(["Player Mode", "Rule AI Mode", "DQN AI Mode", "Leaderboard", "Settings", "Exit"])]
     selected_index = 0
     buttons[selected_index].is_hovered = True  # 預設第一個按鈕被選中
@@ -143,6 +143,10 @@ def show_menu(screen, font, screen_width, screen_height):
         screen.fill(BLACK)  # 清空螢幕
         title = font.render("Pac-Man Menu", True, YELLOW)  # 渲染標題
         screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))  # 置中顯示標題
+
+        load_menu = pygame.image.load(f"./assert/image/menu.png").convert_alpha()  # 加載選單背景圖片
+        load_menu = pygame.transform.scale(load_menu, (screen_width, screen_height))  # 調整圖片大小
+        screen.blit(load_menu, (0, 0))  # 繪製背景
         for button in buttons:
             button.draw(screen)  # 繪製所有按鈕
         pygame.display.flip()  # 更新螢幕
@@ -181,6 +185,10 @@ def show_leaderboard(screen, font, screen_width, screen_height):
         screen.fill(BLACK)
         title = font.render("Leaderboard", True, YELLOW)
         screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))  # 置中顯示標題
+        load_leaderboard = pygame.image.load(f"./assert/image/leaderboard.png").convert_alpha()  # 加載排行榜背景圖片
+        load_leaderboard = pygame.transform.scale(load_leaderboard, (screen_width, screen_height))  # 調整圖片大小
+        screen.blit(load_leaderboard, (0, 0))
+
         for i, record in enumerate(records):
             text = font.render(f"{i+1}. {record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
             screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100 + i * 40))  # 顯示每條記錄
