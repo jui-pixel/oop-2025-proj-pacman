@@ -129,7 +129,10 @@ class Renderer:
                 ghost_img_path = f"./assert/image/ghosts/ghost_return.png"
                 ghost.alpha = int(128 + 127 * math.sin(frame_count * 0.5))  # 閃爍效果
             elif ghost.edible and ghost.edible_timer > 0:
-                ghost_img_path = f"./assert/image/ghosts/ghost_edible.png"
+                if ghost.edible_timer < 5 and frame_count % 8 < 4:  # 如果剩餘時間小於30幀，閃爍
+                    ghost_img_path = f"./assert/image/ghosts/ghost_edible_white.png"
+                else: 
+                    ghost_img_path = f"./assert/image/ghosts/ghost_edible.png"
                 ghost.alpha = 255
             else:
                 while True:
