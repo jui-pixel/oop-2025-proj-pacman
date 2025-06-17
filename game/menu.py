@@ -491,6 +491,7 @@ def show_game_result(screen, font, screen_width, screen_height, won, score):
                         return ["menu", "restart", "exit"][i]  # 滑鼠點擊選擇
         screen.fill(BLACK)
         winnig_image = pygame.image.load(f"./assert/image/winning.png").convert_alpha()
+        losing_image = pygame.image.load(f"./assert/image/losing.png").convert_alpha()
         result_text = font.render("You Win!" if won else "Game Over!", True, GREEN if won else RED)
         screen.blit(result_text, (screen_width // 2 - result_text.get_width() // 2, screen_height // 2 - 100))  # 顯示結果
         score_text = font.render(f"Score: {score}", True, WHITE)
