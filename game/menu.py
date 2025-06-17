@@ -303,22 +303,19 @@ def show_settings(screen, font, screen_width, screen_height):
         ]
 
         screen.fill(BLACK)  # 清空螢幕
-        # 繪製標題
-        title = font.render("Settings", True, YELLOW)
-        screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))
+        
+        load_settings = pygame.image.load(f"./assert/image/setting.png").convert_alpha()  # 加載設定背景圖片
+        load_settings = pygame.transform.scale(load_settings, (screen_width, screen_height))  # 調整圖片大小
+        screen.blit(load_settings, (0, 0))  #
 
         # 繪製設定清單
         for i, setting in enumerate(settings):
             text = font.render(setting, True, WHITE)
-            screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100 + i * 40))
+            screen.blit(text, (screen_width // 2 - text.get_width() // 2, 107 + i * 40))
 
         # 繪製按鈕
         for button in buttons:
             button.draw(screen)
-
-        # 繪製返回提示
-        back_text = font.render("Press ESC to return, Left/Right to adjust seed", True, WHITE)
-        screen.blit(back_text, (screen_width // 2 - back_text.get_width() // 2, screen_height - 50))
 
         pygame.display.flip()  # 更新螢幕
 
