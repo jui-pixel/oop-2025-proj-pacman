@@ -490,8 +490,8 @@ def show_game_result(screen, font, screen_width, screen_height, won, score):
                     if button.rect.collidepoint(mouse_pos):
                         return ["menu", "restart", "exit"][i]  # 滑鼠點擊選擇
         screen.fill(BLACK)
-        winnig_image = pygame.image.load(f"./assert/image/winning.png").convert_alpha()
-        losing_image = pygame.image.load(f"./assert/image/losing.png").convert_alpha()
+        winnig_image = pygame.image.load(f"./assert/image/win.png").convert_alpha()
+        losing_image = pygame.image.load(f"./assert/image/lose.png").convert_alpha()
         result_image = winnig_image if won else losing_image
         screen.blit(result_image, (0, 0))  # 繪製結果
         score_text = font.render(f"Score: {score}", True, WHITE)
