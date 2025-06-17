@@ -183,17 +183,13 @@ def show_leaderboard(screen, font, screen_width, screen_height):
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 return  # 返回主選單
         screen.fill(BLACK)
-        title = font.render("Leaderboard", True, YELLOW)
-        screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))  # 置中顯示標題
         load_leaderboard = pygame.image.load(f"./assert/image/leaderboard.png").convert_alpha()  # 加載排行榜背景圖片
         load_leaderboard = pygame.transform.scale(load_leaderboard, (screen_width, screen_height))  # 調整圖片大小
         screen.blit(load_leaderboard, (0, 0))
 
         for i, record in enumerate(records):
-            text = font.render(f"{i+1}. {record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
-            screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100 + i * 40))  # 顯示每條記錄
-        back_text = font.render("Press ESC to return", True, WHITE)
-        screen.blit(back_text, (screen_width // 2 - back_text.get_width() // 2, screen_height - 50))  # 提示返回
+            text = font.render(f"{record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
+            screen.blit(text, (screen_width // 6, 140 + i * 33.5))  # 顯示每條記錄
         pygame.display.flip()
 def update_config_seed(new_seed):
     """
@@ -307,22 +303,19 @@ def show_settings(screen, font, screen_width, screen_height):
         ]
 
         screen.fill(BLACK)  # 清空螢幕
-        # 繪製標題
-        title = font.render("Settings", True, YELLOW)
-        screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))
+        
+        load_settings = pygame.image.load(f"./assert/image/setting.png").convert_alpha()  # 加載設定背景圖片
+        load_settings = pygame.transform.scale(load_settings, (screen_width, screen_height))  # 調整圖片大小
+        screen.blit(load_settings, (0, 0))  #
 
         # 繪製設定清單
         for i, setting in enumerate(settings):
             text = font.render(setting, True, WHITE)
-            screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100 + i * 40))
+            screen.blit(text, (screen_width // 2 - text.get_width() // 2, 107 + i * 40))
 
         # 繪製按鈕
         for button in buttons:
             button.draw(screen)
-
-        # 繪製返回提示
-        back_text = font.render("Press ESC to return, Left/Right to adjust seed", True, WHITE)
-        screen.blit(back_text, (screen_width // 2 - back_text.get_width() // 2, screen_height - 50))
 
         pygame.display.flip()  # 更新螢幕
 
@@ -404,13 +397,13 @@ def get_player_name(screen, font, screen_width, screen_height, default_name="Pla
                 elif event.key == pygame.K_ESCAPE:
                     return name  # 取消輸入
         screen.fill(BLACK)
-        prompt = font.render("Enter your name:", True, YELLOW)
-        screen.blit(prompt, (screen_width // 2 - prompt.get_width() // 2, screen_height // 2 - 50))  # 顯示提示
+        player_name_image = pygame.image.load(f"./assert/image/player_name.png").convert_alpha()  # 加載玩家名稱圖片
+        player_name_image = pygame.transform.scale(player_name_image, (screen_width, screen_height))  # 調整圖片大小
+        screen.blit(player_name_image, (0, 0))  # 繪製背景圖片
+
         pygame.draw.rect(screen, WHITE, input_rect, 2)  # 繪製輸入框邊框
         name_surface = font.render(name, True, WHITE)
         screen.blit(name_surface, (input_rect.x + 5, input_rect.y + 5))  # 顯示輸入文字
-        instruction = font.render("Press Enter to confirm, ESC to skip", True, WHITE)
-        screen.blit(instruction, (screen_width // 2 - instruction.get_width() // 2, screen_height // 2 + 60))  # 顯示操作說明
         pygame.display.flip()
 
 def show_loading_screen(screen, font, screen_width, screen_height):
@@ -428,10 +421,22 @@ def show_loading_screen(screen, font, screen_width, screen_height):
         screen_height (int): 螢幕高度。
     """
     screen.fill(BLACK)
-    loading_text = font.render("Loading...", True, YELLOW)
-    screen.blit(loading_text, (screen_width // 2 - loading_text.get_width() // 2, screen_height // 2))  # 置中顯示
+    loading3_image = pygame.image.load(f"./assert/image/loading/loading3.png").convert_alpha()  # 加載加載圖片
+    screen.blit(loading3_image, (0, 0))  # 繪製背景圖片
     pygame.display.flip()
-    pygame.time.wait(1000)  # 延遲 1 秒
+    pygame.time.wait(400)  # 延遲 0.4 秒
+    loading2_image = pygame.image.load(f"./assert/image/loading/loading2.png").convert_alpha()  # 加載加載圖片
+    screen.blit(loading2_image, (0, 0))  # 繪製背景圖片
+    pygame.display.flip()
+    pygame.time.wait(400)  # 延遲 0.4 秒
+    loading1_image = pygame.image.load(f"./assert/image/loading/loading1.png").convert_alpha()  # 加載加載圖片
+    screen.blit(loading1_image, (0, 0))  # 繪製背景圖片
+    pygame.display.flip()
+    pygame.time.wait(400)  # 延遲 0.4 秒
+    loading0_image = pygame.image.load(f"./assert/image/loading/loading0.png").convert_alpha()  # 加載加載圖片
+    screen.blit(loading0_image, (0, 0))  # 繪製背景圖片
+    pygame.display.flip()
+    pygame.time.wait(200)  # 延遲 0.2 秒
 
 def show_game_result(screen, font, screen_width, screen_height, won, score):
     """
