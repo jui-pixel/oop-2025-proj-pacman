@@ -187,10 +187,12 @@ def show_leaderboard(screen, font, screen_width, screen_height):
         load_leaderboard = pygame.transform.scale(load_leaderboard, (screen_width, screen_height))  # 調整圖片大小
         screen.blit(load_leaderboard, (0, 0))
 
+        small_font = pygame.font.SysFont(None,29)  # 使用較小的字體顯示排行榜
         for i, record in enumerate(records):
-            text = font.render(f"{record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
-            screen.blit(text, (screen_width // 6, 140 + i * 33.5))  # 顯示每條記錄
+            text = small_font.render(f"{record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
+            screen.blit(text, (screen_width // 6, 142 + i * 33.5))  # 顯示每條記錄
         pygame.display.flip()
+
 def update_config_seed(new_seed):
     """
     更新 config.py 中的 MAZE_SEED 值並儲存到檔案，然後重新加載 config 模組。
