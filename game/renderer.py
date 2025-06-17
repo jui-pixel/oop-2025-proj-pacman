@@ -66,9 +66,9 @@ class Renderer:
                 elif tile == TILE_POWER_PELLET:
                     pygame.draw.rect(self.screen, BLACK, rect)  # 繪製能量球位置（黑色）
                 elif tile == TILE_GHOST_SPAWN:
-                    pygame.draw.rect(self.screen, PINK, rect)  # 繪製鬼魂重生點（粉紅色）
+                    pygame.draw.rect(self.screen, BLACK, rect)  # 繪製鬼魂生成位置（黑色）
                 elif tile == TILE_DOOR:
-                    pygame.draw.rect(self.screen, RED, rect)  # 繪製門（紅色）
+                    pygame.draw.rect(self.screen, GRAY, rect)  # 繪製門（灰色）
                 elif tile == TILE_WALL:
                     # 根據相鄰格子的資訊選擇牆壁圖片
                     if up_w and down_w and left_w and right_w:
@@ -132,10 +132,17 @@ class Renderer:
                 ghost_img_path = f"./assert/image/ghosts/ghost_edible.png"
                 ghost.alpha = 255
             else:
-                ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
+                while True:
+                    frame_count_mod = frame_count // 5
+                    if frame_count_mod % 2 == 0:
+                        ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
+                    elif frame_count_mod % 2 == 1:
+                        ghost_img_path = f"./assert/image/ghosts/{ghost.name}_2.png"
+                    break
                 ghost.alpha = 255
 
             load_ghost = pygame.image.load(ghost_img_path).convert_alpha()
+            load_ghost = pygame.transform.scale(load_ghost, (CELL_SIZE * 5 // 6, CELL_SIZE * 5 // 6))  # 調整鬼魂圖片大小
             load_ghost.set_alpha(ghost.alpha)
             self.screen.blit(load_ghost, (ghost.current_x - CELL_SIZE * 5 // 12, ghost.current_y - CELL_SIZE * 5 // 12))
             
