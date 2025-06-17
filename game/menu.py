@@ -191,8 +191,8 @@ def show_leaderboard(screen, font, screen_width, screen_height):
         for i, record in enumerate(records):
             text = small_font.render(f"{record['name']}: ", True, YELLOW)
             text_score = small_font.render(f" {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
-            screen.blit(text, (screen_width // 6, 142 + i * 33.5))  # 顯示每條記錄
-            screen.blit(text_score, (screen_width // 6 + 120, 142 + i * 33.5))  # 顯示分數、種子和時間
+            screen.blit(text, (screen_width // 4, 142 + i * 33.5))  # 顯示每條記錄
+            screen.blit(text_score, (screen_width // 4 + 120, 142 + i * 33.5))  # 顯示分數、種子和時間
         pygame.display.flip()
 
 def update_config_seed(new_seed):
