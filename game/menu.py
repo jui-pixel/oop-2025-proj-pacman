@@ -183,17 +183,13 @@ def show_leaderboard(screen, font, screen_width, screen_height):
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 return  # 返回主選單
         screen.fill(BLACK)
-        title = font.render("Leaderboard", True, YELLOW)
-        screen.blit(title, (screen_width // 2 - title.get_width() // 2, 30))  # 置中顯示標題
         load_leaderboard = pygame.image.load(f"./assert/image/leaderboard.png").convert_alpha()  # 加載排行榜背景圖片
         load_leaderboard = pygame.transform.scale(load_leaderboard, (screen_width, screen_height))  # 調整圖片大小
         screen.blit(load_leaderboard, (0, 0))
 
         for i, record in enumerate(records):
-            text = font.render(f"    {record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
-            screen.blit(text, (screen_width // 5, 150 + i * 50))  # 顯示每條記錄
-        back_text = font.render("Press ESC to return", True, WHITE)
-        screen.blit(back_text, (screen_width // 2 - back_text.get_width() // 2, screen_height - 50))  # 提示返回
+            text = font.render(f"   {record['name']}: {record['score']} (Seed: {record['seed']}, Time: {int(record['time']//60):02d}:{int(record['time']%60):02d})", True, WHITE)
+            screen.blit(text, (screen_width // 5, 150 + i * 51))  # 顯示每條記錄
         pygame.display.flip()
 def update_config_seed(new_seed):
     """
