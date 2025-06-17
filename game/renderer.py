@@ -132,10 +132,17 @@ class Renderer:
                 ghost_img_path = f"./assert/image/ghosts/ghost_edible.png"
                 ghost.alpha = 255
             else:
-                ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
+                while True:
+                    frame_count_mod = frame_count // 3
+                    if frame_count_mod % 2 == 0:
+                        ghost_img_path = f"./assert/image/ghosts/{ghost.name}.png"
+                    elif frame_count_mod % 2 == 1:
+                        ghost_img_path = f"./assert/image/ghosts/{ghost.name}_2.png"
+                    break
                 ghost.alpha = 255
 
             load_ghost = pygame.image.load(ghost_img_path).convert_alpha()
+            load_ghost = pygame.transform.scale(load_ghost, (CELL_SIZE * 5 // 6, CELL_SIZE * 5 // 6))  # 調整鬼魂圖片大小
             load_ghost.set_alpha(ghost.alpha)
             self.screen.blit(load_ghost, (ghost.current_x - CELL_SIZE * 5 // 12, ghost.current_y - CELL_SIZE * 5 // 12))
             
