@@ -1,7 +1,7 @@
 # Pac-Man 遊戲專案
 
 這是一個基於 **Pygame** 的 Pac-Man 遊戲實現，採用物件導向程式設計（OOP）原則，結合 **深度 Q 學習（DQN）** 和 **規則基礎 AI** 控制策略。專案支援隨機迷宮生成、多樣化的鬼魂行為、玩家手動控制與 AI 自動控制，並提供 DQN 代理的訓練功能以及訓練結果的可視化工具。透過 OOP 設計，程式碼模組化、可維護且易於擴展，遊戲邏輯清晰分層，適合學習遊戲開發與強化學習。
-
+### Canva : [LINK](https://www.canva.com/design/DAGp1Rws-ZE/r4nssA1pJBUzwegxc3BLIg/edit?utm_content=DAGp1Rws-ZE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
 ---
 
 ![Pac-Man Gameplay](assert/pacman_dqn_agent_triple_kill.gif)
